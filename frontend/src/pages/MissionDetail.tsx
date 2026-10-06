@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { Rocket, ShieldAlert, Sparkles, MessageCircle, GitBranch, ExternalLink, Plus, Save, Trash2, Check, X, Download, Send } from 'lucide-react';
 import { CustomMarkdown } from '../components/CustomMarkdown';
 import { getStatusMeta } from '../utils/missionMeta';
+import { MissionPeoplePanel } from '../components/MissionPeoplePanel';
+import { QuickStatusSelect } from '../components/QuickStatusSelect';
 
 export const MissionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Mission ID
@@ -869,41 +871,13 @@ ${mission.description || 'No description provided.'}
       {/* Right Column: Teams, Review Panel, AI Summary Helper */}
       <div className="flex flex-col gap-6">
         
-        {/* Team Members List */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-subtle flex flex-col gap-4">
-          <h3 className="font-extrabold text-lg border-b border-gray-50 pb-3 flex items-center gap-2">
-            <span>Mission Teams</span>
-          </h3>
-
-          {mission.teams && mission.teams.length > 0 ? (
-            <div className="flex flex-col gap-4">
-              {mission.teams.map((team: any) => (
-                <div key={team.id} className="flex flex-col gap-2.5">
-                  <h4 className="font-extrabold text-sm text-magenta">{team.name}</h4>
-                  <div className="flex flex-col gap-2">
-                    {team.members.map((m: any) => (
-                      <div key={m.id} className="flex justify-between items-center text-xs">
-                        <Link to={`/cubes/${m.cube.id}`} className="font-bold hover:text-magenta transition-colors">
-                          {m.cube.user.name}
-                        </Link>
-                        <span className="text-[10px] font-semibold text-gray-400 uppercase">
-                          {m.role.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-400 text-sm py-2 text-center">No teams created yet.</p>
-          )}
-          {isMentorOrAdmin && (
-            <Link to="/teams" className="w-full text-center py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors mt-2">
-              Configure Teams & Assign Cubes
-            </Link>
-          )}
-        </div>
+        {/* People: current members, direct assignment and history */}
+        <MissionPeoplePanel
+          mission={mission}
+          contributors={data.contributors || []}
+          canManage={isMentorOrAdmin}
+          onChanged={fetchMissionDetails}
+        />
 
         {/* Mentor/Admin controls: Status & Decision panel */}
         {isMentorOrAdmin && (
@@ -972,7 +946,21 @@ ${mission.description || 'No description provided.'}
               </form>
             ) : (
               <div className="flex flex-col gap-2 text-xs text-gray-600 font-medium">
-                <p><span className="font-bold text-gray-700">Status:</span> <span className="uppercase text-[10px] bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-magenta font-extrabold">{mission.status.replace(/_/g, ' ')}</span></p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-gray-700">Status:</span>
+                  <QuickStatusSelect
+                    missionId={mission.id}
+                    status={mission.status}
+                    allowed={data.allowedNextStatuses || []}
+                    onChanged={(u) =>
+                      setData((prev: any) => ({
+                        ...prev,
+                        allowedNextStatuses: u.allowed_next_statuses,
+                        mission: { ...prev.mission, status: u.status }
+                      }))
+                    }
+                  />
+                </div>
                 {mission.decision && (
                   <p><span className="font-bold text-gray-700">Decision:</span> <span className="uppercase text-[10px] bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-gray-600 font-bold">{mission.decision.replace(/_/g, ' ')}</span></p>
                 )}

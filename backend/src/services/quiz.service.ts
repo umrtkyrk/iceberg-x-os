@@ -255,23 +255,12 @@ export class QuizService {
       include: { badge: true }
     });
 
-    // Find highest quiz badge awarded through attempts or custom badges
-    const awardedFromAttempts = completedAttempts
-      .map((a) => a.badge_awarded)
-      .filter((b): b is NonNullable<typeof b> => !!b)
-      .sort((a, b) => RARITY_WEIGHT[b.rarity] - RARITY_WEIGHT[a.rarity]);
-
-    const quizBadge =
-      (awardedFromAttempts[0] as any) ||
-      cubeBadges
-        .filter(
-          (cb) =>
-            cb.badge.accent === 'web-fundamentals' ||
-            /fundamental|quiz|web/i.test(cb.badge.name) ||
-            !SEED_MISSION_BADGE_NAMES.includes(cb.badge.name)
-        )
-        .map((cb) => cb.badge)
-        .sort((a, b) => RARITY_WEIGHT[b.rarity] - RARITY_WEIGHT[a.rarity])[0];
+    // Highest quiz-tier badge currently held by this Cube
+    const tierRank = (name: string) =>
+      QUIZ_BADGE_TIERS.findIndex((t) => t.name.toLowerCase() === name.toLowerCase());
+    const quizBadge = cubeBadges
+      .filter((cb) => tierRank(cb.badge.name) >= 0)
+      .sort((a, b) => tierRank(a.badge.name) - tierRank(b.badge.name))[0];
 
     return {
       canAttemptToday: !completedToday && !activeAttempt,

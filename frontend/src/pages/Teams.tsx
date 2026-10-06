@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Plus, Edit, Users, Trash } from 'lucide-react';
+import { ShieldAlert, Plus, Edit, Users, Trash, Search } from 'lucide-react';
+import { getStatusMeta, TERMINAL_MISSION_STATUSES } from '../utils/missionMeta';
 
 export const Teams: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ export const Teams: React.FC = () => {
   const [selectedMissionId, setSelectedMissionId] = useState('');
   const [members, setMembers] = useState<{ cubeProfileId: string; role: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [query, setQuery] = useState('');
+  const [teamFilter, setTeamFilter] = useState<'all' | 'no_mission' | 'empty'>('all');
 
   const fetchData = async () => {
     try {
@@ -60,7 +63,7 @@ export const Teams: React.FC = () => {
     setIsEditing(false);
     setEditingTeamId(null);
     setTeamName('');
-    setSelectedMissionId(missions[0]?.id || '');
+    setSelectedMissionId('');
     setMembers([{ cubeProfileId: '', role: 'Contributor' }]);
     setShowForm(true);
   };
@@ -111,7 +114,7 @@ export const Teams: React.FC = () => {
   };
 
   const handleDeleteTeam = async (teamId: string) => {
-    if (!window.confirm("Are you sure you want to dissolve and delete this team? This will release all team members.")) return;
+    if (!window.confirm("Dissolve this team? Its members are released. Their contributor history stays on the mission.")) return;
     try {
       await api.delete(`/teams/${teamId}`);
       setTeams(prev => prev.filter(t => t.id !== teamId));
@@ -120,6 +123,35 @@ export const Teams: React.FC = () => {
       alert(err.message || 'Failed to delete team');
     }
   };
+
+  const handleQuickMission = async (team: any, missionId: string) => {
+    try {
+      await api.put(`/teams/${team.id}`, { mission_id: missionId || null });
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to change the team mission');
+    }
+  };
+
+  // Which team(s) each Cube is currently on, to avoid double-booking by accident
+  const cubeTeams = new Map<string, string[]>();
+  teams.forEach((t) =>
+    (t.members || []).forEach((m: any) => {
+      const list = cubeTeams.get(m.cube_id) || [];
+      list.push(t.name);
+      cubeTeams.set(m.cube_id, list);
+    })
+  );
+
+  const q = query.trim().toLowerCase();
+  const visibleTeams = teams.filter((t) => {
+    if (teamFilter === 'no_mission' && t.mission_id) return false;
+    if (teamFilter === 'empty' && (t.members || []).length > 0) return false;
+    if (!q) return true;
+    return [t.name, t.mission?.title, ...(t.members || []).map((m: any) => m.cube?.user?.name)]
+      .some((v) => (v || '').toLowerCase().includes(q));
+  });
+  const openMissions = missions.filter((m) => !TERMINAL_MISSION_STATUSES.includes(m.status) || m.id === selectedMissionId);
 
   if (loading) {
     return (
@@ -157,6 +189,31 @@ export const Teams: React.FC = () => {
         </div>
       )}
 
+      {/* Search & filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search teams, missions or cubes…"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl outline-none font-semibold text-xs focus:border-magenta/40 shadow-subtle"
+          />
+        </div>
+        {([['all', 'All'], ['no_mission', 'No mission'], ['empty', 'Empty']] as const).map(([v, l]) => (
+          <button
+            key={v}
+            onClick={() => setTeamFilter(v)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+              teamFilter === v ? 'bg-magenta text-white border-magenta' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+        <span className="text-xs font-semibold text-gray-400">{visibleTeams.length} of {teams.length}</span>
+      </div>
+
       {/* Editor Drawer/Form */}
       {showForm && (
         <form onSubmit={handleFormSubmit} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-premium flex flex-col gap-5 max-w-2xl animate-fadeIn">
@@ -185,7 +242,7 @@ export const Teams: React.FC = () => {
                 className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
               >
                 <option value="">No Mission Assigned (Taskless Team)</option>
-                {missions.map(m => (
+                {openMissions.map(m => (
                   <option key={m.id} value={m.id}>{m.title}</option>
                 ))}
               </select>
@@ -203,11 +260,16 @@ export const Teams: React.FC = () => {
                   className="flex-1 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
                 >
                   <option value="">Select a Cube...</option>
-                  {cubes.map(c => (
-                    <option key={c.id} value={c.id}>
-                      Cube #{c.cube_number} - {c.user.name}
-                    </option>
-                  ))}
+                  {cubes
+                    .filter(c => c.id === member.cubeProfileId || !members.some(x => x.cubeProfileId === c.id))
+                    .map(c => {
+                      const busy = (cubeTeams.get(c.id) || []).filter(n => n !== teamName);
+                      return (
+                        <option key={c.id} value={c.id}>
+                          Cube #{c.cube_number} - {c.user?.name}{busy.length ? ` (on ${busy.join(', ')})` : ''}
+                        </option>
+                      );
+                    })}
                 </select>
 
                 <select
@@ -262,16 +324,37 @@ export const Teams: React.FC = () => {
       )}
 
       {/* Grid representation of Teams */}
-      {teams.length > 0 ? (
+      {visibleTeams.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {teams.map((team) => (
+          {visibleTeams.map((team) => (
             <div key={team.id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-subtle flex flex-col gap-4">
               <div className="flex justify-between items-start border-b border-gray-50 pb-3">
                 <div>
                   <h3 className="font-extrabold text-base text-gray-900">{team.name}</h3>
-                  <p className="text-xs text-magenta font-semibold mt-0.5">
-                    Mission: {team.mission ? team.mission.title : <span className="text-gray-400 italic">No Mission Assigned (Taskless)</span>}
-                  </p>
+                  {isMentorOrAdmin ? (
+                    <select
+                      value={team.mission_id || ''}
+                      onChange={e => handleQuickMission(team, e.target.value)}
+                      title="Change the mission this team works on"
+                      className="mt-1 max-w-[16rem] p-1 -ml-1 bg-transparent hover:bg-gray-50 rounded-md text-xs font-semibold text-magenta outline-none cursor-pointer truncate"
+                    >
+                      <option value="">No mission (taskless)</option>
+                      {missions
+                        .filter(m => !TERMINAL_MISSION_STATUSES.includes(m.status) || m.id === team.mission_id)
+                        .map(m => (
+                          <option key={m.id} value={m.id}>{m.title}</option>
+                        ))}
+                    </select>
+                  ) : (
+                    <p className="text-xs text-magenta font-semibold mt-0.5">
+                      Mission: {team.mission ? team.mission.title : <span className="text-gray-400 italic">No Mission Assigned (Taskless)</span>}
+                    </p>
+                  )}
+                  {team.mission && (
+                    <span className={`inline-block mt-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${getStatusMeta(team.mission.status).pill}`}>
+                      {getStatusMeta(team.mission.status).label}
+                    </span>
+                  )}
                 </div>
                 {isMentorOrAdmin && (
                   <div className="flex items-center gap-1.5">
@@ -305,13 +388,13 @@ export const Teams: React.FC = () => {
                     {team.members.map((m: any) => (
                       <div key={m.id} className="flex justify-between items-center py-2 text-xs">
                         <Link to={`/cubes/${m.cube_id}`} className="font-bold text-gray-700 hover:text-magenta transition-colors">
-                          {m.cube.user.name}
+                          {m.cube?.user?.name || 'Unknown'}
                         </Link>
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-extrabold bg-magenta/5 border border-magenta/10 text-magenta px-2 py-0.5 rounded-full uppercase tracking-wider">
                             {m.role.replace(/_/g, ' ')}
                           </span>
-                          <span className="text-gray-400 font-bold">#{m.cube.cube_number}</span>
+                          <span className="text-gray-400 font-bold">#{m.cube?.cube_number}</span>
                         </div>
                       </div>
                     ))}
@@ -325,7 +408,7 @@ export const Teams: React.FC = () => {
         </div>
       ) : (
         <p className="text-gray-400 text-sm py-12 text-center bg-white border border-gray-100 rounded-2xl shadow-subtle">
-          No teams created yet.
+          {teams.length === 0 ? 'No teams created yet.' : 'No teams match your search.'}
         </p>
       )}
     </div>

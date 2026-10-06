@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../utils/api';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Filter, ShieldAlert, ArrowUpDown } from 'lucide-react';
+import { Plus, Filter, ShieldAlert, ArrowUpDown, Search } from 'lucide-react';
+import { QuickStatusSelect } from '../components/QuickStatusSelect';
 import {
   avatarColor,
   getDifficultyMeta,
@@ -63,6 +64,8 @@ export const Missions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('updated');
+  const [query, setQuery] = useState('');
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
 
   const fetchMissions = async () => {
     try {
@@ -86,7 +89,12 @@ export const Missions: React.FC = () => {
 
       const matchesStatus = statusFilter ? m.status === statusFilter : true;
       const matchesDiff = difficultyFilter ? m.difficulty_level === difficultyFilter : true;
-      return matchesStatus && matchesDiff;
+      const people = (m.teams || []).flatMap((t: any) => (t.members || []).map((mem: any) => mem.cube?.user?.name));
+      const hasCubes = people.length > 0;
+      const q = query.trim().toLowerCase();
+      const matchesQuery = !q || [m.title, m.category, m.mentor?.name, ...(m.teams || []).map((t: any) => t.name), ...people]
+        .some((v) => (v || '').toLowerCase().includes(q));
+      return matchesStatus && matchesDiff && matchesQuery && (!unassignedOnly || !hasCubes);
     });
 
     const byDate = (value?: string) => (value ? new Date(value).getTime() : 0);
@@ -96,7 +104,7 @@ export const Missions: React.FC = () => {
       if (sortKey === 'created') return byDate(b.created_at) - byDate(a.created_at);
       return byDate(b.updated_at) - byDate(a.updated_at);
     });
-  }, [missions, statusFilter, difficultyFilter, sortKey]);
+  }, [missions, statusFilter, difficultyFilter, sortKey, query, unassignedOnly]);
 
   if (loading) {
     return (
@@ -138,6 +146,16 @@ export const Missions: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-subtle flex flex-wrap gap-4 items-center">
+        <div className="relative flex-[2] min-w-[240px]">
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search missions, cubes, teams, mentors…"
+            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none font-semibold text-xs focus:border-magenta/40"
+          />
+        </div>
+
         <div className="relative flex-1 min-w-[200px]">
           <Filter className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
           <select
@@ -171,6 +189,16 @@ export const Missions: React.FC = () => {
             <option value="Level_5_Main_Team_Assist">Level 5 - Main Team Assist</option>
           </select>
         </div>
+
+        <label className="flex items-center gap-2 text-xs font-bold text-gray-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={unassignedOnly}
+            onChange={(e) => setUnassignedOnly(e.target.checked)}
+            className="accent-magenta"
+          />
+          No cubes yet
+        </label>
       </div>
 
       {/* Result count & sorting */}
@@ -230,9 +258,26 @@ export const Missions: React.FC = () => {
                     <span className="text-xs font-semibold text-gray-500 truncate">
                       {difficulty.label}
                     </span>
-                    <span className={`ml-auto shrink-0 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${status.pill}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                      {status.label}
+                    <span className="ml-auto shrink-0">
+                      {isMentorOrAdmin ? (
+                        <QuickStatusSelect
+                          missionId={m.id}
+                          status={m.status}
+                          allowed={m.allowed_next_statuses || []}
+                          onChanged={(u) =>
+                            setMissions((prev) =>
+                              prev.map((x) =>
+                                x.id === m.id ? { ...x, status: u.status, allowed_next_statuses: u.allowed_next_statuses } : x
+                              )
+                            )
+                          }
+                        />
+                      ) : (
+                        <span className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${status.pill}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </span>
+                      )}
                     </span>
                   </div>
 

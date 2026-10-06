@@ -8,6 +8,7 @@ import { badRequest, sendError } from '../utils/http';
 import { syncTeamMembers, detachTeamsFromMission, normalizeMembers } from '../services/team.service';
 import { assertCubesAreActive } from '../services/cubeStatus.service';
 import { recalculateQuestsForCubes } from '../services/quest.service';
+import { reconcileMissions } from '../services/contributor.service';
 
 const router = Router();
 
@@ -21,6 +22,9 @@ router.post('/teams', requireAuth, isMentorOrAdmin, async (req: AuthenticatedReq
     await assertCubesAreActive(members.map(m => m.cubeProfileId), 'be added to a team');
 
     const result = await prisma.$transaction(async (tx) => {
+      // Record the current roster before it is replaced, so history survives
+      await reconcileMissions(tx, [mission_id]);
+
       const detachedTeams = mission_id
         ? await detachTeamsFromMission(tx, mission_id)
         : [];
@@ -33,6 +37,7 @@ router.post('/teams', requireAuth, isMentorOrAdmin, async (req: AuthenticatedReq
       });
 
       await syncTeamMembers(tx, team.id, members);
+      await reconcileMissions(tx, [mission_id]);
 
       return { team, detachedTeams };
     });
@@ -61,6 +66,8 @@ router.post('/missions/:id/teams', requireAuth, isMentorOrAdmin, async (req: Aut
     const missionId = id && id !== 'none' ? id : null;
 
     const result = await prisma.$transaction(async (tx) => {
+      await reconcileMissions(tx, [missionId]);
+
       const detachedTeams = missionId
         ? await detachTeamsFromMission(tx, missionId)
         : [];
@@ -73,6 +80,7 @@ router.post('/missions/:id/teams', requireAuth, isMentorOrAdmin, async (req: Aut
       });
 
       await syncTeamMembers(tx, team.id, members);
+      await reconcileMissions(tx, [missionId]);
 
       return { team, detachedTeams };
     });
@@ -118,6 +126,11 @@ router.put('/teams/:id', requireAuth, isMentorOrAdmin, async (req: Authenticated
     await assertCubesAreActive(members.map(m => m.cubeProfileId), 'be added to a team');
 
     const detachedTeams = await prisma.$transaction(async (tx) => {
+      const previous = await tx.missionTeam.findUnique({ where: { id }, select: { mission_id: true } });
+      const affected = [previous?.mission_id, mission_id];
+      // Record the current rosters before anything changes, so history survives
+      await reconcileMissions(tx, affected);
+
       // 1. Update basic fields
       const dataToUpdate: any = {};
       if (name !== undefined) dataToUpdate.name = name;
@@ -139,6 +152,8 @@ router.put('/teams/:id', requireAuth, isMentorOrAdmin, async (req: Authenticated
       if (hasMembers) {
         await syncTeamMembers(tx, id, members);
       }
+
+      await reconcileMissions(tx, affected);
 
       return detached;
     });
@@ -170,17 +185,20 @@ router.put('/teams/:id', requireAuth, isMentorOrAdmin, async (req: Authenticated
 router.delete('/teams/:id', requireAuth, isMentorOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Delete team members first
-    await prisma.missionTeamMember.deleteMany({
-      where: { team_id: id }
+
+    await prisma.$transaction(async (tx) => {
+      const team = await tx.missionTeam.findUnique({ where: { id }, select: { mission_id: true } });
+
+      // Record who was on the mission before the roster disappears; they are
+      // released (not erased) from the mission's contributor history.
+      await reconcileMissions(tx, [team?.mission_id]);
+
+      await tx.missionTeamMember.deleteMany({ where: { team_id: id } });
+      await tx.missionTeam.delete({ where: { id } });
+
+      await reconcileMissions(tx, [team?.mission_id]);
     });
-    
-    // Delete the team itself
-    await prisma.missionTeam.delete({
-      where: { id }
-    });
-    
+
     return res.json({ success: true, message: 'Team dissolved and deleted successfully.' });
   } catch (error: any) {
     return sendError(res, error);
