@@ -312,7 +312,7 @@ export const Badges: React.FC = () => {
                 <p className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/80 sm:justify-start">
                   <Crown className="h-3.5 w-3.5" /> Legendary
                 </p>
-                <h2 className="badge-title-legendary mt-2 text-3xl font-black tracking-tight sm:text-5xl">{badge.name}</h2>
+                <h2 className="badge-title-legendary mt-2 text-3xl font-black leading-[1.1] tracking-tight sm:text-5xl sm:leading-[1.1]">{badge.name}</h2>
                 <p className={`mt-3 max-w-2xl text-sm font-medium leading-relaxed ${meta.body}`}>{badge.description}</p>
 
                 {holders.length === 0 ? (

@@ -211,6 +211,11 @@ body {
   -webkit-text-fill-color: transparent;
   color: transparent;
   animation: badge-pill-shift 5s ease infinite;
+  /* The gradient only paints inside the element's box. With a tight line-height
+     the descenders (g, y, p) fall outside it and are clipped. Extend the box
+     downward and cancel the extra height so the layout does not move. */
+  padding-bottom: 0.2em;
+  margin-bottom: -0.2em;
 }
 
 /* Embers rising off a Legendary badge */
