@@ -13,6 +13,7 @@ import { createSingleNotification } from '../services/notification.service';
 import { Role, CubeLevel } from '@prisma/client';
 import { recalculateAllQuestsForCube } from '../services/quest.service';
 import { StorageService } from '../services/storage.service';
+import { computeScoreBreakdown } from '../services/score.service';
 
 const router = Router();
 
@@ -1001,11 +1002,16 @@ router.get('/cubes/:id', requireAuth, async (req: AuthenticatedRequest, res) => 
       (profile as any).documents = [];
     }
 
+    // The overall score is staff-only, exactly as the Performance Index card
+    // on the profile page. Cubes never receive it.
+    const score = isMentorOrAdminUser ? await computeScoreBreakdown(profile.id) : undefined;
+
     return res.json({
       profile,
       updates,
       demoSubmissions,
-      mentorFeedback
+      mentorFeedback,
+      ...(score ? { score } : {})
     });
   } catch (error: any) {
     return sendError(res, error);
