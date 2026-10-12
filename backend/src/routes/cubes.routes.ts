@@ -14,6 +14,7 @@ import { Role, CubeLevel } from '@prisma/client';
 import { recalculateAllQuestsForCube } from '../services/quest.service';
 import { StorageService } from '../services/storage.service';
 import { computeScoreBreakdown } from '../services/score.service';
+import { TITLE_LABELS } from '../config/peer';
 
 const router = Router();
 
@@ -813,7 +814,20 @@ router.get('/cubes/public/:identifier', async (req, res) => {
       status: m.team?.mission?.status
     }));
 
+    // Peer titles are the only peer-derived data on the open page: the tier
+    // and label, never counts, quotes or who recognised them.
+    const peerTitles = await prisma.peerTitle.findMany({
+      where: { cube_id: profile.id },
+      orderBy: { earned_at: 'asc' },
+      select: { category: true, rarity: true }
+    });
+
     return res.json({
+      peer_titles: peerTitles.map(t => ({
+        category: t.category,
+        label: TITLE_LABELS[t.category] || t.category,
+        rarity: t.rarity
+      })),
       profile: {
         id: profile.id,
         cube_number: profile.cube_number,

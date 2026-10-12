@@ -6,6 +6,8 @@ import { Award, Rocket, MessageSquare, ShieldAlert, Sparkles, Send, PlayCircle, 
 import { CustomMarkdown } from '../components/CustomMarkdown';
 import { BadgeDisc } from '../components/BadgeMedal';
 import { compareByRarity, getRarityMeta } from '../utils/badgeRarity';
+import { MVCubesShelf } from '../components/peer/MVCubesShelf';
+import { peerQuestLabel, peerQuestProgressText } from '../utils/peer';
 
 export const CubeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -209,6 +211,8 @@ export const CubeDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <MVCubesShelf />
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -508,6 +512,7 @@ export const CubeDashboard: React.FC = () => {
                              (q.criteria_type === 'mission_updates_count' || q.criteria_type === 'mission_updates') ? (q.criteria_value === 1 ? 'Post 1 Mission Update' : `Post ${q.criteria_value} Updates`) :
                              q.criteria_type === 'daily_update_streak' ? `${q.criteria_value} Day Update Streak` :
                              q.criteria_type === 'weekly_update_streak' ? `${q.criteria_value} Week Update Streak` :
+                             peerQuestLabel(q.criteria_type, q.criteria_value, q.min_sample_size) ??
                              `Goal: ${q.criteria_value}`}
                           </span>
                           <span>
@@ -520,6 +525,7 @@ export const CubeDashboard: React.FC = () => {
                              q.criteria_type === 'meeting_attendance' ? `${cq.current_value.toFixed(1)}% / ${q.criteria_value}%` :
                              q.criteria_type === 'daily_update_streak' ? `${cq.current_value} / ${q.criteria_value}d` :
                              q.criteria_type === 'weekly_update_streak' ? `${cq.current_value} / ${q.criteria_value}w` :
+                             peerQuestProgressText(q.criteria_type, cq.current_value, q.criteria_value) ??
                              `${cq.current_value} / ${q.criteria_value}`}
                           </span>
                         </div>

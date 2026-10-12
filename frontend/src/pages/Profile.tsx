@@ -10,6 +10,7 @@ import { RadarChart } from '../components/RadarChart';
 import { getAssetUrl } from '../utils/assets';
 import { CubeDocumentsManager } from '../components/CubeDocumentsManager';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
+import { PeerRecognition } from '../components/peer/PeerRecognition';
 
 const formatExternalUrl = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -536,6 +537,15 @@ export const Profile: React.FC = () => {
     combinedPercentage = 0;
   }
 
+  // The overall score is computed on the server (peer feedback included, capped
+  // and confidence-weighted). Fall back to the local formula only if absent.
+  const serverScore = data?.score;
+  const overallPercentage: number =
+    serverScore && serverScore.overall !== null && serverScore.overall !== undefined
+      ? serverScore.overall
+      : combinedPercentage;
+  const peerDelta: number = serverScore?.peer?.applied ? serverScore.peer.delta : 0;
+
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -828,15 +838,21 @@ export const Profile: React.FC = () => {
               <div className="relative flex items-center justify-center">
                 <div className="w-16 h-16 rounded-full border-4 border-slate-100 flex items-center justify-center bg-slate-50/50">
                   <span className="text-sm font-black text-slate-800">
-                    {combinedPercentage > 0 ? `${combinedPercentage.toFixed(1)}%` : 'N/A'}
+                    {overallPercentage > 0 ? `${overallPercentage.toFixed(1)}%` : 'N/A'}
                   </span>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Performance Index</span>
                 <p className="text-xs text-gray-600 font-semibold leading-relaxed">
-                  Calculated from scorecard reviews and internal private scores.
+                  Calculated from scorecard reviews and internal private scores
+                  {serverScore?.peer?.applied ? ', adjusted by peer recognition.' : '.'}
                 </p>
+                {serverScore?.peer?.applied && (
+                  <p className="text-[10px] font-extrabold text-slate-400">
+                    Peers: {peerDelta >= 0 ? '+' : ''}{peerDelta.toFixed(1)} pts · weight {(serverScore.peer.weight * 100).toFixed(0)}%
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1234,6 +1250,16 @@ export const Profile: React.FC = () => {
               variant="spotlight"
             />
           </div>
+        )}
+
+        {/* Peer Recognition: titles, pinned quotes, MVCubes; private inbox for the Cube */}
+        {profile.id && (
+          <PeerRecognition
+            cubeId={profile.id}
+            isSelf={user?.cubeProfileId === profile.id}
+            name={profile.user?.name || 'this Cube'}
+            avatarUrl={profile.avatar_url || profile.user?.avatar_url}
+          />
         )}
 
         {/* Badges Earned Section */}

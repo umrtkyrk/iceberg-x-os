@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { Trophy, Plus, Check, Clock, User, Sparkles, Calendar, RefreshCw, Send, CheckSquare, Trash, Search, Filter, CheckCircle } from 'lucide-react';
 import { getBadgeIcon } from '../utils/badgeIcons';
+import { PEER_CRITERIA_OPTIONS, PEER_RATE_CRITERIA, isPeerCriteria, peerQuestProgressText } from '../utils/peer';
 
 // Criteria types that express a rate (a score average, an attendance
 // percentage) rather than a raw count. Only these can specify a minimum
 // sample size — for a count-based criteria the target value already IS the
 // count, so there's nothing separate to floor.
-const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance'];
+const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...PEER_RATE_CRITERIA];
 
 // Mirrors DEFAULT_MIN_SAMPLE_SIZE in backend/src/services/quest.service.ts.
 // Shown as a placeholder so an admin sees what happens if they leave the
@@ -31,6 +32,7 @@ export const AdminQuests: React.FC = () => {
   const [expiresAt, setExpiresAt] = useState('');
   const [selectedBadgeIds, setSelectedBadgeIds] = useState<string[]>([]);
   const [dependencyQuestId, setDependencyQuestId] = useState('');
+  const [autoAssign, setAutoAssign] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -95,7 +97,8 @@ export const AdminQuests: React.FC = () => {
         is_timed: isTimed,
         expires_at: isTimed && expiresAt ? expiresAt : null,
         reward_badge_ids: selectedBadgeIds,
-        dependency_quest_id: dependencyQuestId || null
+        dependency_quest_id: dependencyQuestId || null,
+        auto_assign: autoAssign
       });
 
       setFormMessage({ type: 'success', text: `Quest "${res.title}" successfully created!` });
@@ -110,6 +113,7 @@ export const AdminQuests: React.FC = () => {
       setExpiresAt('');
       setSelectedBadgeIds([]);
       setDependencyQuestId('');
+      setAutoAssign(false);
       
       // Refresh list
       fetchData();
@@ -117,6 +121,27 @@ export const AdminQuests: React.FC = () => {
       setFormMessage({ type: 'error', text: err.message || 'Failed to create quest.' });
     } finally {
       setFormSubmitting(false);
+    }
+  };
+
+  const handleToggleAutoAssign = async (quest: any) => {
+    const next = !quest.auto_assign;
+    if (
+      next &&
+      !window.confirm(
+        `Turn on auto-assign for "${quest.title}"? It will be assigned right now to every Cube currently in the programme that is eligible.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await api.patch(`/admin/quests/${quest.id}/auto-assign`, { auto_assign: next });
+      if (next && res.auto_assigned) {
+        alert(`Auto-assign is on. ${res.auto_assigned.newlyAssigned} Cube(s) assigned now.`);
+      }
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Could not change auto-assign.');
     }
   };
 
@@ -361,6 +386,11 @@ export const AdminQuests: React.FC = () => {
                     <option value="profile_picture">Upload Profile Picture (Avatar Required)</option>
                     <option value="quiz_score">Web Fundamentals Quiz Score (Target Score: e.g. 50, 75, 90)</option>
                     <option value="quiz_completed">Web Fundamentals Quiz Completed (Target: 1)</option>
+                    <optgroup label="Peer feedback & MVCubes">
+                      {PEER_CRITERIA_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </optgroup>
                     <option value="custom">Custom (Manual Update)</option>
                   </select>
                 </div>
@@ -393,6 +423,13 @@ export const AdminQuests: React.FC = () => {
                   className="w-full px-3 py-2.5 border border-gray-150 bg-gray-50 focus:bg-white focus:border-magenta rounded-xl text-xs font-semibold outline-none transition read-only:opacity-75 read-only:cursor-not-allowed"
                 />
               </div>
+
+              {isPeerCriteria(criteriaType) && (
+                <p className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[10px] font-semibold leading-relaxed text-sky-800">
+                  {PEER_CRITERIA_OPTIONS.find(o => o.value === criteriaType)?.help}{' '}
+                  Peer quests are never taken back once completed.
+                </p>
+              )}
 
               {RATE_CRITERIA_TYPES.includes(criteriaType) && (
                 <div className="flex flex-col gap-1.5">
@@ -431,6 +468,27 @@ export const AdminQuests: React.FC = () => {
                     <option key={q.id} value={q.id}>{q.title} ({q.difficulty})</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="flex flex-col gap-1 rounded-xl border border-gray-150 bg-gray-50 p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="auto-assign"
+                    checked={autoAssign}
+                    onChange={e => setAutoAssign(e.target.checked)}
+                    disabled={formSubmitting}
+                    className="rounded text-magenta focus:ring-magenta"
+                  />
+                  <label htmlFor="auto-assign" className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide cursor-pointer">
+                    Auto-assign to all Cubes
+                  </label>
+                </div>
+                <p className="pl-6 text-[10px] font-semibold leading-relaxed text-slate-400">
+                  Every Cube still in the programme gets this quest automatically, now and when they join or sign in.
+                  Some peer quests only assign once the Cube is eligible (for example after their first kudos).
+                  Leave off to assign by hand.
+                </p>
               </div>
 
               <div className="flex items-center gap-2 py-1">
@@ -521,6 +579,14 @@ export const AdminQuests: React.FC = () => {
                             <span className="text-[10px] font-extrabold bg-slate-50 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-wide">
                               {q.criteria_type.replace(/_/g, ' ')} ({q.criteria_value})
                             </span>
+                            {q.auto_assign && (
+                              <span
+                                className="text-[10px] font-extrabold bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-md uppercase tracking-wide"
+                                title="Assigned automatically to every eligible Cube"
+                              >
+                                auto-assign
+                              </span>
+                            )}
                             {RATE_CRITERIA_TYPES.includes(q.criteria_type) && (
                               <span
                                 className="text-[10px] font-extrabold bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-md uppercase tracking-wide"
@@ -550,6 +616,19 @@ export const AdminQuests: React.FC = () => {
                           >
                             <Send className="w-3 h-3" />
                             <span>Assign</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAutoAssign(q)}
+                            className={`flex items-center gap-1 px-3 py-1.5 border text-[10px] font-black uppercase rounded-xl transition ${
+                              q.auto_assign
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-gray-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                            title={q.auto_assign ? 'Stop auto-assigning (existing assignments stay)' : 'Assign automatically to every eligible Cube'}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>{q.auto_assign ? 'Auto: on' : 'Auto: off'}</span>
                           </button>
                           <button
                             type="button"
@@ -843,7 +922,8 @@ export const AdminQuests: React.FC = () => {
                                   ? `${cq.current_value} / ${cq.quest?.criteria_value} wks`
                                   : cq.quest?.criteria_type === 'mission_updates_count' || cq.quest?.criteria_type === 'mission_updates'
                                   ? `${cq.current_value} / ${cq.quest?.criteria_value} updates`
-                                  : `${cq.current_value} / ${cq.quest?.criteria_value}`}
+                                  : peerQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
+                                    `${cq.current_value} / ${cq.quest?.criteria_value}`}
                               </span>
                               <span className="text-slate-400 font-bold text-[9px]">{progressPercentage.toFixed(0)}%</span>
                             </div>
