@@ -1,8 +1,9 @@
 /**
  * Staff-facing peer views: Hidden Gems and Needs Attention.
  *
- * Aggregates only. No function here returns a giver, a giver hash, or any
- * observation / concern text. Counts below the k-anonymity floor are withheld.
+ * Aggregates. No function here returns a giver or a giver hash. The text of
+ * individual feedback lives in staffFeedback.service.ts. Counts below the
+ * k-anonymity floor are withheld from these aggregate cards.
  */
 import prisma from './prisma';
 import { PeerFeedbackKind, PeerFeedbackStatus, PeerSignalState } from '@prisma/client';
