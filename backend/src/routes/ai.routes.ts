@@ -5,7 +5,8 @@ import { Router } from 'express';
 import prisma from '../services/prisma';
 import { requireAuth, isMentorOrAdmin } from '../middlewares/auth.middleware';
 import { sendError } from '../utils/http';
-import { generateMissionSummary, generateCubeProgressSummary, generateDemoReflectionHelper, generateMentorFeedbackDraft } from '../services/ai.service';
+import { loadPredecessorBriefs, normalizeIds, MAX_PREDECESSORS } from '../services/missionLink.service';
+import { generatePredecessorContext, generateMissionSummary, generateCubeProgressSummary, generateDemoReflectionHelper, generateMentorFeedbackDraft } from '../services/ai.service';
 
 const router = Router();
 
@@ -37,6 +38,30 @@ router.get('/ai/mission-summary/:missionId', requireAuth, isMentorOrAdmin, async
     );
 
     return res.json({ summary });
+  } catch (error: any) {
+    return sendError(res, error);
+  }
+});
+
+// Background block for a follow-up mission, built from the missions it continues
+router.post('/ai/mission-context', requireAuth, isMentorOrAdmin, async (req, res) => {
+  try {
+    const ids = normalizeIds(req.body.predecessor_ids);
+    if (ids.length === 0) return res.status(400).json({ error: 'Select at least one earlier mission' });
+    if (ids.length > MAX_PREDECESSORS) {
+      return res.status(400).json({ error: `Select at most ${MAX_PREDECESSORS} earlier missions` });
+    }
+
+    const briefs = await loadPredecessorBriefs(ids);
+    if (briefs.length === 0) return res.status(404).json({ error: 'Selected missions were not found' });
+
+    const context = await generatePredecessorContext(
+      String(req.body.title || '').slice(0, 300),
+      String(req.body.description || '').slice(0, 3000),
+      briefs
+    );
+
+    return res.json({ context, missions: briefs.map(b => b.title) });
   } catch (error: any) {
     return sendError(res, error);
   }

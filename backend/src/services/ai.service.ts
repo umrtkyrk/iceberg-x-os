@@ -281,3 +281,67 @@ Recommend continuing as **Senior Cube** due to high technical expertise and proa
     return `Error calling OpenAI API: ${error.message}`;
   }
 }
+
+/**
+ * Condenses earlier missions into a "Previous missions" block for a follow-up
+ * mission's Context field, so the background is carried over instead of lost.
+ */
+export async function generatePredecessorContext(
+  newTitle: string,
+  newDescription: string,
+  briefs: any[]
+): Promise<string> {
+  const humanize = (s: string | null) => (s || '').replace(/_/g, ' ');
+
+  // Deterministic version: used without an API key, and as the fallback if the call fails
+  const plain = () =>
+    briefs
+      .map(b => {
+        const lines = [
+          `**${b.title}** (${humanize(b.status)}${b.decision ? `, decision: ${humanize(b.decision)}` : ''})`,
+          `- Problem: ${b.problem_statement}`
+        ];
+        if (b.demo?.what_we_built) lines.push(`- Built: ${b.demo.what_we_built}`);
+        if (b.demo?.what_we_learned) lines.push(`- Learned: ${b.demo.what_we_learned}`);
+        if (b.demo?.recommendation) lines.push(`- Recommendation: ${b.demo.recommendation}`);
+        if (b.team.length) lines.push(`- Team: ${b.team.join(', ')}`);
+        return lines.join('\n');
+      })
+      .join('\n\n');
+
+  const prompt = `
+    You are an AI assistant for Iceberg X, an R&D programme.
+    A new mission continues earlier missions. Write the "Previous missions" background that goes into the new mission's Context field,
+    so the Cubes starting it do not lose what was already learned.
+
+    New mission title: ${newTitle || '(not written yet)'}
+    New mission description: ${newDescription || '(not written yet)'}
+
+    Earlier missions (JSON):
+    ${JSON.stringify(briefs, null, 2)}
+
+    Rules:
+    - Use only facts from the JSON. Never invent results, names or numbers.
+    - Write in the language of the new mission draft; if it is empty, use English.
+    - Output Markdown only, with no top-level heading and no preamble.
+    - For each earlier mission, one short block: what it was, what was built or found, what was learned, and what is still open.
+    - Finish with "**What this mission should build on**": 2-4 bullets that tie the earlier results to the new mission.
+    - Keep it under 350 words in total.
+  `;
+
+  if (isMockMode || !openai) {
+    return plain();
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    });
+    return response.choices[0]?.message?.content?.trim() || plain();
+  } catch (error: any) {
+    console.error('OpenAI Error:', error);
+    return plain();
+  }
+}

@@ -21,9 +21,9 @@ export const Directory: React.FC = () => {
   const [ndaFilter, setNdaFilter] = useState<'all' | 'signed' | 'pending' | 'not_sent' | 'not_signed'>('all');
   const [showAlumni, setShowAlumni] = useState(false);
 
-  // Alumni are excluded by default and fetched only when asked for, so the
-  // directory stays a view of the people currently around rather than an
-  // ever-growing archive.
+  // Former Cubes and Alumni are hidden by default (Alumni are not even fetched),
+  // so the directory shows the people currently around: Cubes, Senior Cubes and
+  // Icebergers. The toggle brings the rest back.
   const fetchCubes = async (withAlumni: boolean) => {
     try {
       setLoading(true);
@@ -111,6 +111,9 @@ export const Directory: React.FC = () => {
       (cube.university || '').toLowerCase().includes(normalizedSearch) ||
       (cube.skills || []).some((s: string) => s.toLowerCase().includes(normalizedSearch));
 
+    const isArchived = cube.current_level === 'Former_Cube' || cube.current_level === 'Alumni';
+    if (isArchived && !showAlumni) return false;
+
     const matchesLevel = levelFilter ? cube.current_level === levelFilter : true;
 
     const activeMission = getActiveMission(cube);
@@ -161,8 +164,8 @@ export const Directory: React.FC = () => {
               value={levelFilter}
               onChange={(e) => {
                 setLevelFilter(e.target.value);
-                // Picking Alumni explicitly has to pull them in from the server
-                if (e.target.value === 'Alumni') setShowAlumni(true);
+                // Picking Former Cube or Alumni explicitly brings them back
+                if (e.target.value === 'Alumni' || e.target.value === 'Former_Cube') setShowAlumni(true);
               }}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/50 border border-gray-100 rounded-xl outline-none font-bold text-xs appearance-none cursor-pointer"
             >
@@ -181,19 +184,19 @@ export const Directory: React.FC = () => {
                 ? 'bg-amber-50 border-amber-200 text-amber-800'
                 : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100/50'
             }`}
-            title="Alumni have graduated out of the programme and are hidden by default"
+            title="Former Cubes and Alumni have left the programme and are hidden by default"
           >
             <input
               type="checkbox"
               checked={showAlumni}
               onChange={(e) => {
                 setShowAlumni(e.target.checked);
-                if (!e.target.checked && levelFilter === 'Alumni') setLevelFilter('');
+                if (!e.target.checked && (levelFilter === 'Alumni' || levelFilter === 'Former_Cube')) setLevelFilter('');
               }}
               className="w-3.5 h-3.5 rounded text-amber-600 border-gray-300 focus:ring-amber-500 cursor-pointer"
             />
             <GraduationCap className="w-4 h-4" />
-            <span className="text-xs font-bold whitespace-nowrap">Show Alumni</span>
+            <span className="text-xs font-bold whitespace-nowrap">Show former &amp; alumni</span>
           </label>
           {(user?.role === 'ADMIN' || user?.role === 'MENTOR') && (
             <div className="relative flex-1 md:w-48">

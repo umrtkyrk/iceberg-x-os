@@ -10,6 +10,7 @@ import { createBulkNotification } from '../services/notification.service';
 import { syncTeamMembers, detachTeamsFromMission } from '../services/team.service';
 import { assertCubesAreActive } from '../services/cubeStatus.service';
 import { reconcileMissions, listContributors } from '../services/contributor.service';
+import { loadLinks, normalizeIds, setPredecessors } from '../services/missionLink.service';
 import { recalculateQuestsForCubes } from '../services/quest.service';
 import { TeamMemberRole } from '@prisma/client';
 import { recalculateQuestsForMissionTeams } from '../services/quest.service';
@@ -93,14 +94,20 @@ router.get('/missions', requireAuth, async (req, res) => {
       orderBy: isVault ? { updated_at: 'desc' } : { created_at: 'desc' }
     });
 
-    const contributors = isVault ? await listContributors(missions.map(m => m.id)) : null;
+    const ids = missions.map(m => m.id);
+    const contributors = isVault ? await listContributors(ids) : null;
+    const links = isVault ? await loadLinks(ids, (req as AuthenticatedRequest).user?.role) : null;
 
     return res.json(
       missions.map(m => ({
         ...m,
         // Lets the list offer a quick status change with only legal moves
         allowed_next_statuses: allowedNextStatuses(m.status),
-        ...(contributors && { contributors: contributors.get(m.id) || [] })
+        ...(contributors && { contributors: contributors.get(m.id) || [] }),
+        ...(links && {
+          predecessors: links.get(m.id)?.predecessors || [],
+          followups: links.get(m.id)?.followups || []
+        })
       }))
     );
   } catch (error: any) {
@@ -124,7 +131,8 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
       slack_channel_url,
       repository_url,
       demo_url,
-      notify
+      notify,
+      predecessor_ids
     } = req.body;
 
     if (!title || !description || !context || !problem_statement || !expected_output || !difficulty_level) {
@@ -133,7 +141,11 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
 
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const newMission = await prisma.mission.create({
+    const predecessorIds = normalizeIds(predecessor_ids);
+    const creatorId = req.user.id;
+
+    const newMission = await prisma.$transaction(async (tx) => {
+      const created = await tx.mission.create({
       data: {
         title,
         description,
@@ -143,12 +155,15 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
         difficulty_level: difficulty_level as DifficultyLevel,
         status: assertInitialStatus(status),
         category: category || 'General',
-        created_by_id: req.user.id,
+        created_by_id: creatorId,
         mentor_id: mentor_id || null,
         slack_channel_url,
         repository_url,
         demo_url,
       }
+      });
+      await setPredecessors(tx, created.id, predecessorIds);
+      return created;
     });
 
     if (notify) {
@@ -242,10 +257,13 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
     }
 
     const contributors = (await listContributors([id])).get(id) || [];
+    const links = (await loadLinks([id], req.user?.role)).get(id);
 
     return res.json({
       mission,
       contributors,
+      predecessors: links?.predecessors || [],
+      followups: links?.followups || [],
       mentorFeedback,
       // Lets the UI offer only legal next statuses instead of the full enum
       allowedNextStatuses: allowedNextStatuses(mission.status)
@@ -273,7 +291,8 @@ router.put('/missions/:id', requireAuth, isMentorOrAdmin, async (req: Authentica
       repository_url,
       demo_url,
       decision,
-      force
+      force,
+      predecessor_ids
     } = req.body;
 
     const existing = await prisma.mission.findUnique({
@@ -302,9 +321,16 @@ router.put('/missions/:id', requireAuth, isMentorOrAdmin, async (req: Authentica
     if (demo_url !== undefined) updateData.demo_url = demo_url;
     if (decision !== undefined) updateData.decision = decision ? (decision as MissionDecision) : null;
 
-    const updated = await prisma.mission.update({
-      where: { id },
-      data: updateData
+    // Only touch links when the caller sent them, so partial edits keep existing links
+    const predecessorIds = Array.isArray(predecessor_ids) ? normalizeIds(predecessor_ids) : null;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.mission.update({
+        where: { id },
+        data: updateData
+      });
+      if (predecessorIds) await setPredecessors(tx, id, predecessorIds);
+      return result;
     });
 
     // A status change may now satisfy a "missions_completed" quest for

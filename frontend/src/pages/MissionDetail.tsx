@@ -6,6 +6,7 @@ import { Rocket, ShieldAlert, Sparkles, MessageCircle, GitBranch, ExternalLink, 
 import { CustomMarkdown } from '../components/CustomMarkdown';
 import { getStatusMeta } from '../utils/missionMeta';
 import { MissionPeoplePanel } from '../components/MissionPeoplePanel';
+import { MissionLineage } from '../components/MissionLineage';
 import { QuickStatusSelect } from '../components/QuickStatusSelect';
 
 export const MissionDetail: React.FC = () => {
@@ -871,6 +872,19 @@ ${mission.description || 'No description provided.'}
       {/* Right Column: Teams, Review Panel, AI Summary Helper */}
       <div className="flex flex-col gap-6">
         
+        {/* Lineage: earlier missions this continues and what followed */}
+        {((data.predecessors || []).length > 0 || (data.followups || []).length > 0 || isMentorOrAdmin) && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-subtle flex flex-col gap-4">
+            <h3 className="font-extrabold text-lg border-b border-gray-50 pb-3">Related Missions</h3>
+            <MissionLineage
+              missionId={mission.id}
+              predecessors={data.predecessors || []}
+              followups={data.followups || []}
+              canCreate={isMentorOrAdmin}
+            />
+          </div>
+        )}
+
         {/* People: current members, direct assignment and history */}
         <MissionPeoplePanel
           mission={mission}

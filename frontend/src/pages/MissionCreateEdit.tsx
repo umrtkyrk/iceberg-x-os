@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, ArrowLeft, Save } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Save, Sparkles, Link2 } from 'lucide-react';
 import { MarkdownEditor } from '../components/MarkdownEditor';
+import { LinkedMissionsPicker, LinkedMissionRef } from '../components/LinkedMissionsPicker';
+
+// Heading that marks the AI-written block inside Context, so it can be refreshed without touching the rest
+const PREV_HEADING = '### Previous missions';
 
 export const MissionCreateEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Optional Mission ID
   const isEditMode = !!id;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +36,8 @@ export const MissionCreateEdit: React.FC = () => {
   const [category, setCategory] = useState('General');
   const [submitting, setSubmitting] = useState(false);
   const [notify, setNotify] = useState(false);
+  const [predecessors, setPredecessors] = useState<LinkedMissionRef[]>([]);
+  const [embedding, setEmbedding] = useState(false);
 
   useEffect(() => {
     if (isEditMode) {
@@ -50,6 +57,7 @@ export const MissionCreateEdit: React.FC = () => {
           setRepositoryUrl(m.repository_url || '');
           setDemoUrl(m.demo_url || '');
           setCategory(m.category || 'General');
+          setPredecessors((res.predecessors || []).map((p: any) => ({ id: p.id, title: p.title, status: p.status })));
         } catch (err: any) {
           setError(err.message || 'Failed to fetch mission details');
         } finally {
@@ -59,6 +67,20 @@ export const MissionCreateEdit: React.FC = () => {
       fetchMission();
     }
   }, [id, isEditMode]);
+
+  // "Create follow-up" from the Vault arrives with ?continues=<mission id>
+  const continuesId = searchParams.get('continues');
+  useEffect(() => {
+    if (isEditMode || !continuesId) return;
+    api
+      .get(`/missions/${continuesId}`)
+      .then((res) => {
+        const m = res.mission;
+        setPredecessors((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, { id: m.id, title: m.title, status: m.status }]));
+        setCategory((c) => (c === 'General' && m.category ? m.category : c));
+      })
+      .catch(() => undefined);
+  }, [continuesId, isEditMode]);
 
   useEffect(() => {
     const fetchMentors = async () => {
@@ -95,7 +117,8 @@ export const MissionCreateEdit: React.FC = () => {
       slack_channel_url: slackChannelUrl || null,
       repository_url: repositoryUrl || null,
       demo_url: demoUrl || null,
-      notify: !isEditMode ? notify : undefined
+      notify: !isEditMode ? notify : undefined,
+      predecessor_ids: predecessors.map((p) => p.id)
     };
 
     try {
@@ -110,6 +133,29 @@ export const MissionCreateEdit: React.FC = () => {
       setError(err.message || 'Failed to save mission');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEmbedContext = async () => {
+    if (predecessors.length === 0) return;
+    setEmbedding(true);
+    setError(null);
+    try {
+      const res = await api.post('/ai/mission-context', {
+        predecessor_ids: predecessors.map((p) => p.id),
+        title,
+        description
+      });
+      const block = `${PREV_HEADING}\n\n${res.context}`;
+      setContext((current) => {
+        const at = current.indexOf(PREV_HEADING);
+        const base = (at >= 0 ? current.slice(0, at) : current).trimEnd();
+        return base ? `${base}\n\n${block}` : block;
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to build context from linked missions');
+    } finally {
+      setEmbedding(false);
     }
   };
 
@@ -177,6 +223,27 @@ export const MissionCreateEdit: React.FC = () => {
             onChange={setDescription}
             disabled={submitting}
           />
+        </div>
+
+        <div className="flex flex-col gap-2 bg-gray-50/60 border border-gray-100 rounded-2xl p-4">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Link2 className="w-3.5 h-3.5" /> Continues earlier missions
+          </label>
+          <p className="text-[11px] text-gray-400 font-medium -mt-1">
+            Link Vault missions this one builds on, so their context is not lost.
+          </p>
+          <LinkedMissionsPicker value={predecessors} onChange={setPredecessors} excludeId={id} disabled={submitting} />
+          {predecessors.length > 0 && (
+            <button
+              type="button"
+              onClick={handleEmbedContext}
+              disabled={embedding || submitting}
+              className="self-start inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-magenta/20 text-magenta rounded-xl text-xs font-bold hover:bg-magenta/5 disabled:opacity-60 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {embedding ? 'Reading earlier missions…' : 'Embed their context with AI'}
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

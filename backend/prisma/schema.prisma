@@ -195,10 +195,26 @@ model Mission {
   cube_badges        CubeBadge[]
   presentations      DemoDayPresentation[]
   contributors       MissionContributor[]
+  predecessor_links  MissionLink[]         @relation("MissionPredecessors")
+  followup_links     MissionLink[]         @relation("MissionFollowUps")
 
   @@index([status])
   @@index([mentor_id])
   @@index([updated_at])
+}
+
+/// "This mission continues that one." A mission can follow several earlier
+/// missions (e.g. ones in the Vault), and one mission can have many follow-ups.
+model MissionLink {
+  id             String   @id @default(uuid())
+  mission_id     String
+  mission        Mission  @relation("MissionPredecessors", fields: [mission_id], references: [id], onDelete: Cascade)
+  predecessor_id String
+  predecessor    Mission  @relation("MissionFollowUps", fields: [predecessor_id], references: [id], onDelete: Cascade)
+  created_at     DateTime @default(now())
+
+  @@unique([mission_id, predecessor_id])
+  @@index([predecessor_id])
 }
 
 /// Durable "who worked on this mission" history. Team rosters get edited,

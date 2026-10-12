@@ -16,9 +16,12 @@ import {
   CheckCircle2,
   Rocket,
   Archive,
+  Link2,
 } from 'lucide-react';
 import { CustomMarkdown } from '../components/CustomMarkdown';
 import { UserAvatar } from '../components/UserAvatar';
+import { MissionLineage } from '../components/MissionLineage';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_LABELS: Record<string, string> = {
   completed: 'Completed',
@@ -406,9 +409,23 @@ export const CubeVault: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2 min-h-[1.75rem]">
                   <StatusPill status={m.status} />
-                  {m.category && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">{m.category}</span>
-                  )}
+                  <span className="flex items-center gap-2 min-w-0">
+                    {((m.predecessors || []).length > 0 || (m.followups || []).length > 0) && (
+                      <span
+                        title={[
+                          (m.predecessors || []).length ? `Continues ${(m.predecessors || []).map((x: any) => x.title).join(', ')}` : '',
+                          (m.followups || []).length ? `${m.followups.length} follow-up(s)` : '',
+                        ].filter(Boolean).join(' · ')}
+                        className="flex items-center gap-1 text-[10px] font-bold text-magenta bg-magenta/5 border border-magenta/10 rounded-full px-1.5 py-0.5 shrink-0"
+                      >
+                        <Link2 className="w-3 h-3" />
+                        {(m.predecessors || []).length + (m.followups || []).length}
+                      </span>
+                    )}
+                    {m.category && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">{m.category}</span>
+                    )}
+                  </span>
                 </div>
 
                 <h3 className="font-extrabold text-base text-gray-900 leading-snug line-clamp-2 min-h-[2.75rem] group-hover:text-magenta transition-colors">
@@ -469,6 +486,8 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 const VaultDetail: React.FC<{ mission: any; onClose: () => void }> = ({ mission: m, onClose }) => {
+  const { user } = useAuth();
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'MENTOR';
   const members = getMembers(m);
   const team = m.teams?.[0] || null;
   const demo = m.demo_submissions?.[0];
@@ -583,6 +602,14 @@ const VaultDetail: React.FC<{ mission: any; onClose: () => void }> = ({ mission:
               <p className="text-xs text-gray-400">No documents or links were attached to this mission.</p>
             )}
           </div>
+
+          <MissionLineage
+            missionId={m.id}
+            predecessors={m.predecessors || []}
+            followups={m.followups || []}
+            canCreate={canCreate}
+            onNavigate={onClose}
+          />
 
           {demo ? (
             <>

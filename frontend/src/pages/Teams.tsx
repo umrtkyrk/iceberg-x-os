@@ -166,8 +166,8 @@ export const Teams: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="min-w-0">
           <h1 className="text-3xl font-extrabold tracking-tight">Mission Teams</h1>
           <p className="text-gray-500 mt-1">Manage cross-functional R&D mission teams and participant roles.</p>
         </div>
@@ -191,7 +191,7 @@ export const Teams: React.FC = () => {
 
       {/* Search & filters */}
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative basis-full sm:basis-auto sm:flex-1 sm:min-w-[220px]">
           <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
           <input
             value={query}
@@ -216,7 +216,7 @@ export const Teams: React.FC = () => {
 
       {/* Editor Drawer/Form */}
       {showForm && (
-        <form onSubmit={handleFormSubmit} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-premium flex flex-col gap-5 max-w-2xl animate-fadeIn">
+        <form onSubmit={handleFormSubmit} className="bg-white border border-gray-100 rounded-3xl p-4 sm:p-6 shadow-premium flex flex-col gap-5 w-full max-w-2xl min-w-0 animate-fadeIn">
           <h3 className="font-extrabold text-sm border-b border-gray-50 pb-2">
             {isEditing ? `Configure Team: ${teamName}` : 'Create New Mission Team'}
           </h3>
@@ -230,7 +230,7 @@ export const Teams: React.FC = () => {
                 placeholder="e.g. Team Gamma"
                 value={teamName}
                 onChange={e => setTeamName(e.target.value)}
-                className="p-2 border border-gray-100 bg-gray-50 rounded-lg text-xs outline-none focus:border-magenta font-semibold"
+                className="w-full min-w-0 p-2 border border-gray-100 bg-gray-50 rounded-lg text-xs outline-none focus:border-magenta font-semibold"
               />
             </div>
 
@@ -239,7 +239,7 @@ export const Teams: React.FC = () => {
               <select
                 value={selectedMissionId}
                 onChange={e => setSelectedMissionId(e.target.value)}
-                className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
+                className="w-full min-w-0 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
               >
                 <option value="">No Mission Assigned (Taskless Team)</option>
                 {openMissions.map(m => (
@@ -253,11 +253,11 @@ export const Teams: React.FC = () => {
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase">Team Members</label>
             {members.map((member, idx) => (
-              <div key={idx} className="flex gap-3 items-center">
+              <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center rounded-xl sm:rounded-none border sm:border-0 border-gray-100 p-2 sm:p-0">
                 <select
                   value={member.cubeProfileId}
                   onChange={e => handleMemberChange(idx, 'cubeProfileId', e.target.value)}
-                  className="flex-1 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
+                  className="w-full sm:flex-1 min-w-0 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
                 >
                   <option value="">Select a Cube...</option>
                   {cubes
@@ -272,26 +272,29 @@ export const Teams: React.FC = () => {
                     })}
                 </select>
 
-                <select
-                  value={member.role}
-                  onChange={e => handleMemberChange(idx, 'role', e.target.value)}
-                  className="w-48 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
-                >
-                  <option value="Mission_Lead">Mission Lead</option>
-                  <option value="Technical_Explorer">Technical Explorer</option>
-                  <option value="Demo_Builder">Demo Builder</option>
-                  <option value="Documenter">Documenter</option>
-                  <option value="Presenter">Presenter</option>
-                  <option value="Contributor">Contributor</option>
-                </select>
+                <div className="flex gap-2 items-center w-full sm:w-auto">
+                  <select
+                    value={member.role}
+                    onChange={e => handleMemberChange(idx, 'role', e.target.value)}
+                    className="flex-1 sm:flex-none sm:w-44 min-w-0 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="Mission_Lead">Mission Lead</option>
+                    <option value="Technical_Explorer">Technical Explorer</option>
+                    <option value="Demo_Builder">Demo Builder</option>
+                    <option value="Documenter">Documenter</option>
+                    <option value="Presenter">Presenter</option>
+                    <option value="Contributor">Contributor</option>
+                  </select>
 
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMemberRow(idx)}
-                  className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 border border-gray-100 rounded-lg transition-colors"
-                >
-                  <Trash className="w-4 h-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMemberRow(idx)}
+                    aria-label="Remove member row"
+                    className="shrink-0 p-2 text-gray-400 hover:text-red-500 bg-gray-50 border border-gray-100 rounded-lg transition-colors"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
             
@@ -304,7 +307,7 @@ export const Teams: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex gap-2 justify-end mt-2">
+          <div className="flex flex-wrap gap-2 justify-end mt-2">
             <button
               type="button"
               onClick={() => setShowForm(false)}
@@ -327,16 +330,16 @@ export const Teams: React.FC = () => {
       {visibleTeams.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {visibleTeams.map((team) => (
-            <div key={team.id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-subtle flex flex-col gap-4">
-              <div className="flex justify-between items-start border-b border-gray-50 pb-3">
-                <div>
-                  <h3 className="font-extrabold text-base text-gray-900">{team.name}</h3>
+            <div key={team.id} className="min-w-0 bg-white border border-gray-100 p-4 sm:p-6 rounded-2xl shadow-subtle flex flex-col gap-4">
+              <div className="flex justify-between items-start gap-2 border-b border-gray-50 pb-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-extrabold text-base text-gray-900 break-words">{team.name}</h3>
                   {isMentorOrAdmin ? (
                     <select
                       value={team.mission_id || ''}
                       onChange={e => handleQuickMission(team, e.target.value)}
                       title="Change the mission this team works on"
-                      className="mt-1 max-w-[16rem] p-1 -ml-1 bg-transparent hover:bg-gray-50 rounded-md text-xs font-semibold text-magenta outline-none cursor-pointer truncate"
+                      className="mt-1 w-full max-w-[16rem] p-1 -ml-1 bg-transparent hover:bg-gray-50 rounded-md text-xs font-semibold text-magenta outline-none cursor-pointer truncate"
                     >
                       <option value="">No mission (taskless)</option>
                       {missions
@@ -357,7 +360,7 @@ export const Teams: React.FC = () => {
                   )}
                 </div>
                 {isMentorOrAdmin && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => handleOpenEdit(team)}
                       className="p-1.5 hover:bg-gray-50 border border-gray-100 rounded-lg text-gray-500 hover:text-magenta transition-colors"
@@ -386,11 +389,11 @@ export const Teams: React.FC = () => {
                 {team.members && team.members.length > 0 ? (
                   <div className="flex flex-col divide-y divide-gray-50">
                     {team.members.map((m: any) => (
-                      <div key={m.id} className="flex justify-between items-center py-2 text-xs">
-                        <Link to={`/cubes/${m.cube_id}`} className="font-bold text-gray-700 hover:text-magenta transition-colors">
+                      <div key={m.id} className="flex justify-between items-center gap-2 py-2 text-xs">
+                        <Link to={`/cubes/${m.cube_id}`} className="min-w-0 truncate font-bold text-gray-700 hover:text-magenta transition-colors">
                           {m.cube?.user?.name || 'Unknown'}
                         </Link>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                           <span className="text-[10px] font-extrabold bg-magenta/5 border border-magenta/10 text-magenta px-2 py-0.5 rounded-full uppercase tracking-wider">
                             {m.role.replace(/_/g, ' ')}
                           </span>
