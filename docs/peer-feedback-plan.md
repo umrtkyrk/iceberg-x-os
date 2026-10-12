@@ -398,7 +398,21 @@ Status: PR 1 (schema), PR 2 (backend) and PR 3 (frontend) implement sections 1-9
 
 ### Possible follow-ups
 
-- Legendary rarity (needs `ALTER TYPE`, outside the additive-only rule; decide explicitly).
+- ~~Legendary rarity~~ Shipped (see "Legendary rarity and content" below).
+- Auto-award "Be an Iceberger" when a Cube is moved to the Iceberger level (today it is awarded by Admin sign-off on the "Become an Iceberger" quest, or from the Badges page).
 - Per-pin public opt-in for quotes.
 - Feedback-quality quests ("Helpful Feedback", "Calibrated") are in place as criteria; badge art for them is up to you.
 - A scheduled job for digest delivery and MVCubes announcement once cron exists.
+
+### Legendary rarity and content (shipped)
+
+- **Migration `20261013120000_add_legendary_badge_rarity`** is a single `ALTER TYPE "BadgeRarity" ADD VALUE 'Legendary'`. This is the one deliberate exception to the "no `ALTER TYPE`" deployment rule. It rewrites nothing and changes no row, but it is **one-way** (Postgres cannot drop an enum value) and requires PostgreSQL 12+ if run inside a transaction. The migration inserts no data, because the new value cannot be used in the same transaction.
+- **Deploy order:** apply the migration (`prisma migrate deploy`) *before* running the content script. Until then no code path can create a Legendary row, so the new client is safe.
+- **Content:** `backend/src/scripts/seedPeerContent.ts` creates 14 badges and 14 quests (giving, receiving, MVCubes, calibration, and the Legendary "Be an Iceberger" badge with its "Become an Iceberger" quest). It is **dry-run by default**; pass `--apply` to write. It is idempotent and only creates or updates by name/title; it never deletes and never touches existing awards or progress.
+  ```bash
+  cd backend
+  npx ts-node src/scripts/seedPeerContent.ts            # preview
+  npx ts-node src/scripts/seedPeerContent.ts --apply    # write
+  ```
+- "Calibrated" is created but **not** auto-assigned (it ties a badge to mentor reviews). Turn it on per quest from Quests Admin if you want it.
+- "Become an Iceberger" is assigned to every Cube so the goal is always visible, and completed by Admin sign-off (Quests Admin > override) when a Cube joins the main team. The Badges page shows the Legendary badge in a spotlight, "Unclaimed" until someone holds it.

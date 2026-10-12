@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Plus, Award, Check, Trash2, X, Pencil } from 'lucide-react';
-import { BadgeMedal, BadgeDisc } from '../components/BadgeMedal';
+import { ShieldAlert, Plus, Award, Check, Trash2, X, Pencil, Lock, Crown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BadgeMedal, BadgeDisc, BadgeEmbers, BadgeSparks } from '../components/BadgeMedal';
 import { BadgeDesigner, type BadgeDraft } from '../components/BadgeDesigner';
 import { RARITIES, getRarityMeta, compareByRarity } from '../utils/badgeRarity';
 
@@ -139,10 +140,17 @@ export const Badges: React.FC = () => {
   };
 
   // Rarest first so the showcase leads with what is hardest to earn
+  // Legendary badges get their own spotlight above the grid; the grid lists
+  // them only when the Legendary filter is chosen.
+  const legendaryBadges = useMemo(
+    () => badges.filter(b => b.rarity === 'Legendary'),
+    [badges]
+  );
+
   const visibleBadges = useMemo(
     () =>
       badges
-        .filter(b => (rarityFilter ? (b.rarity || 'Common') === rarityFilter : true))
+        .filter(b => (rarityFilter ? (b.rarity || 'Common') === rarityFilter : b.rarity !== 'Legendary'))
         .sort((a, b) => compareByRarity(a.rarity, b.rarity) || a.name.localeCompare(b.name)),
     [badges, rarityFilter]
   );
@@ -285,6 +293,59 @@ export const Badges: React.FC = () => {
 
       </div>
 
+      {/* Legendary spotlight */}
+      {rarityFilter === '' && legendaryBadges.map(badge => {
+        const meta = getRarityMeta('Legendary');
+        const holders: any[] = badge.cube_badges || [];
+        return (
+          <section key={badge.id} className={`group relative ${meta.frame}`}>
+            <span className="badge-sheen" />
+            <BadgeSparks />
+            <BadgeEmbers />
+            <div className="relative flex flex-col items-center gap-6 p-8 text-center sm:flex-row sm:p-10 sm:text-left">
+              <div className="relative shrink-0">
+                <div className="absolute -inset-6 rounded-full bg-amber-400/20 blur-2xl" />
+                <div className="relative scale-[1.9] origin-center my-6 mx-6">
+                  <BadgeDisc icon={badge.icon} rarity="Legendary" size="lg" />
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/80 sm:justify-start">
+                  <Crown className="h-3.5 w-3.5" /> Legendary
+                </p>
+                <h2 className="badge-title-legendary mt-2 text-3xl font-black tracking-tight sm:text-5xl">{badge.name}</h2>
+                <p className={`mt-3 max-w-2xl text-sm font-medium leading-relaxed ${meta.body}`}>{badge.description}</p>
+
+                {holders.length === 0 ? (
+                  <div className="badge-unclaimed mt-5 inline-flex items-center gap-2.5 rounded-2xl border border-amber-300/30 px-4 py-2.5 text-xs font-extrabold text-amber-100">
+                    <Lock className="h-4 w-4 text-amber-300" />
+                    Unclaimed. No Cube has earned this yet. Will it be you?
+                  </div>
+                ) : (
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300/70">
+                      Held by {holders.length}
+                    </span>
+                    {holders.map((award: any) => (
+                      <span key={award.id} className={`flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-extrabold ${meta.earnerChip}`}>
+                        <Crown className="h-3 w-3 text-amber-300" /> {award.cube?.user?.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <Link
+                  to="/quests"
+                  className="mt-5 inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:text-white"
+                >
+                  See the quest that leads here
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })}
+
       {/* Rarity filter + counts */}
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -332,7 +393,7 @@ export const Badges: React.FC = () => {
                     <button
                       onClick={() => { setDesignerDraft(badge); setShowAwardForm(false); }}
                       className={`p-1.5 rounded-lg border border-transparent transition-all ${
-                        meta.key === 'Epic'
+                        meta.dark
                           ? 'text-slate-300 hover:text-white hover:bg-white/10'
                           : 'text-gray-400 hover:text-magenta hover:bg-magenta/5 hover:border-magenta/10'
                       }`}
@@ -343,7 +404,7 @@ export const Badges: React.FC = () => {
                     <button
                       onClick={() => handleDeleteBadge(badge)}
                       className={`p-1.5 rounded-lg border border-transparent transition-all ${
-                        meta.key === 'Epic'
+                        meta.dark
                           ? 'text-slate-300 hover:text-red-300 hover:bg-red-500/15'
                           : 'text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100'
                       }`}
@@ -382,9 +443,15 @@ export const Badges: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className={`text-[11px] italic ${meta.muted}`}>
-                    No Cubes have earned this badge yet.
-                  </p>
+                  meta.key === 'Legendary' ? (
+                    <p className="badge-unclaimed flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-extrabold text-amber-100">
+                      <Lock className="h-3.5 w-3.5 text-amber-300" /> Unclaimed. Will it be you?
+                    </p>
+                  ) : (
+                    <p className={`text-[11px] italic ${meta.muted}`}>
+                      No Cubes have earned this badge yet.
+                    </p>
+                  )
                 )}
               </div>
             </BadgeMedal>

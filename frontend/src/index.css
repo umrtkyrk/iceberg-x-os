@@ -120,15 +120,144 @@ body {
   50% { opacity: 0.9; transform: translateY(-4px) scale(1); }
 }
 
+/* ==========================================================================
+   Legendary: the summit of the badge system.
+   A faster, brighter, gold-only version of the Epic frame, with an aura that
+   breathes behind it, a gold sheen and rising embers.
+   ========================================================================== */
+.badge-frame-legendary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.badge-frame-legendary::before {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  left: 50%;
+  top: 50%;
+  width: 230%;
+  aspect-ratio: 1 / 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    #fffbe6, #fcd34d, #b45309, #fde68a, #f59e0b, #fffbe6, #d97706, #fef3c7, #fffbe6
+  );
+  animation: badge-spin 3.4s linear infinite;
+}
+
+.badge-frame-legendary::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 2.5px;
+  border-radius: inherit;
+  background:
+    radial-gradient(90% 70% at 50% -10%, rgba(253, 224, 71, 0.30), transparent 60%),
+    radial-gradient(70% 60% at 100% 100%, rgba(217, 119, 6, 0.28), transparent 60%),
+    radial-gradient(60% 50% at 0% 100%, rgba(251, 191, 36, 0.16), transparent 60%),
+    linear-gradient(160deg, #1d1405 0%, #0d0802 55%, #1a1103 100%);
+}
+
+.badge-legendary-glow {
+  box-shadow:
+    0 0 0 1px rgba(253, 224, 71, 0.45),
+    0 0 28px -2px rgba(251, 191, 36, 0.55),
+    0 24px 70px -18px rgba(245, 158, 11, 0.85);
+  animation: badge-legendary-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes badge-legendary-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(253, 224, 71, 0.40),
+      0 0 22px -4px rgba(251, 191, 36, 0.45),
+      0 22px 60px -20px rgba(245, 158, 11, 0.70);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 237, 160, 0.75),
+      0 0 46px 2px rgba(251, 191, 36, 0.75),
+      0 28px 90px -16px rgba(245, 158, 11, 1);
+  }
+}
+
+/* Gold sheen: same sweep as Epic, warm and a little brighter */
+.badge-frame-legendary .badge-sheen::after,
+.badge-frame-legendary.badge-sheen::after {
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 244, 190, 0.34),
+    rgba(255, 224, 120, 0.08),
+    transparent
+  );
+  animation-duration: 3.2s;
+}
+
+.badge-pill-legendary {
+  background: linear-gradient(110deg, #fff7cc, #fbbf24, #f59e0b, #fff0a3, #fbbf24);
+  background-size: 220% 100%;
+  animation: badge-pill-shift 3.6s ease infinite;
+  box-shadow: 0 0 14px -2px rgba(251, 191, 36, 0.8);
+}
+
+/* Gold lettering for the title on a Legendary card */
+.badge-title-legendary {
+  background: linear-gradient(100deg, #fff9d6 0%, #fde68a 35%, #f5b82e 60%, #fff3b0 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: badge-pill-shift 5s ease infinite;
+}
+
+/* Embers rising off a Legendary badge */
+.badge-ember {
+  position: absolute;
+  bottom: -6px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fff7c2 0%, #fbbf24 55%, rgba(251, 191, 36, 0) 75%);
+  pointer-events: none;
+  opacity: 0;
+  animation: badge-ember-rise 4.2s ease-in infinite;
+}
+
+@keyframes badge-ember-rise {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  15% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(var(--ember-drift, 6px), -150px) scale(1); }
+}
+
+/* "Unclaimed" call-out on a Legendary badge nobody holds yet */
+.badge-unclaimed {
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.06),
+    rgba(251, 191, 36, 0.20),
+    rgba(251, 191, 36, 0.06)
+  );
+  background-size: 200% 100%;
+  animation: badge-pill-shift 4s ease infinite;
+}
+
 /* Anyone who prefers reduced motion gets the same design, held still. */
 @media (prefers-reduced-motion: reduce) {
   .badge-frame-epic::before,
+  .badge-frame-legendary::before,
+  .badge-legendary-glow,
   .badge-sheen::after,
   .badge-pill-epic,
+  .badge-pill-legendary,
+  .badge-title-legendary,
+  .badge-unclaimed,
+  .badge-ember,
   .badge-spark {
     animation: none;
   }
   .badge-spark { opacity: 0.8; }
+  .badge-ember { opacity: 0.5; bottom: 30%; }
 }
 
 /* Custom premium transitions */

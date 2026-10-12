@@ -13,7 +13,7 @@ const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...PEER_RATE
 // Mirrors DEFAULT_MIN_SAMPLE_SIZE in backend/src/services/quest.service.ts.
 // Shown as a placeholder so an admin sees what happens if they leave the
 // field blank, rather than guessing.
-const DEFAULT_MIN_SAMPLE_SIZE: Record<string, number> = { Common: 3, Rare: 5, Epic: 10 };
+const DEFAULT_MIN_SAMPLE_SIZE: Record<string, number> = { Common: 3, Rare: 5, Epic: 10, Legendary: 15 };
 
 export const AdminQuests: React.FC = () => {
   const [quests, setQuests] = useState<any[]>([]);
@@ -355,6 +355,7 @@ export const AdminQuests: React.FC = () => {
                     <option value="Common">Common</option>
                     <option value="Rare">Rare</option>
                     <option value="Epic">Epic</option>
+                    <option value="Legendary">Legendary</option>
                   </select>
                 </div>
 
@@ -572,7 +573,7 @@ export const AdminQuests: React.FC = () => {
                         <div className="flex flex-col gap-1.5 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
-                              q.difficulty === 'Epic' ? 'bg-magenta text-white' : q.difficulty === 'Rare' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
+                              q.difficulty === 'Legendary' ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-amber-950' : q.difficulty === 'Epic' ? 'bg-magenta text-white' : q.difficulty === 'Rare' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
                             }`}>
                               {q.difficulty}
                             </span>
@@ -893,7 +894,7 @@ export const AdminQuests: React.FC = () => {
                           <div className="flex flex-col gap-1">
                             <span className="font-bold text-slate-800">{cq.quest?.title}</span>
                             <span className={`text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded w-fit ${
-                              cq.quest?.difficulty === 'Epic' ? 'bg-magenta text-white' : cq.quest?.difficulty === 'Rare' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
+                              cq.quest?.difficulty === 'Legendary' ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-amber-950' : cq.quest?.difficulty === 'Epic' ? 'bg-magenta text-white' : cq.quest?.difficulty === 'Rare' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
                             }`}>
                               {cq.quest?.difficulty}
                             </span>

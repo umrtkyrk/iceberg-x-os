@@ -85,7 +85,7 @@ export const BadgeDesigner: React.FC<{
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Rarity</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {RARITIES.map(r => {
                 const meta = getRarityMeta(r);
                 const isSelected = rarity === r;
