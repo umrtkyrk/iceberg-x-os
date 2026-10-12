@@ -35,6 +35,8 @@ import { AdminNda } from './pages/AdminNda';
 import { Fundamentals } from './pages/Fundamentals';
 
 import { PublicProfile } from './pages/PublicProfile';
+import { Radar } from './pages/Radar';
+import { MVCubes } from './pages/MVCubes';
 
 function App() {
   return (
@@ -81,6 +83,15 @@ function App() {
             <Route path="missions/:id" element={<MissionDetail />} />
 
             {/* Web Fundamentals Crash Course & Certification Quiz */}
+            <Route path="mvcubes" element={<MVCubes />} />
+            <Route
+              path="radar"
+              element={
+                <RouteGuard allowedRoles={['ADMIN', 'MENTOR']}>
+                  <Radar />
+                </RouteGuard>
+              }
+            />
             <Route path="fundamentals" element={<Fundamentals />} />
             <Route path="quiz" element={<Fundamentals />} />
             

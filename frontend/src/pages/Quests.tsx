@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Trophy, CheckCircle, Clock, Zap, Star, ShieldAlert, BookOpen, UserCheck, Calendar } from 'lucide-react';
 import { getBadgeIcon } from '../utils/badgeIcons';
+import { peerQuestLabel, peerQuestProgressText } from '../utils/peer';
 
 export const Quests: React.FC = () => {
   const { user } = useAuth();
@@ -105,7 +106,7 @@ export const Quests: React.FC = () => {
       case 'custom':
         return `Admin Sign-off (Goal: ${value})`;
       default:
-        return `Goal: ${value}`;
+        return peerQuestLabel(type, value, q.min_sample_size) ?? `Goal: ${value}`;
     }
   };
 
@@ -142,7 +143,7 @@ export const Quests: React.FC = () => {
       case 'weekly_update_streak':
         return `${current} / ${target} consecutive weeks`;
       default:
-        return `${current} / ${target}`;
+        return peerQuestProgressText(type, current, target) ?? `${current} / ${target}`;
     }
   };
 

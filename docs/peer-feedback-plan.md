@@ -367,3 +367,38 @@ Every PR must be safe to deploy on its own. Safety comes from the design, not fr
 2. **Cohort size**: k-anonymity of 3 may hide everything in a small cohort. Thresholds are constants in `config/peer.ts`; confirm current active Cube count.
 3. **MVCubes period**: monthly, computed by an admin action (no cron infrastructure exists today). Acceptable?
 4. **Mentor SLA** for growth signals: 7 days assumed.
+
+---
+
+## 10. Operations notes and known issues (shipped state)
+
+Status: PR 1 (schema), PR 2 (backend) and PR 3 (frontend) implement sections 1-9. This section collects what was deferred or needs a decision after launch.
+
+### Before the first real feedback is written
+
+1. **Set `PEER_PSEUDONYM_SECRET`** (for example `openssl rand -hex 32`) in the deployment environment and never change it afterwards. Without it, the key is derived from `JWT_SECRET` and a warning is logged. Rotating `JWT_SECRET` later would then change every giver hash and break: "feedback I've given", weekly budgets and cooldowns, reviewer reliability and giver-side quest progress. Setting it *after* feedback exists has the same effect on everything written before the change.
+2. The secret and the database together can still be used to match a hash to a user. The API never does this for any role, but a person with both can. Say so plainly to Cubes if asked.
+
+### Behaviour worth knowing
+
+| Topic | Behaviour | Why |
+|---|---|---|
+| "Weekly digest" | A lazy cutoff at Monday 00:00 UTC, not a scheduled job. Titles and growth signals refresh on a Cube's login / inbox load and when staff open Radar. | The project has no cron infrastructure. |
+| Peer score weight | Up to 20% of the overall score, scaled by distinct givers and contexts (full weight needs >= 8 givers across >= 2 contexts). Visible to staff only, like the existing Performance Index. | Plan section 2. |
+| Pinned quotes | Visible to signed-in members only. Not on the open `/x/:cubeNumber` page, which shows peer title tiers only. | An anonymous quote on an unauthenticated page is a leak risk. Revisit with per-pin opt-in. |
+| Feedback context | The composer offers "a mission we were both on" or "somewhere else". The API also supports TEAM and MEETING contexts. | Keeps the form short; extend if wanted. |
+| Peer quests | Sticky: never reverted once complete. | A peer-derived value can fall (a concern is dismissed). |
+| `peer_calibration` quest | Rewards the share of a Cube's mentor-reviewed concerns that were confirmed. | Risk: mentors may feel pressure to "confirm" so someone earns a badge. A minimum sample size mitigates it; consider not offering this quest at first. |
+| Admin visibility of giving | Admins can see how much feedback each Cube gives (quest progress), never to whom or what. | Activity, not content. |
+
+### Known issues not caused by this work
+
+- **Migration history cannot rebuild an empty database.** `20260813000000_add_quest_min_sample_size` alters `Quest` before `20260813110832_add_quests_and_streaks` creates it. Production is unaffected (the tables already exist). A fresh environment or a `prisma migrate dev` shadow database fails. Verification of this feature used `prisma db push` on throwaway databases. Fixing it means re-ordering or squashing history and needs its own careful, additive-only plan.
+- `frontend` has 60 pre-existing TypeScript errors (unused imports, a few `api` call signatures). None are in the peer files; `vite build` succeeds.
+
+### Possible follow-ups
+
+- Legendary rarity (needs `ALTER TYPE`, outside the additive-only rule; decide explicitly).
+- Per-pin public opt-in for quotes.
+- Feedback-quality quests ("Helpful Feedback", "Calibrated") are in place as criteria; badge art for them is up to you.
+- A scheduled job for digest delivery and MVCubes announcement once cron exists.

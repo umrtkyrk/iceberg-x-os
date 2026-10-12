@@ -6,6 +6,7 @@ import { Search, Filter, ShieldAlert, ShieldCheck, Award, Sparkles, Trash, Rocke
 import { getLevelMeta, isInProgramme } from '../utils/cubeStatus';
 import { UserAvatar } from '../components/UserAvatar';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
+import { GiveFeedbackButton } from '../components/peer/GiveFeedbackButton';
 
 export const Directory: React.FC = () => {
   const { user } = useAuth();
@@ -535,6 +536,22 @@ export const Directory: React.FC = () => {
                         +{cube.skills.length - 3} more
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* Peer feedback: Cubes can recognise anyone still in the programme */}
+                {user?.role === 'CUBE' && !hasLeftProgramme && cube.id !== user.cubeProfileId && (
+                  <div className={`pt-3 mt-3 border-t flex ${isIceberger ? 'border-slate-800' : 'border-gray-100'}`}>
+                    <GiveFeedbackButton
+                      receiver={{
+                        id: cube.id,
+                        name: cube.user?.name || 'Unknown',
+                        avatarUrl: cube.avatar_url || cube.user?.avatar_url
+                      }}
+                      variant="soft"
+                      label="Give feedback"
+                      className="w-full"
+                    />
                   </div>
                 )}
               </div>
