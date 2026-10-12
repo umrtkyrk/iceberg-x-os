@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
+  ChevronDown,
   Search,
   Check,
   Lock,
@@ -103,6 +104,16 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
       .finally(() => setLoading(false));
   }, [open, receiver?.id]);
 
+  // Keep the page behind the dialog from scrolling (and rubber-banding on iOS).
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   // Changing the type invalidates tags and the concern confirmation.
   useEffect(() => {
     setTags([]);
@@ -196,6 +207,74 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
 
   const meta = KIND_META[kind];
 
+  const guidance = (
+      <div className="relative flex flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${meta.accent} shadow-lg`}>
+            <meta.icon className="h-5 w-5 text-white" />
+          </span>
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/60">Peer feedback</p>
+            <h3 className="text-lg font-extrabold leading-tight">Anonymous by design</h3>
+          </div>
+        </div>
+
+        <p className="text-xs leading-relaxed text-white/75">
+          Honest feedback is how quiet, brilliant people get noticed and how teams get better. Nobody,
+          including mentors and admins, can see who wrote what.
+        </p>
+
+        <div className="flex flex-col gap-2.5">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">Who sees what</p>
+          {kind === 'KUDOS' && (
+            <>
+              <Visibility who="The person" what="Your words, anonymously, after the weekly cut-off. They may pin it to their profile." tone="ok" />
+              <Visibility who="Mentors & admins" what="Only counts and themes, never your note." tone="muted" />
+              <Visibility who="You" what="Everything you sent, in your own history." tone="muted" />
+            </>
+          )}
+          {kind === 'OBSERVATION' && (
+            <>
+              <Visibility who="The person" what="Nothing. This is never shown to them." tone="hide" />
+              <Visibility who="Mentors & admins" what="Only that several people couldn't see their work. It helps tell a quiet star from a real gap." tone="muted" />
+            </>
+          )}
+          {kind === 'CONCERN' && (
+            <>
+              <Visibility who="The person" what="Never your words. At most a gentle 'growth area' topic, after several people agree and a mentor reviews it." tone="hide" />
+              <Visibility who="Mentors & admins" what="Aggregates only. They never see who wrote it or your note." tone="muted" />
+              <Visibility who="Other Cubes" what="Nothing at all." tone="hide" />
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">Before you send</p>
+          <ul className="flex flex-col gap-2 text-xs leading-relaxed text-white/80">
+            <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Describe what you <b className="text-white">observed</b>, not what you think of the person.</span></li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Be specific: a moment, a task, a result.</span></li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Skip details only you would know. They could reveal you.</span></li>
+            <li className="flex gap-2"><X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-300" /><span>Don't name other people or share private information.</span></li>
+            {kind === 'KUDOS' && (
+              <li className="flex gap-2"><Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" /><span>Recognising someone who rarely speaks up is one of the most useful things you can do here.</span></li>
+            )}
+          </ul>
+        </div>
+
+        {kind === 'CONCERN' && (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-xs leading-relaxed text-amber-100">
+            <p className="mb-1.5 flex items-center gap-1.5 font-extrabold text-amber-200">
+              <AlertTriangle className="h-3.5 w-3.5" /> Please read this
+            </p>
+            A single concern changes nothing on its own. It only counts once at least{' '}
+            {limits?.k_anonymity ?? 3} independent people raise the same area, and a mentor always
+            talks to the person first. Concerns that turn out to be unfounded, or that look like
+            retaliation or rivalry, reduce the weight of your future feedback.
+          </div>
+        )}
+      </div>
+  );
+
   // Rendered into <body>: cards in the directory are transformed on hover, and
   // a transformed ancestor would otherwise trap this fixed overlay inside the card.
   return createPortal(
@@ -206,7 +285,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
       aria-label="Give peer feedback"
       onMouseDown={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl bg-white shadow-premium grid grid-cols-1 md:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="peer-modal-card relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-premium md:flex-row">
         <button
           onClick={onClose}
           aria-label="Close"
@@ -216,77 +295,13 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
         </button>
 
         {/* Guidance */}
-        <aside className="relative hidden md:flex flex-col gap-5 overflow-y-auto bg-dark-bg text-white p-7">
+        <aside className="relative hidden md:flex md:w-[340px] md:shrink-0 flex-col gap-5 overflow-y-auto bg-dark-bg text-white p-7">
           <div className="peer-aurora absolute inset-0 opacity-70 pointer-events-none" />
-          <div className="relative flex flex-col gap-5">
-            <div className="flex items-center gap-3">
-              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${meta.accent} shadow-lg`}>
-                <meta.icon className="h-5 w-5 text-white" />
-              </span>
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/60">Peer feedback</p>
-                <h3 className="text-lg font-extrabold leading-tight">Anonymous by design</h3>
-              </div>
-            </div>
-
-            <p className="text-xs leading-relaxed text-white/75">
-              Honest feedback is how quiet, brilliant people get noticed and how teams get better. Nobody,
-              including mentors and admins, can see who wrote what.
-            </p>
-
-            <div className="flex flex-col gap-2.5">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">Who sees what</p>
-              {kind === 'KUDOS' && (
-                <>
-                  <Visibility who="The person" what="Your words, anonymously, after the weekly cut-off. They may pin it to their profile." tone="ok" />
-                  <Visibility who="Mentors & admins" what="Only counts and themes, never your note." tone="muted" />
-                  <Visibility who="You" what="Everything you sent, in your own history." tone="muted" />
-                </>
-              )}
-              {kind === 'OBSERVATION' && (
-                <>
-                  <Visibility who="The person" what="Nothing. This is never shown to them." tone="hide" />
-                  <Visibility who="Mentors & admins" what="Only that several people couldn't see their work. It helps tell a quiet star from a real gap." tone="muted" />
-                </>
-              )}
-              {kind === 'CONCERN' && (
-                <>
-                  <Visibility who="The person" what="Never your words. At most a gentle 'growth area' topic, after several people agree and a mentor reviews it." tone="hide" />
-                  <Visibility who="Mentors & admins" what="Aggregates only. They never see who wrote it or your note." tone="muted" />
-                  <Visibility who="Other Cubes" what="Nothing at all." tone="hide" />
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">Before you send</p>
-              <ul className="flex flex-col gap-2 text-xs leading-relaxed text-white/80">
-                <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Describe what you <b className="text-white">observed</b>, not what you think of the person.</span></li>
-                <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Be specific: a moment, a task, a result.</span></li>
-                <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /><span>Skip details only you would know. They could reveal you.</span></li>
-                <li className="flex gap-2"><X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-300" /><span>Don't name other people or share private information.</span></li>
-                {kind === 'KUDOS' && (
-                  <li className="flex gap-2"><Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" /><span>Recognising someone who rarely speaks up is one of the most useful things you can do here.</span></li>
-                )}
-              </ul>
-            </div>
-
-            {kind === 'CONCERN' && (
-              <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-xs leading-relaxed text-amber-100">
-                <p className="mb-1.5 flex items-center gap-1.5 font-extrabold text-amber-200">
-                  <AlertTriangle className="h-3.5 w-3.5" /> Please read this
-                </p>
-                A single concern changes nothing on its own. It only counts once at least{' '}
-                {limits?.k_anonymity ?? 3} independent people raise the same area, and a mentor always
-                talks to the person first. Concerns that turn out to be unfounded, or that look like
-                retaliation or rivalry, reduce the weight of your future feedback.
-              </div>
-            )}
-          </div>
+          {guidance}
         </aside>
 
         {/* Form */}
-        <section className="flex min-h-0 flex-col overflow-y-auto p-6 sm:p-8">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain p-5 sm:p-8">
           {sent ? (
             <div className="peer-burst m-auto flex max-w-sm flex-col items-center gap-4 py-10 text-center">
               <span className={`flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br ${KIND_META[sent.kind].accent} shadow-lg`}>
@@ -326,10 +341,35 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
             <div className="m-auto h-10 w-10 animate-spin rounded-full border-4 border-magenta border-t-transparent" />
           ) : (
             <div className="flex flex-col gap-6">
-              <header>
+              <header className="pr-10 md:pr-0">
                 <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Give feedback</h2>
                 <p className="mt-1 text-sm text-slate-500">Takes under a minute. Be kind, be honest, be specific.</p>
               </header>
+
+              {/* On small screens the guidance panel is hidden, so the same
+                  information lives here instead of disappearing. */}
+              <div className="flex flex-col gap-3 md:hidden">
+                <details className="group overflow-hidden rounded-2xl bg-dark-bg text-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-extrabold">
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                      Anonymous by design. Who sees what?
+                    </span>
+                    <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="relative border-t border-white/10 p-5">{guidance}</div>
+                </details>
+                {kind === 'CONCERN' && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold leading-relaxed text-amber-900">
+                    <p className="mb-1 flex items-center gap-1.5 font-extrabold">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Please read this
+                    </p>
+                    A single concern changes nothing on its own. It only counts once at least{' '}
+                    {limits?.k_anonymity ?? 3} independent people raise the same area, and a mentor always talks to
+                    the person first. The person never sees your words.
+                  </div>
+                )}
+              </div>
 
               {/* 1. Person */}
               <div className="flex flex-col gap-2">
@@ -557,7 +597,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
                 </p>
               )}
 
-              <footer className="sticky bottom-0 -mx-1 flex items-center justify-between gap-3 bg-white/90 px-1 py-3 backdrop-blur">
+              <footer className="sticky -bottom-5 -mx-5 -mb-5 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:-bottom-8 sm:-mx-8 sm:-mb-8 sm:px-8">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
                   <ShieldCheck className="h-3.5 w-3.5" /> Anonymous to everyone, always
                 </p>
