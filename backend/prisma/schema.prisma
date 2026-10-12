@@ -132,6 +132,14 @@ model CubeProfile {
   nda_signed         Boolean     @default(false)
   nda_signed_at      DateTime?
   nda_status         String      @default("not_sent")
+  /// Set by staff to publicly mark a Cube as close to Senior Cube. Cleared
+  /// automatically when they are promoted.
+  is_senior_candidate Boolean    @default(false)
+  /// When the Cube first reached the Iceberger level (null for those who got
+  /// there before this was recorded).
+  iceberger_at       DateTime?
+  /// When an Iceberger was promoted to Mentor. The profile is kept as history.
+  mentor_promoted_at DateTime?
   created_at         DateTime    @default(now())
   updated_at         DateTime    @updatedAt
 
