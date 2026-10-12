@@ -5,7 +5,13 @@ import { Router } from 'express';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { badRequest, conflict, notFound, sendError, forbidden } from '../utils/http';
-import { assignQuestToCubes, verifyQuestProgress } from '../services/quest.service';
+import { assignQuestToCubes, verifyQuestProgress, autoAssignQuestToEligibleCubes } from '../services/quest.service';
+import {
+  PEER_CRITERIA,
+  PEER_COUNT_CRITERIA,
+  PEER_RATE_CRITERIA,
+  isPeerCriteria
+} from '../services/peerQuests.service';
 import { BadgeRarity } from '@prisma/client';
 import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 
@@ -14,7 +20,7 @@ const router = Router();
 // Create Quest (Admin only)
 router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
   try {
-    const { title, description, difficulty, criteria_type, criteria_value, min_sample_size, is_timed, expires_at, reward_badge_ids, dependency_quest_id } = req.body;
+    const { title, description, difficulty, criteria_type, criteria_value, min_sample_size, is_timed, expires_at, reward_badge_ids, dependency_quest_id, auto_assign } = req.body;
 
     if (!title || !description || !criteria_type || criteria_value === undefined) {
       throw badRequest('Missing required quest fields: title, description, criteria_type, and criteria_value are required.');
@@ -44,7 +50,8 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       'profile_picture',
       'avatar_upload',
       'quiz_score',
-      'quiz_completed'
+      'quiz_completed',
+      ...PEER_CRITERIA
     ];
     if (!validCriteriaTypes.includes(criteria_type)) {
       throw badRequest(`Criteria type must be one of: ${validCriteriaTypes.join(', ')}.`);
@@ -65,6 +72,25 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       const parsed = Number(criteria_value);
       if (!Number.isInteger(parsed) || parsed < 1) {
         throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a positive whole number of at least 1.`);
+      }
+    }
+
+    // Peer criteria. Counts must be whole numbers >= 1; the title tier is
+    // 1 (Common) to 3 (Epic); calibration is a percentage.
+    if (isPeerCriteria(criteria_type)) {
+      const parsed = Number(criteria_value);
+      if (PEER_COUNT_CRITERIA.includes(criteria_type)) {
+        if (!Number.isInteger(parsed) || parsed < 1) {
+          throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole number of at least 1.`);
+        }
+      } else if (criteria_type === 'peer_title_tier') {
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3) {
+          throw badRequest('For "peer_title_tier" quests, Goal Target Value must be 1 (Common), 2 (Rare) or 3 (Epic).');
+        }
+      } else if (PEER_RATE_CRITERIA.includes(criteria_type)) {
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+          throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole percentage from 1 to 100.`);
+        }
       }
     }
 
@@ -94,7 +120,7 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
     // Only meaningful for "rate" criteria — a count-based quest's target IS the
     // count, it has no separate sample size. Reject it elsewhere so a typo in
     // the admin form can't silently do nothing.
-    const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance'];
+    const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...PEER_RATE_CRITERIA];
     let minSampleSize: number | null = null;
     if (min_sample_size !== undefined && min_sample_size !== null && min_sample_size !== '') {
       if (!RATE_CRITERIA_TYPES.includes(criteria_type)) {
@@ -119,6 +145,7 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
         criteria_type,
         criteria_value: Number(criteria_value),
         min_sample_size: minSampleSize,
+        auto_assign: auto_assign === true,
         is_timed: is_timed === true,
         expires_at: expires_at ? new Date(expires_at) : null,
         dependency_quest_id: dependency_quest_id || null,
@@ -129,7 +156,18 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       include: { rewards: true }
     });
 
-    return res.status(201).json(quest);
+    // Auto-assign quests go straight to every eligible Cube. Best-effort: the
+    // quest exists either way, and the login hook picks up anyone missed.
+    let autoAssigned: { newlyAssigned: number; skipped: number } | null = null;
+    if (quest.auto_assign) {
+      try {
+        autoAssigned = await autoAssignQuestToEligibleCubes(quest.id);
+      } catch (err) {
+        console.error(`Auto-assign after creating quest ${quest.id} failed:`, err);
+      }
+    }
+
+    return res.status(201).json({ ...quest, auto_assigned: autoAssigned });
   } catch (error: any) {
     return sendError(res, error);
   }
@@ -233,6 +271,33 @@ router.post('/admin/quests/assign', requireAuth, isAdmin, async (req, res) => {
       message: `Quest assignment complete: ${parts.join(', ')}.`,
       ...result
     });
+  } catch (error: any) {
+    return sendError(res, error);
+  }
+});
+
+// Switch auto-assignment on or off for a quest (Admin only).
+// Turning it on assigns to currently eligible Cubes once; turning it off never
+// removes existing assignments.
+router.patch('/admin/quests/:id/auto-assign', requireAuth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { auto_assign } = req.body;
+    if (typeof auto_assign !== 'boolean') {
+      throw badRequest('auto_assign must be true or false.');
+    }
+
+    const quest = await prisma.quest.findUnique({ where: { id } });
+    if (!quest) throw notFound('Quest not found');
+
+    const updated = await prisma.quest.update({ where: { id }, data: { auto_assign } });
+
+    let autoAssigned: { newlyAssigned: number; skipped: number } | null = null;
+    if (auto_assign && !quest.auto_assign) {
+      autoAssigned = await autoAssignQuestToEligibleCubes(id);
+    }
+
+    return res.json({ ...updated, auto_assigned: autoAssigned });
   } catch (error: any) {
     return sendError(res, error);
   }

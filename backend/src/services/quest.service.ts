@@ -1,6 +1,9 @@
 import prisma from './prisma';
 import { BadgeRarity, MissionStatus } from '@prisma/client';
 import { StorageService } from './storage.service';
+import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
+import { PEER_CRITERIA, PEER_QUESTS, isPeerCriteria } from './peerQuests.service';
+import { recomputeCubePeerState } from './peerSignal.service';
 
 /**
  * Fallback minimum sample size for "rate" criteria (average_score,
@@ -217,6 +220,30 @@ export async function trackUserLogin(userId: string): Promise<void> {
     for (const cq of cubeQuests) {
       await verifyQuestProgress(cubeProfileId, cq.quest_id);
     }
+
+    // Peer features are best-effort: signing in must never fail because of
+    // them. Catches Cubes created after an auto-assign quest, and refreshes
+    // titles and delivered peer progress once a new week has started.
+    try {
+      await recomputeCubePeerState(cubeProfileId);
+      await ensureAutoQuestsForCube(cubeProfileId);
+
+      // Only peer quests are re-evaluated here; every other quest keeps its
+      // existing triggers, so signing in does not change their behaviour.
+      const peerQuests = await prisma.cubeQuest.findMany({
+        where: {
+          cube_id: cubeProfileId,
+          is_completed: false,
+          quest: { criteria_type: { in: [...PEER_CRITERIA] } }
+        },
+        select: { quest_id: true }
+      });
+      for (const pq of peerQuests) {
+        await verifyQuestProgress(cubeProfileId, pq.quest_id);
+      }
+    } catch (err) {
+      console.error(`Peer login hook failed for cube ${cubeProfileId}:`, err);
+    }
   }
 }
 
@@ -239,6 +266,11 @@ export async function verifyQuestProgress(
   });
 
   if (!cubeQuest || (cubeQuest.is_completed && !options?.forceRecheck)) return cubeQuest;
+
+  // Peer-derived progress can fall (a concern is dismissed, a rate dips). A
+  // badge earned that way must never silently disappear, so once a peer quest
+  // is complete it is final and is not re-evaluated.
+  if (cubeQuest.is_completed && isPeerCriteria(cubeQuest.quest.criteria_type)) return cubeQuest;
 
   const { quest } = cubeQuest;
   let newValue = cubeQuest.current_value;
@@ -478,6 +510,18 @@ export async function verifyQuestProgress(
       }
     });
     newValue = completedCount;
+  }
+  else if (isPeerCriteria(quest.criteria_type)) {
+    const profile = await prisma.cubeProfile.findUnique({
+      where: { id: cubeProfileId },
+      select: { user_id: true }
+    });
+    newValue = profile
+      ? await PEER_QUESTS[quest.criteria_type].progress(cubeProfileId, profile.user_id, {
+          calculateWeeklyStreak,
+          minSampleSize: resolveMinSampleSize(quest)
+        })
+      : 0;
   }
 
   // 2. Check if quest criteria are met
@@ -737,4 +781,104 @@ export async function assignQuestToCubes(questId: string, cubeProfileIds: string
   }
 
   return result;
+}
+
+/**
+ * Whether `quest` may be auto-assigned to this Cube right now: its dependency
+ * (if any) is complete, it has not expired, and a peer quest's own eligibility
+ * rule (e.g. "has given feedback") holds.
+ */
+async function isAutoAssignEligible(
+  cubeProfileId: string,
+  userId: string,
+  quest: { criteria_type: string; dependency_quest_id: string | null; expires_at: Date | null }
+): Promise<boolean> {
+  if (quest.expires_at && quest.expires_at.getTime() <= Date.now()) return false;
+
+  if (quest.dependency_quest_id) {
+    const dependency = await prisma.cubeQuest.findUnique({
+      where: { cube_id_quest_id: { cube_id: cubeProfileId, quest_id: quest.dependency_quest_id } },
+      select: { is_completed: true }
+    });
+    if (!dependency?.is_completed) return false;
+  }
+
+  if (isPeerCriteria(quest.criteria_type)) {
+    return PEER_QUESTS[quest.criteria_type].eligible(cubeProfileId, userId);
+  }
+  return true;
+}
+
+/**
+ * Idempotently assigns every `auto_assign` quest the Cube is eligible for and
+ * evaluates it. Returns how many were newly assigned. Only Cubes still in the
+ * programme are touched.
+ */
+export async function ensureAutoQuestsForCube(cubeProfileId: string): Promise<number> {
+  const profile = await prisma.cubeProfile.findUnique({
+    where: { id: cubeProfileId },
+    select: { id: true, user_id: true, current_level: true }
+  });
+  if (!profile || !IN_PROGRAMME_CUBE_LEVELS.includes(profile.current_level)) return 0;
+
+  const [quests, existing] = await Promise.all([
+    prisma.quest.findMany({ where: { auto_assign: true } }),
+    prisma.cubeQuest.findMany({ where: { cube_id: cubeProfileId }, select: { quest_id: true } })
+  ]);
+  const assigned = new Set(existing.map(e => e.quest_id));
+
+  let newlyAssigned = 0;
+  for (const quest of quests) {
+    if (assigned.has(quest.id)) continue;
+    if (!(await isAutoAssignEligible(cubeProfileId, profile.user_id, quest))) continue;
+
+    try {
+      await prisma.cubeQuest.create({ data: { cube_id: cubeProfileId, quest_id: quest.id } });
+      newlyAssigned++;
+      await verifyQuestProgress(cubeProfileId, quest.id);
+    } catch (err) {
+      // A parallel request may have created the row first; that is fine.
+      console.error(`Auto-assign of quest ${quest.id} failed for cube ${cubeProfileId}:`, err);
+    }
+  }
+  return newlyAssigned;
+}
+
+/**
+ * Assigns one quest to every eligible in-programme Cube. Used when an admin
+ * creates or switches on an auto-assign quest.
+ */
+export async function autoAssignQuestToEligibleCubes(questId: string): Promise<{
+  newlyAssigned: number;
+  skipped: number;
+}> {
+  const quest = await prisma.quest.findUnique({ where: { id: questId } });
+  if (!quest) return { newlyAssigned: 0, skipped: 0 };
+
+  const cubes = await prisma.cubeProfile.findMany({
+    where: { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } },
+    select: { id: true, user_id: true }
+  });
+
+  let newlyAssigned = 0;
+  let skipped = 0;
+  for (const cube of cubes) {
+    const existing = await prisma.cubeQuest.findUnique({
+      where: { cube_id_quest_id: { cube_id: cube.id, quest_id: quest.id } },
+      select: { id: true }
+    });
+    if (existing || !(await isAutoAssignEligible(cube.id, cube.user_id, quest))) {
+      skipped++;
+      continue;
+    }
+    try {
+      await prisma.cubeQuest.create({ data: { cube_id: cube.id, quest_id: quest.id } });
+      newlyAssigned++;
+      await verifyQuestProgress(cube.id, quest.id);
+    } catch (err) {
+      console.error(`Auto-assign of quest ${quest.id} failed for cube ${cube.id}:`, err);
+      skipped++;
+    }
+  }
+  return { newlyAssigned, skipped };
 }
