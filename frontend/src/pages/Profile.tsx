@@ -1276,7 +1276,7 @@ export const Profile: React.FC = () => {
                 .sort((a: any, b: any) => compareByRarity(a.badge?.rarity, b.badge?.rarity))
                 .map((award: any) => {
                   const meta = getRarityMeta(award.badge?.rarity);
-                  const isEpic = meta.key === 'Epic';
+                  const isEpic = meta.animated;
 
                   return (
                     <div
@@ -1319,7 +1319,7 @@ export const Profile: React.FC = () => {
               {profile.cube_quests
                 .filter((cq: any) => cq.is_completed)
                 .map((cq: any) => {
-                  const isEpic = cq.quest?.difficulty === 'Epic';
+                  const isEpic = cq.quest?.difficulty === 'Epic' || cq.quest?.difficulty === 'Legendary';
                   const isRare = cq.quest?.difficulty === 'Rare';
                   const borderClass = isEpic 
                     ? 'border-magenta/40 shadow-sm shadow-magenta/5 bg-slate-950 text-white' 

@@ -17,7 +17,8 @@ import { recomputeCubePeerState } from './peerSignal.service';
 const DEFAULT_MIN_SAMPLE_SIZE: Record<BadgeRarity, number> = {
   [BadgeRarity.Common]: 3,
   [BadgeRarity.Rare]: 5,
-  [BadgeRarity.Epic]: 10
+  [BadgeRarity.Epic]: 10,
+  [BadgeRarity.Legendary]: 15
 };
 
 function resolveMinSampleSize(quest: { min_sample_size: number | null; difficulty: BadgeRarity }): number {

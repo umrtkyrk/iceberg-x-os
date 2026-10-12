@@ -18,7 +18,7 @@ const HINTS: Record<string, string> = {
  */
 export const PeerTitleCard: React.FC<{ title: PeerTitle; compact?: boolean }> = ({ title, compact }) => {
   const meta = getRarityMeta(title.rarity);
-  const isEpic = meta.key === 'Epic';
+  const isEpic = meta.animated;
   const Icon = tagStyle(title.category).icon;
   const label = title.label || CATEGORY_LABELS[title.category] || title.category;
 

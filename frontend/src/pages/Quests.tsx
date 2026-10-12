@@ -63,7 +63,7 @@ export const Quests: React.FC = () => {
   // Mirrors DEFAULT_MIN_SAMPLE_SIZE in backend/src/services/quest.service.ts —
   // shown so a Cube understands why 100% attendance or a 4.9 average isn't
   // enough on its own to finish the quest yet.
-  const DEFAULT_MIN_SAMPLE_SIZE: Record<string, number> = { Common: 3, Rare: 5, Epic: 10 };
+  const DEFAULT_MIN_SAMPLE_SIZE: Record<string, number> = { Common: 3, Rare: 5, Epic: 10, Legendary: 15 };
 
   // Helper for criteria labels
   const getCriteriaLabel = (q: any) => {
@@ -149,6 +149,15 @@ export const Quests: React.FC = () => {
 
   const getDifficultyStyles = (difficulty: string) => {
     switch (difficulty) {
+      case 'Legendary':
+        return {
+          card: 'badge-frame-legendary badge-legendary-glow border-transparent text-white',
+          badge: 'badge-pill-legendary text-amber-950 border border-amber-100/60',
+          progressBg: 'bg-amber-950/60',
+          progressFill: 'bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-300',
+          textColor: 'text-amber-100/80',
+          titleColor: 'text-amber-100'
+        };
       case 'Epic':
         return {
           card: 'bg-slate-900 border-magenta/40 text-white shadow-lg shadow-magenta/10 hover:shadow-magenta/20',

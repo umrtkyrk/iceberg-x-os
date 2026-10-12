@@ -165,7 +165,8 @@ export const TITLE_TIERS: {
 export const RARITY_ORDINAL: Record<BadgeRarity, number> = {
   [BadgeRarity.Common]: 1,
   [BadgeRarity.Rare]: 2,
-  [BadgeRarity.Epic]: 3
+  [BadgeRarity.Epic]: 3,
+  [BadgeRarity.Legendary]: 4
 };
 
 /** MVCubes categories. RISING_STAR is computed from trend, not from a tag. */
