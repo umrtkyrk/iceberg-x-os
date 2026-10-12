@@ -125,3 +125,27 @@ The system defines three badge rarity tiers (`BadgeRarity`) with specific visual
 ## 6. Terminology Conventions
 
 - **Standardized Word**: Use the term **Cube** exclusively across all user interfaces, button texts, page headers, lists, and form placeholders when referring to fellowship developers. Never refer to them as "students" or "interns".
+
+---
+
+## 7. Repositories & deployment
+
+The code lives in **two repositories that must stay identical**:
+
+| Role | Repository | Used for |
+|---|---|---|
+| **Deploy** | `yemrealtanay/iceberg-x-os` | Production deploys from its `main` |
+| Org | `Iceberg-Digital-Team/iceberg-x-os` | Team copy and pull requests |
+
+There is no `develop` branch; pull requests go straight to `main`, so **every merge to the deploy repo's `main` is a production deploy**.
+
+### Rules
+1. **Merge a pull request in only one repository**, then bring the other up to date with `scripts/sync-remotes.sh --apply`. Merging the same PR in both creates two different merge commits and the histories drift apart.
+2. **Never resolve "merge main into my branch" conflicts by hand without building.** Run `cd frontend && npm run build` (the exact command the Docker image runs) before pushing; an unbalanced JSX tag is only caught by the build.
+3. If the repositories have diverged, `scripts/sync-remotes.sh` stops and prints how to reconcile. It only ever fast-forwards and never force-pushes.
+
+### Checking and syncing
+```bash
+scripts/sync-remotes.sh            # report only
+scripts/sync-remotes.sh --apply    # fast-forward whichever repository is behind
+```
