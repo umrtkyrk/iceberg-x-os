@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
-import { ShieldCheck, ShieldAlert, Award, Calendar, Clock, ExternalLink, Check, Copy, Share2, CheckCircle, GraduationCap, Code2, Sparkles } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Award, Calendar, Clock, ExternalLink, Check, Copy, Share2, CheckCircle, GraduationCap, Code2, Sparkles, HeartHandshake } from 'lucide-react';
 import { ScaledCertificatePreview } from '../components/CertificateSheet';
 import { BadgeDisc, RarityPill, BadgeSparks } from '../components/BadgeMedal';
 import { compareByRarity, getRarityMeta } from '../utils/badgeRarity';
 import { getAssetUrl } from '../utils/assets';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
+import { PeerTitleCard } from '../components/peer/PeerTitleCard';
 
 export const PublicProfile: React.FC = () => {
   const { cubeNumber, certNo } = useParams<{ cubeNumber?: string; certNo?: string }>();
@@ -82,7 +83,7 @@ export const PublicProfile: React.FC = () => {
     );
   }
 
-  const { profile, stats, missions = [] } = data;
+  const { profile, stats, missions = [], peer_titles: peerTitles = [] } = data;
   const offboarding = profile.offboarding_record;
   const isAlumni = !!offboarding;
   const isAchievement = offboarding?.type === 'success' || offboarding?.type === 'achievement';
@@ -297,6 +298,25 @@ export const PublicProfile: React.FC = () => {
               completedAt={profile.quiz_attempts[0].completed_at}
               variant="spotlight"
             />
+          </section>
+        )}
+
+        {/* Peer titles: earned from teammates. Tier only, never who or why. */}
+        {peerTitles.length > 0 && (
+          <section className="mt-7">
+            <div className="flex items-baseline justify-between gap-4 mb-4">
+              <h2 className="text-xl font-extrabold tracking-tight m-0 flex items-center gap-2">
+                <HeartHandshake className="w-5 h-5 text-[#E5007D]" />
+                <span>Recognised by teammates</span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {[...peerTitles]
+                .sort((a: any, b: any) => compareByRarity(a.rarity, b.rarity))
+                .map((t: any) => (
+                  <PeerTitleCard key={t.category} title={t} />
+                ))}
+            </div>
           </section>
         )}
 

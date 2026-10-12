@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { Link } from 'react-router-dom';
-import { Users, Rocket, Clock, MessageSquare, AlertCircle, Sparkles, BookOpen } from 'lucide-react';
+import { Users, Rocket, Clock, MessageSquare, AlertCircle, Sparkles, BookOpen, Radar as RadarIcon, ArrowRight } from 'lucide-react';
 import { CustomMarkdown } from '../components/CustomMarkdown';
 
 export const MentorDashboard: React.FC = () => {
@@ -52,6 +52,25 @@ export const MentorDashboard: React.FC = () => {
           <h1 className="text-3xl font-extrabold tracking-tight">Mentor Workspace</h1>
           <p className="text-gray-500 mt-1">Review prototypes, submit feedback, and guide your assigned Cubes.</p>
         </div>
+
+        {/* Radar entry: who the programme sees, and who it might be missing */}
+        <Link
+          to="/radar"
+          className="peer-aurora group relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl p-5 text-white transition hover:-translate-y-0.5 hover:shadow-premium"
+        >
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
+              <RadarIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-extrabold">Radar</p>
+              <p className="text-xs font-medium leading-relaxed text-white/70">
+                Find quiet high performers and growth signals from peer feedback. Anonymous aggregates only.
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 transition group-hover:translate-x-1" />
+        </Link>
 
         {/* Assigned Missions */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-subtle flex flex-col gap-4">
