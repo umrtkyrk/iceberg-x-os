@@ -146,6 +146,11 @@ model CubeProfile {
   cube_quests        CubeQuest[]
   documents          CubeDocument[]
   quiz_attempts      QuizAttempt[]
+  peer_feedback_received PeerFeedback[]       @relation("PeerFeedbackReceived")
+  peer_signal            PeerSignal?          @relation("PeerSignalCube")
+  peer_growth_signals    PeerGrowthSignal[]   @relation("PeerGrowthCube")
+  peer_titles            PeerTitle[]          @relation("PeerTitleCube")
+  mvcubes_awards         MvcubesAward[]       @relation("MvcubesCube")
 
   @@index([assigned_mentor_id])
   @@index([current_level])
@@ -552,6 +557,10 @@ model Quest {
   min_sample_size     Int?
   is_timed            Boolean     @default(false)
   expires_at          DateTime?
+  /// When true the quest is assigned automatically to every eligible Cube (see
+  /// ensureAutoQuestsForCube). Defaults to false, so every existing quest keeps
+  /// its current manual-assignment behaviour.
+  auto_assign         Boolean     @default(false)
   created_at          DateTime    @default(now())
   updated_at          DateTime    @updatedAt
 
@@ -652,3 +661,137 @@ model QuizAttempt {
   @@index([score])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Peer feedback, Radar and MVCubes.
+//
+// Everything below is NEW. No existing table is modified by these models (the
+// only change to an existing table is Quest.auto_assign above).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PeerFeedbackKind {
+  KUDOS
+  OBSERVATION
+  CONCERN
+}
+
+enum PeerFeedbackStatus {
+  ACTIVE
+  DISMISSED
+}
+
+enum PeerContextType {
+  MISSION
+  MEETING
+  TEAM
+  OTHER
+}
+
+enum PeerSignalState {
+  OPEN
+  IN_CONVERSATION
+  RESOLVED
+}
+
+/// One piece of peer feedback.
+///
+/// `giver_hash` is a keyed HMAC of the giver's user id and is deliberately NOT a
+/// foreign key: nothing in the schema can join this row back to a User. It
+/// exists only for rate limits, normalisation and abuse detection, and is never
+/// returned by any endpoint.
+model PeerFeedback {
+  id           String             @id @default(uuid())
+  giver_hash   String
+  receiver_id  String
+  receiver     CubeProfile        @relation("PeerFeedbackReceived", fields: [receiver_id], references: [id], onDelete: Cascade)
+  kind         PeerFeedbackKind
+  tags         String[]
+  note         String?            @db.Text
+  context_type PeerContextType    @default(OTHER)
+  context_id   String?
+  /// Context weight, frozen at write time.
+  weight       Float              @default(1)
+  status       PeerFeedbackStatus @default(ACTIVE)
+  /// Kudos only: set by the weekly digest. Null until the recipient may see it.
+  delivered_at DateTime?
+  is_pinned    Boolean            @default(false)
+  pinned_at    DateTime?
+  /// Receiver had fewer than 3 distinct givers when this was written.
+  was_quiet    Boolean            @default(false)
+  /// Set by the receiver when the feedback was useful.
+  helpful_at   DateTime?
+  created_at   DateTime           @default(now())
+
+  @@index([receiver_id, kind, created_at])
+  @@index([giver_hash, created_at])
+  @@index([receiver_id, is_pinned])
+}
+
+/// Cached aggregate per Cube. Recomputed on write; the only peer data mentors read.
+model PeerSignal {
+  id                String      @id @default(uuid())
+  cube_id           String      @unique
+  cube              CubeProfile @relation("PeerSignalCube", fields: [cube_id], references: [id], onDelete: Cascade)
+  kudos_score       Float       @default(0)
+  concern_score     Float       @default(0)
+  distinct_givers   Int         @default(0)
+  distinct_contexts Int         @default(0)
+  tag_counts        Json        @default("{}")
+  /// Peer positive signal relative to mentor-side visibility (Hidden Gems).
+  visibility_gap    Float       @default(0)
+  updated_at        DateTime    @updatedAt
+}
+
+/// A verified growth signal awaiting, or undergoing, a mentor conversation.
+model PeerGrowthSignal {
+  id            String          @id @default(uuid())
+  cube_id       String
+  cube          CubeProfile     @relation("PeerGrowthCube", fields: [cube_id], references: [id], onDelete: Cascade)
+  /// Broad category only: Communication, Contribution, Reliability, Collaboration.
+  category      String
+  state         PeerSignalState @default(OPEN)
+  due_at        DateTime
+  handled_by_id String?
+  handled_at    DateTime?
+  created_at    DateTime        @default(now())
+
+  @@index([cube_id, state])
+  @@index([state, due_at])
+}
+
+/// Peer-earned title. The tier upgrades in place and is never lowered.
+model PeerTitle {
+  id          String      @id @default(uuid())
+  cube_id     String
+  cube        CubeProfile @relation("PeerTitleCube", fields: [cube_id], references: [id], onDelete: Cascade)
+  category    String
+  rarity      BadgeRarity
+  earned_at   DateTime    @default(now())
+  upgraded_at DateTime?
+
+  @@unique([cube_id, category])
+  @@index([category, rarity])
+}
+
+/// Monthly category winners shown on the MVCubes shelf.
+model MvcubesAward {
+  id       String      @id @default(uuid())
+  period   String
+  category String
+  cube_id  String
+  cube     CubeProfile @relation("MvcubesCube", fields: [cube_id], references: [id], onDelete: Cascade)
+  note     String?
+
+  @@unique([period, category, cube_id])
+  @@index([period])
+  @@index([cube_id])
+}
+
+/// Per-reviewer reliability weight used by the abuse pass. Keyed by giver_hash.
+model PeerReviewerStat {
+  giver_hash  String   @id
+  reliability Float    @default(1)
+  given_total Int      @default(0)
+  dismissed   Int      @default(0)
+  confirmed   Int      @default(0)
+  updated_at  DateTime @updatedAt
+}
