@@ -1,7 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, LogOut, LayoutDashboard, Users, Rocket, Award, FolderOpen, Calendar, Shield, KeyRound, GraduationCap, Send, ChevronDown, Trophy, ShieldCheck, BookOpen, Crown, Radar as RadarIcon, Mountain } from 'lucide-react';
+import {
+  Menu,
+  X,
+  LogOut,
+  LayoutDashboard,
+  Users,
+  Rocket,
+  Award,
+  FolderOpen,
+  Calendar,
+  Shield,
+  KeyRound,
+  GraduationCap,
+  Send,
+  ChevronDown,
+  Trophy,
+  ShieldCheck,
+  BookOpen,
+  Crown,
+  Radar as RadarIcon,
+  Mountain,
+  Briefcase,
+  TrendingUp,
+  UserRound,
+  Camera,
+  type LucideIcon
+} from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { UserAvatar } from './UserAvatar';
 import { AvatarUploadModal } from './AvatarUploadModal';
@@ -140,66 +166,22 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const isAdminOrMentor = user?.role === 'ADMIN' || user?.role === 'MENTOR';
-  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
-  const [recognitionOpen, setRecognitionOpen] = useState(false);
-  const adminDropdownRef = useRef<HTMLDivElement>(null);
+  const isAdminOrMentor = user.role === 'ADMIN' || user.role === 'MENTOR';
+  const groups: NavGroup[] = [WORK, GROWTH, COMMUNITY, ...(isAdminOrMentor ? [buildManage(user.role === 'ADMIN')] : [])];
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
-        setAdminDropdownOpen(false);
-        setRecognitionOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isLinkActive = (path: string) => {
-    if (location.pathname === path) return true;
-    if (path === '/admin/documents' && location.pathname === '/admin/nda') return true;
+  const pathname = location.pathname;
+  const isItemActive = (path: string) => {
+    if (pathname === path || pathname.startsWith(`${path}/`)) return true;
+    if (path === '/directory' && pathname.startsWith('/cubes/')) return true;
+    if (path === '/admin/documents' && pathname === '/admin/nda') return true;
+    if (path === '/missions' && pathname.startsWith('/submit-demo')) return true;
     return false;
   };
   const isGroupActive = (group: NavGroup) =>
     group.sections.some(section => section.items.some(item => isItemActive(item.path)));
 
-  const getMainLinks = () => {
-    return [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/directory', label: 'Directory', icon: Users },
-      { path: '/missions', label: 'Missions', icon: Rocket },
-      { path: '/fundamentals', label: 'Fundamentals', icon: BookOpen },
-      { path: '/meetings', label: 'Meetings', icon: Calendar },
-      { path: '/badges', label: 'Badges', icon: Award },
-      { path: '/quests', label: 'Quests', icon: Trophy },
-      { path: '/vault', label: 'Vault', icon: FolderOpen },
-    ];
-  };
-
-  // Recognition lives in one dropdown so the header stays readable.
-  const getRecognitionLinks = () => [
-    { path: '/mvcubes', label: 'MVCubes', icon: Crown },
-    { path: '/hall-of-fame', label: 'Hall of Fame', icon: Mountain }
-  ];
-
-  const getAdminLinks = () => {
-    const list = [
-      { path: '/radar', label: 'Radar', icon: RadarIcon },
-      { path: '/teams', label: 'Teams', icon: Shield },
-      { path: '/demodays', label: 'Demo Days', icon: Calendar },
-      { path: '/offboarding', label: 'Offboarding', icon: GraduationCap },
-      { path: '/admin/documents', label: 'Document Tracking', icon: ShieldCheck },
-      { path: '/notifications', label: 'Broadcast', icon: Send },
-    ];
-    if (user.role === 'ADMIN') {
-      list.push({ path: '/admin/users', label: 'Users Admin', icon: Users });
-      list.push({ path: '/admin/quests', label: 'Quests Admin', icon: Trophy });
-    }
-    return list;
-  };
-
-  const links = [...getMainLinks(), ...getRecognitionLinks(), ...(isAdminOrMentor ? getAdminLinks() : [])];
+  const avatarUrl = user.avatarUrl || user.avatar_url;
+  const toggle = (key: string) => setOpenMenu(current => (current === key ? null : key));
 
   return (
     <div className="min-h-screen bg-slate-50 text-dark flex flex-col font-sans">
@@ -304,65 +286,24 @@ export const Layout: React.FC = () => {
               })}
             </div>
 
-              {/* Recognition dropdown: MVCubes and the Hall of Fame */}
+            {/* Right: notifications and the account menu */}
+            <div className="hidden lg:flex items-center justify-end gap-2 min-w-0">
+              <NotificationBell />
               <div className="relative">
                 <button
-                  onClick={() => {
-                    setRecognitionOpen(!recognitionOpen);
-                    setAdminDropdownOpen(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold leading-none whitespace-nowrap transition-all duration-200 ${
-                    recognitionOpen || getRecognitionLinks().some(l => isLinkActive(l.path))
-                      ? 'bg-magenta text-white shadow-md shadow-magenta/20'
-                      : 'text-gray-600 hover:text-magenta hover:bg-gray-50'
-                  }`}
+                  type="button"
+                  onClick={() => toggle('user')}
+                  aria-haspopup="menu"
+                  aria-expanded={openMenu === 'user'}
+                  className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-gray-50"
                 >
-                  <Crown className="w-3.5 h-3.5" />
-                  <span>Recognition</span>
-                  <ChevronDown className="w-3 h-3" />
+                  <UserAvatar name={user.name} avatarUrl={avatarUrl} size="sm" />
+                  <span className="min-w-0 max-w-[140px] text-left">
+                    <span className="block truncate text-xs font-bold leading-tight text-gray-900">{user.name}</span>
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-magenta">{user.role}</span>
+                  </span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${openMenu === 'user' ? 'rotate-180' : ''}`} />
                 </button>
-
-                {recognitionOpen && (
-                  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
-                    {getRecognitionLinks().map((link) => {
-                      const Icon = link.icon;
-                      const isActive = isLinkActive(link.path);
-                      return (
-                        <Link
-                          key={link.path}
-                          to={link.path}
-                          onClick={() => setRecognitionOpen(false)}
-                          className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold transition-colors ${
-                            isActive ? 'text-magenta bg-magenta/5' : 'text-gray-600 hover:text-magenta hover:bg-gray-50'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4 shrink-0" />
-                          <span>{link.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Administration Dropdown (Mentors & Admins only) */}
-              {isAdminOrMentor && (
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setAdminDropdownOpen(!adminDropdownOpen);
-                      setRecognitionOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold leading-none whitespace-nowrap transition-all duration-200 ${
-                      adminDropdownOpen || getAdminLinks().some(l => isLinkActive(l.path))
-                        ? 'bg-gray-800 text-white shadow-md'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>Manage</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
 
                 {openMenu === 'user' && (
                   <div role="menu" className="absolute right-0 top-full z-50 mt-3 w-60 animate-fadeIn rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl">
