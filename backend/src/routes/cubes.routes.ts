@@ -15,6 +15,7 @@ import { recalculateAllQuestsForCube } from '../services/quest.service';
 import { StorageService } from '../services/storage.service';
 import { computeScoreBreakdown } from '../services/score.service';
 import { TITLE_LABELS } from '../config/peer';
+import { afterLevelChange } from '../services/hallOfFame.service';
 
 const router = Router();
 
@@ -33,7 +34,8 @@ router.get('/cubes', requireAuth, async (req: AuthenticatedRequest, res) => {
       whereClause.current_level = level as CubeLevel;
     } else if (includeAlumni !== 'true') {
       // Directory default: everyone except Alumni, who are shown on request.
-      // Icebergers stay visible — they are the example of where this leads.
+      // Icebergers stay visible until they are promoted to Mentor, at which
+      // point their role is no longer CUBE and the role filter below drops them.
       whereClause.current_level = { notIn: DIRECTORY_HIDDEN_LEVELS };
     }
 
@@ -250,6 +252,11 @@ router.post('/cubes/:id/progression', requireAuth, isAdmin, async (req, res) => 
     }
     if (assigned_mentor_id !== undefined) updateData.assigned_mentor_id = assigned_mentor_id || null;
 
+    const before = await prisma.cubeProfile.findUnique({
+      where: { id },
+      select: { current_level: true }
+    });
+
     const updatedProfile = await prisma.cubeProfile.update({
       where: { id },
       data: updateData,
@@ -257,6 +264,16 @@ router.post('/cubes/:id/progression', requireAuth, isAdmin, async (req, res) => 
     });
 
     await createSingleNotification(updatedProfile.user_id, "A mentor updated your profile status.");
+
+    // Reaching a new level can have side effects (the Iceberger badge, leaving
+    // the candidate ring). The level is already saved; never fail the request.
+    if (before && updateData.current_level && updateData.current_level !== before.current_level) {
+      try {
+        await afterLevelChange(id, before.current_level, updateData.current_level, (req as AuthenticatedRequest).user!.id);
+      } catch (err) {
+        console.error('Post-level-change side effects failed:', err);
+      }
+    }
 
     return res.json(updatedProfile);
   } catch (error: any) {

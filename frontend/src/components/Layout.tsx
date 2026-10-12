@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, LogOut, LayoutDashboard, Users, Rocket, Award, FolderOpen, Calendar, Shield, KeyRound, GraduationCap, Send, ChevronDown, Trophy, ShieldCheck, BookOpen, Crown, Radar as RadarIcon } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Users, Rocket, Award, FolderOpen, Calendar, Shield, KeyRound, GraduationCap, Send, ChevronDown, Trophy, ShieldCheck, BookOpen, Crown, Radar as RadarIcon, Mountain } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { UserAvatar } from './UserAvatar';
 import { AvatarUploadModal } from './AvatarUploadModal';
@@ -22,12 +22,14 @@ export const Layout: React.FC = () => {
 
   const isAdminOrMentor = user?.role === 'ADMIN' || user?.role === 'MENTOR';
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
+  const [recognitionOpen, setRecognitionOpen] = useState(false);
   const adminDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
         setAdminDropdownOpen(false);
+        setRecognitionOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -49,10 +51,15 @@ export const Layout: React.FC = () => {
       { path: '/meetings', label: 'Meetings', icon: Calendar },
       { path: '/badges', label: 'Badges', icon: Award },
       { path: '/quests', label: 'Quests', icon: Trophy },
-      { path: '/mvcubes', label: 'MVCubes', icon: Crown },
       { path: '/vault', label: 'Vault', icon: FolderOpen },
     ];
   };
+
+  // Recognition lives in one dropdown so the header stays readable.
+  const getRecognitionLinks = () => [
+    { path: '/mvcubes', label: 'MVCubes', icon: Crown },
+    { path: '/hall-of-fame', label: 'Hall of Fame', icon: Mountain }
+  ];
 
   const getAdminLinks = () => {
     const list = [
@@ -70,7 +77,7 @@ export const Layout: React.FC = () => {
     return list;
   };
 
-  const links = [...getMainLinks(), ...(isAdminOrMentor ? getAdminLinks() : [])];
+  const links = [...getMainLinks(), ...getRecognitionLinks(), ...(isAdminOrMentor ? getAdminLinks() : [])];
 
   return (
     <div className="min-h-screen bg-slate-50 text-dark flex flex-col font-sans">
@@ -105,11 +112,55 @@ export const Layout: React.FC = () => {
                 );
               })}
 
+              {/* Recognition dropdown: MVCubes and the Hall of Fame */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setRecognitionOpen(!recognitionOpen);
+                    setAdminDropdownOpen(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold leading-none whitespace-nowrap transition-all duration-200 ${
+                    recognitionOpen || getRecognitionLinks().some(l => isLinkActive(l.path))
+                      ? 'bg-magenta text-white shadow-md shadow-magenta/20'
+                      : 'text-gray-600 hover:text-magenta hover:bg-gray-50'
+                  }`}
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  <span>Recognition</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+
+                {recognitionOpen && (
+                  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
+                    {getRecognitionLinks().map((link) => {
+                      const Icon = link.icon;
+                      const isActive = isLinkActive(link.path);
+                      return (
+                        <Link
+                          key={link.path}
+                          to={link.path}
+                          onClick={() => setRecognitionOpen(false)}
+                          className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold transition-colors ${
+                            isActive ? 'text-magenta bg-magenta/5' : 'text-gray-600 hover:text-magenta hover:bg-gray-50'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <span>{link.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Administration Dropdown (Mentors & Admins only) */}
               {isAdminOrMentor && (
                 <div className="relative">
                   <button
-                    onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
+                    onClick={() => {
+                      setAdminDropdownOpen(!adminDropdownOpen);
+                      setRecognitionOpen(false);
+                    }}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold leading-none whitespace-nowrap transition-all duration-200 ${
                       adminDropdownOpen || getAdminLinks().some(l => isLinkActive(l.path))
                         ? 'bg-gray-800 text-white shadow-md'

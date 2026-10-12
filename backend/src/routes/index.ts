@@ -24,6 +24,7 @@ import quizRoutes from './quiz.routes';
 import peerFeedbackRoutes from './peerFeedback.routes';
 import radarRoutes from './radar.routes';
 import mvcubesRoutes from './mvcubes.routes';
+import hallOfFameRoutes from './hallOfFame.routes';
 
 const router = Router();
 
@@ -60,5 +61,6 @@ router.use(quizRoutes);
 router.use(peerFeedbackRoutes);
 router.use(radarRoutes);
 router.use(mvcubesRoutes);
+router.use(hallOfFameRoutes);
 
 export default router;

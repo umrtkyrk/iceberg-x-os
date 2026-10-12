@@ -37,6 +37,7 @@ import { Fundamentals } from './pages/Fundamentals';
 import { PublicProfile } from './pages/PublicProfile';
 import { Radar } from './pages/Radar';
 import { MVCubes } from './pages/MVCubes';
+import { HallOfFame } from './pages/HallOfFame';
 
 function App() {
   return (
@@ -84,6 +85,7 @@ function App() {
 
             {/* Web Fundamentals Crash Course & Certification Quiz */}
             <Route path="mvcubes" element={<MVCubes />} />
+            <Route path="hall-of-fame" element={<HallOfFame />} />
             <Route
               path="radar"
               element={

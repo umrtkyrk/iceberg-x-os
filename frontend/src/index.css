@@ -447,3 +447,45 @@ body {
   max-height: 92vh;
   max-height: 92dvh;
 }
+
+/* Hall of Fame radar: rings turn slowly, avatars counter-turn to stay upright */
+@keyframes hof-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hof-unspin {
+  to { transform: rotate(-360deg); }
+}
+
+.hof-radar:hover [style*='hof-spin'],
+.hof-radar:hover [style*='hof-unspin'] {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hof-radar [style*='hof-spin'],
+  .hof-radar [style*='hof-unspin'] {
+    animation: none !important;
+  }
+}
+
+/* A soft cyan sweep for the Hall of Fame radar (trailing edge fades out) */
+.hof-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(34, 211, 238, 0) 0deg,
+    rgba(34, 211, 238, 0.05) 20deg,
+    rgba(34, 211, 238, 0.22) 55deg,
+    rgba(34, 211, 238, 0) 56deg
+  );
+  animation: peer-sweep 9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hof-sweep {
+    animation: none;
+  }
+}
