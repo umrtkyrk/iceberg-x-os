@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, Plus, Award, Check, Trash2, X, Pencil, Lock, Crown } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { BadgeMedal, BadgeDisc, BadgeEmbers, BadgeSparks } from '../components/BadgeMedal';
 import { BadgeDesigner, type BadgeDraft } from '../components/BadgeDesigner';
 import { RARITIES, getRarityMeta, compareByRarity } from '../utils/badgeRarity';
@@ -333,13 +332,6 @@ export const Badges: React.FC = () => {
                     ))}
                   </div>
                 )}
-
-                <Link
-                  to="/quests"
-                  className="mt-5 inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:text-white"
-                >
-                  See the quest that leads here
-                </Link>
               </div>
             </div>
           </section>
