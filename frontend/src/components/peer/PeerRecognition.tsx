@@ -132,7 +132,7 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
         {titles.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[...titles]
-              .sort((a, b) => ['Epic', 'Rare', 'Common'].indexOf(a.rarity) - ['Epic', 'Rare', 'Common'].indexOf(b.rarity))
+              .sort((a, b) => ['Legendary', 'Epic', 'Rare', 'Common'].indexOf(a.rarity) - ['Legendary', 'Epic', 'Rare', 'Common'].indexOf(b.rarity))
               .map(t => (
                 <PeerTitleCard key={t.category} title={t} />
               ))}

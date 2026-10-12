@@ -331,6 +331,10 @@ enum BadgeRarity {
   Common
   Rare
   Epic
+  /// Appended last on purpose: Postgres orders enum values by declaration, so
+  /// `orderBy rarity desc` lists Legendary first. Added with ALTER TYPE ... ADD
+  /// VALUE, which touches no row.
+  Legendary
 }
 
 model Badge {

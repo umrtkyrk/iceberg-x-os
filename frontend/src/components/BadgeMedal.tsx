@@ -1,4 +1,5 @@
 import React from 'react';
+import { Crown } from 'lucide-react';
 import { getBadgeIcon } from '../utils/badgeIcons';
 import { getRarityMeta } from '../utils/badgeRarity';
 
@@ -23,6 +24,37 @@ const SPARKS = [
   { top: '30%', left: '92%', size: 2, delay: '2.1s' },
   { top: '82%', left: '70%', size: 3, delay: '0.6s' }
 ];
+
+/** Embers rising off a Legendary badge. Fixed positions so they never jump. */
+const EMBERS = [
+  { left: '8%', size: 4, delay: '0s', drift: '8px' },
+  { left: '22%', size: 3, delay: '1.1s', drift: '-6px' },
+  { left: '38%', size: 5, delay: '2.2s', drift: '10px' },
+  { left: '55%', size: 3, delay: '0.6s', drift: '-9px' },
+  { left: '68%', size: 4, delay: '1.7s', drift: '7px' },
+  { left: '82%', size: 3, delay: '2.8s', drift: '-5px' },
+  { left: '92%', size: 4, delay: '0.3s', drift: '6px' }
+];
+
+export const BadgeEmbers: React.FC = () => (
+  <>
+    {EMBERS.map((e, i) => (
+      <span
+        key={i}
+        className="badge-ember"
+        style={
+          {
+            left: e.left,
+            width: e.size,
+            height: e.size,
+            animationDelay: e.delay,
+            '--ember-drift': e.drift
+          } as React.CSSProperties
+        }
+      />
+    ))}
+  </>
+);
 
 export const BadgeSparks: React.FC = () => (
   <>
@@ -54,7 +86,10 @@ export const BadgeDisc: React.FC<{
       className={`relative shrink-0 flex items-center justify-center ${DISC_SIZES[size]} ${meta.disc} ${className}`}
     >
       <Icon className={`${ICON_SIZES[size]} ${meta.iconClass}`} />
-      {meta.key === 'Epic' && <span className="badge-sheen rounded-xl" />}
+      {meta.animated && <span className="badge-sheen rounded-xl" />}
+      {meta.key === 'Legendary' && (
+        <Crown className="absolute -top-2.5 left-1/2 h-3.5 w-3.5 -translate-x-1/2 text-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]" />
+      )}
     </span>
   );
 };
@@ -89,12 +124,14 @@ export const BadgeMedal: React.FC<{
   className?: string;
 }> = ({ badge, children, actions, className = '' }) => {
   const meta = getRarityMeta(badge.rarity);
-  const isEpic = meta.key === 'Epic';
+  const isAnimated = meta.animated;
+  const isLegendary = meta.key === 'Legendary';
 
   return (
     <div className={`group relative ${meta.frame} ${className}`}>
-      {isEpic && <span className="badge-sheen" />}
-      {isEpic && <BadgeSparks />}
+      {isAnimated && <span className="badge-sheen" />}
+      {isAnimated && <BadgeSparks />}
+      {isLegendary && <BadgeEmbers />}
 
       <div className={`relative ${meta.surface} p-6 flex flex-col gap-4 h-full`}>
         <div className="flex items-start gap-4">

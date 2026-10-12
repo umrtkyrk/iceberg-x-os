@@ -565,7 +565,7 @@ export const CubeDashboard: React.FC = () => {
                         className={`group relative ${meta.frame} transition-transform duration-300 hover:scale-105`}
                         title={award.reason}
                       >
-                        {meta.key === 'Epic' && <span className="badge-sheen" />}
+                        {meta.animated && <span className="badge-sheen" />}
                         <div className={`relative ${meta.surface} flex flex-col items-center text-center p-2.5`}>
                           <BadgeDisc icon={award.badge?.icon} rarity={award.badge?.rarity} size="sm" />
                           <span className={`text-[10px] font-bold mt-2 truncate max-w-full ${meta.title}`}>

@@ -13,7 +13,8 @@ export const POINTS_PER_ITEM = 4;
 const RARITY_WEIGHT: Record<BadgeRarity, number> = {
   [BadgeRarity.Common]: 1,
   [BadgeRarity.Rare]: 2,
-  [BadgeRarity.Epic]: 3
+  [BadgeRarity.Epic]: 3,
+  [BadgeRarity.Legendary]: 4
 };
 
 /** Quiz badge tiers, ordered highest first. */
