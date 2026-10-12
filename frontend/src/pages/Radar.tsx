@@ -11,13 +11,15 @@ import {
   Users,
   Lock,
   Info,
+  MessageSquareQuote,
   ArrowRight,
   X
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
 import { peerApi, tagStyle } from '../utils/peer';
+import { FeedbackFeed } from '../components/peer/StaffFeedback';
 
-type Tab = 'gems' | 'attention';
+type Tab = 'gems' | 'attention' | 'feedback';
 
 const CATEGORY_TINT: Record<string, string> = {
   Contribution: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -85,11 +87,11 @@ export const Radar: React.FC = () => {
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">See who the programme sees.</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/75">
             Peer signals surface Cubes who are valued by their teammates but rarely seen by mentors, and
-            patterns worth a supportive conversation. You only ever see aggregates: no names of who wrote what,
-            and no words.
+            patterns worth a supportive conversation. You can read what was written, in the Feedback tab and on
+            each Cube's profile, but never who wrote it.
           </p>
           <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80 backdrop-blur">
-            <Lock className="h-3.5 w-3.5" /> Anonymous to everyone, including admins
+            <Lock className="h-3.5 w-3.5" /> You can read it. The writer stays anonymous, even to admins
           </p>
         </div>
       </header>
@@ -103,6 +105,9 @@ export const Radar: React.FC = () => {
         <TabButton active={tab === 'attention'} onClick={() => setTab('attention')} icon={AlertTriangle}>
           Needs Attention
           {attention && <Count n={attentionCount} warn />}
+        </TabButton>
+        <TabButton active={tab === 'feedback'} onClick={() => setTab('feedback')} icon={MessageSquareQuote}>
+          Feedback
         </TabButton>
       </div>
 
@@ -118,6 +123,8 @@ export const Radar: React.FC = () => {
             <div key={i} className="h-56 animate-pulse rounded-3xl border border-gray-100 bg-white" />
           ))}
         </div>
+      ) : tab === 'feedback' ? (
+        <FeedbackFeed />
       ) : tab === 'gems' ? (
         <section className="flex flex-col gap-5">
           <p className="max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
@@ -429,7 +436,7 @@ const SignalCard: React.FC<{ item: any; busy: boolean; onStart: () => void; onRe
 
       <p className="mt-4 flex items-start gap-1.5 text-[11px] font-medium leading-relaxed text-slate-400">
         <Lock className="mt-0.5 h-3 w-3 shrink-0" />
-        You see how many people, never who or what they wrote. {cube.name.split(' ')[0]} sees only a gentle growth area.
+        You can read what was written, never who wrote it. {cube.name.split(' ')[0]} sees only a gentle growth area.
       </p>
     </article>
   );

@@ -4,8 +4,9 @@
  * Privacy contract (enforced here, not just in the UI):
  *  - giver_hash is never selected into any returned object.
  *  - Recipients only ever see KUDOS text, and only after the weekly cutoff.
- *  - OBSERVATION and CONCERN text is never returned to anyone, including staff.
- *    Staff see aggregates (see radar.routes.ts).
+ *  - OBSERVATION and CONCERN text is never returned to the person it is about.
+ *    Mentors and admins can read it (see staffFeedback.service.ts), but never
+ *    who wrote it.
  */
 import prisma from './prisma';
 import {

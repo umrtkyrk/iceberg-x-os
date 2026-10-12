@@ -54,7 +54,7 @@ const KIND_META: Record<
   },
   CONCERN: {
     label: 'Raise a concern',
-    tagline: 'For mentors only, never shown to the person',
+    tagline: 'Read by mentors, never shown to the person',
     icon: AlertTriangle,
     accent: 'from-amber-400 to-rose-500'
   }
@@ -229,20 +229,20 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
           {kind === 'KUDOS' && (
             <>
               <Visibility who="The person" what="Your words, anonymously, after the weekly cut-off. They may pin it to their profile." tone="ok" />
-              <Visibility who="Mentors & admins" what="Only counts and themes, never your note." tone="muted" />
+              <Visibility who="Mentors & admins" what="They can read your note and see which mission it was about, never who wrote it." tone="muted" />
               <Visibility who="You" what="Everything you sent, in your own history." tone="muted" />
             </>
           )}
           {kind === 'OBSERVATION' && (
             <>
               <Visibility who="The person" what="Nothing. This is never shown to them." tone="hide" />
-              <Visibility who="Mentors & admins" what="Only that several people couldn't see their work. It helps tell a quiet star from a real gap." tone="muted" />
+              <Visibility who="Mentors & admins" what="They can read it, never who wrote it. It helps tell a quiet star from a real gap." tone="muted" />
             </>
           )}
           {kind === 'CONCERN' && (
             <>
               <Visibility who="The person" what="Never your words. At most a gentle 'growth area' topic, after several people agree and a mentor reviews it." tone="hide" />
-              <Visibility who="Mentors & admins" what="Aggregates only. They never see who wrote it or your note." tone="muted" />
+              <Visibility who="Mentors & admins" what="They can read what you wrote and which mission it was about, never who wrote it. One concern does not change anyone's score on its own." tone="muted" />
               <Visibility who="Other Cubes" what="Nothing at all." tone="hide" />
             </>
           )}
@@ -313,7 +313,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
               <p className="text-sm leading-relaxed text-slate-500">
                 {sent.kind === 'KUDOS'
                   ? `${target?.name || 'They'} will see it, anonymously, after the weekly cut-off.`
-                  : 'It was recorded anonymously and goes to mentors only as part of an aggregate.'}
+                  : 'It was recorded anonymously. Mentors can read it, but never who wrote it.'}
               </p>
               {sent.kind === 'KUDOS' && (
                 <p className="text-xs font-bold text-slate-400">
@@ -535,7 +535,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
                   {kind === 'KUDOS' ? <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                   {kind === 'KUDOS'
                     ? 'The person will read this note and may pin it to their profile for everyone in the programme to see. Keep it free of names and private details.'
-                    : 'This note is never shown to the person. Mentors only ever see counts and themes, not your words.'}
+                    : 'This note is never shown to the person. Mentors and admins can read it, but never who wrote it.'}
                 </p>
               </div>
 
@@ -550,7 +550,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
                   />
                   <span className="text-xs font-semibold leading-relaxed text-amber-900">
                     I saw this myself, I'm describing behaviour rather than character, and I understand it goes
-                    to mentors as part of an aggregate. The person will not see my words.
+                    to mentors, who can read it. The person will not see my words.
                   </span>
                 </label>
               )}

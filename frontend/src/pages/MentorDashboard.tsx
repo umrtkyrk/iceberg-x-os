@@ -149,7 +149,7 @@ export const MentorDashboard: React.FC = () => {
               icon={AlertTriangle}
               tint="bg-sky-50 text-sky-600"
               title={`${signals.growth} peer ${signals.growth === 1 ? 'signal' : 'signals'} to look at`}
-              detail="Growth areas teammates agree on. Anonymous aggregates only."
+              detail="Growth areas teammates agree on. Read the feedback on the Radar."
               to="/radar"
               cta="Open Radar"
             />

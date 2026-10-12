@@ -11,6 +11,7 @@ import { getAssetUrl } from '../utils/assets';
 import { CubeDocumentsManager } from '../components/CubeDocumentsManager';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
 import { PeerRecognition } from '../components/peer/PeerRecognition';
+import { CubeFeedbackPanel } from '../components/peer/StaffFeedback';
 
 const formatExternalUrl = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -1260,6 +1261,11 @@ export const Profile: React.FC = () => {
             name={profile.user?.name || 'this Cube'}
             avatarUrl={profile.avatar_url || profile.user?.avatar_url}
           />
+        )}
+
+        {/* Staff only: what teammates wrote about this Cube (never who wrote it) */}
+        {profile.id && isMentorOrAdmin && (
+          <CubeFeedbackPanel cubeId={profile.id} name={profile.user?.name || 'this Cube'} />
         )}
 
         {/* Badges Earned Section */}

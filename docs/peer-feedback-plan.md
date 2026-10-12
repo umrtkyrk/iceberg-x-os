@@ -28,7 +28,7 @@ Consequence: "centralising the score" means **moving the formula to a backend `s
 
 1. **Feedback types**: `KUDOS`, `OBSERVATION` ("I couldn't see their contribution"), `CONCERN` ("they are not contributing to this mission"). Anyone can give any type about anyone at any time. Context weight differs (section 4).
 2. **Tags required, note optional.** Concerns also require a context.
-3. **Raw data never leaves the server.** No role (including ADMIN) gets giver identity. Mentors/Admins see aggregates only.
+3. **The writer is never exposed.** No role (including ADMIN) gets giver identity. *(Revised: Mentors and Admins can now read what was written, the kind, tags, note and which mission it was about, but never who wrote it. See section 11.)*
 4. **Recipient sees kudos text, anonymously** (no giver, no date, no context). Kudos can be pinned to their profile, max 3.
 5. **Concern/observation text never reaches the recipient.** The recipient sees only that a *verified* growth signal exists, with a broad category. A mentor turns it into a constructive conversation.
 6. **Peer contribution is at most 20 percent** of the overall score (a constant in `config/peer.ts`). It is scaled by confidence, so with little or no peer data it is effectively zero. No feature flags; the code ships live and we observe.
@@ -168,8 +168,8 @@ backend/src/routes/mvcubes.routes.ts
 | `GET /peer-feedback/given` | authed | the caller's own history |
 | `POST /peer-feedback/:id/pin` / `DELETE` | receiver | pin / unpin (max 3) |
 | `GET /cubes/:id/peer-summary` | self (full), others (titles + pins only) | titles, tag distribution, trend, growth indicator (self only) |
-| `GET /radar/hidden-gems` | `isMentorOrAdmin` | aggregates only |
-| `GET /radar/needs-attention` | `isMentorOrAdmin` | aggregates only |
+| `GET /radar/hidden-gems` | `isMentorOrAdmin` | aggregates |
+| `GET /radar/needs-attention` | `isMentorOrAdmin` | aggregates |
 | `POST /radar/signals/:id/state` | `isMentorOrAdmin` | OPEN -> IN_CONVERSATION -> RESOLVED, with dismissed/confirmed outcome |
 | `GET /mvcubes?period=` | authed | category winners, top tier only |
 | `POST /mvcubes/compute` | `isAdmin` | compute a period (idempotent) |
@@ -247,7 +247,7 @@ All strings in English. Visuals reuse `RARITY_META`; Epic items get the animated
 Header: **"Give feedback to a fellow Cube"**
 
 Always-visible box, "Before you send":
-- **You are anonymous.** The person never sees who wrote this, and neither do mentors or admins. Aggregates only.
+- **You are anonymous.** The person never sees who wrote this, and neither do mentors or admins. Mentors and admins can read what you wrote.
 - **Be specific and observable.** Describe what you saw ("shared a clear plan for the demo"), not what you think of the person.
 - **Kudos text is shown to the person** and they may pin it to their profile. Do not include details only you would know.
 - **Concerns are never shown to the person.** A mentor may use them, together with other signals, to start a supportive conversation. A single concern changes nothing on its own.
@@ -416,3 +416,25 @@ Status: PR 1 (schema), PR 2 (backend) and PR 3 (frontend) implement sections 1-9
   ```
 - "Calibrated" is created but **not** auto-assigned (it ties a badge to mentor reviews). Turn it on per quest from Quests Admin if you want it.
 - "Become an Iceberger" is assigned to every Cube so the goal is always visible, and completed by Admin sign-off (Quests Admin > override) when a Cube joins the main team. The Badges page shows the Legendary badge in a spotlight, "Unclaimed" until someone holds it.
+
+---
+
+## 11. Revision: staff can read the feedback (shipped)
+
+The original design showed mentors and admins only aggregates. That defeated the purpose of collecting data about Cubes, so mentors and admins can now **read the feedback itself**:
+
+| Endpoint | Who | Returns |
+|---|---|---|
+| `GET /radar/cubes/:id/feedback` | Mentor, Admin | Everything written about one Cube, newest first, with a summary |
+| `GET /radar/feedback?kind=&cube_id=&before=&take=` | Mentor, Admin | A paginated feed across all Cubes |
+
+Each item: kind, tags (with labels), note, context (type and the mission/team/meeting title), how close the writer was (`shared_work` / `shared_meeting` / `none`), whether it was dismissed, whether it currently counts toward the score, and the date.
+
+**Still never exposed:** who wrote it. `giver_hash` is not selected, and neither is anything that could identify the writer (`helpful_at`, `is_pinned`, `was_quiet`). The person it is about still never sees concern or observation text.
+
+**Score rules are unchanged.** A single concern is readable by staff but does not move the score; it needs three independent, non-retaliatory people with strong context.
+
+### Trade-offs to be aware of
+- **Context narrows the writer.** A note tagged with a four-person mission was written by one of the other three. Staff should not try to work out who, and the UI says so. If this proves a problem, hide the mission title in `staffFeedback.service.ts` (`contextLabels`).
+- **Earlier feedback was written under the old promise** ("mentors only see counts and themes"). It is readable now. Tell Cubes with the Broadcast page.
+- The composer copy was updated so every promise it makes is true: mentors can read it, never who wrote it.
