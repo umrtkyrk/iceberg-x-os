@@ -6,6 +6,7 @@ import prisma from '../services/prisma';
 import { requireAuth, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { sendError } from '../utils/http';
 import { Role } from '@prisma/client';
+import { markNotificationsRead } from '../services/notificationRead.service';
 
 const router = Router();
 
@@ -23,13 +24,15 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res)
   }
 });
 
-router.post('/notifications/clear', requireAuth, async (req: AuthenticatedRequest, res) => {
+// Keep the legacy clear URL safe during rolling deploys: reading never deletes history.
+router.post(['/notifications/read', '/notifications/clear'], requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    await prisma.notification.deleteMany({
-      where: { user_id: req.user.id }
-    });
-    return res.json({ success: true, message: 'Notifications cleared successfully' });
+    const ids = req.body?.ids;
+    if (ids !== undefined && (!Array.isArray(ids) || !ids.length || ids.length > 200 || !ids.every((id: unknown) => typeof id === 'string' && id.length > 0))) {
+      return res.status(400).json({ error: 'Provide between 1 and 200 notification IDs.' });
+    }
+    return res.json(await markNotificationsRead(req.user.id, ids));
   } catch (error: any) {
     return sendError(res, error);
   }
@@ -39,10 +42,7 @@ router.delete('/notifications/:id', requireAuth, async (req: AuthenticatedReques
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { id } = req.params;
-    await prisma.notification.delete({
-      where: { id, user_id: req.user.id }
-    });
-    return res.json({ success: true, message: 'Notification deleted successfully' });
+    return res.json(await markNotificationsRead(req.user.id, [id]));
   } catch (error: any) {
     return sendError(res, error);
   }

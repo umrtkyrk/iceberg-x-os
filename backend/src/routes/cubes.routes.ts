@@ -78,6 +78,7 @@ router.get('/cubes', requireAuth, async (req: AuthenticatedRequest, res) => {
         nda_status: true,
         created_at: true,
         updated_at: true,
+        _count: { select: { cube_badges: true } },
         user: {
           select: {
             id: true,

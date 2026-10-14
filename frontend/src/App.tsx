@@ -27,6 +27,7 @@ import { Offboarding } from './pages/Offboarding';
 import { Certificate } from './pages/Certificate';
 import { VerifyCertificate } from './pages/VerifyCertificate';
 import { Notifications } from './pages/Notifications';
+import { NotificationHistory } from './pages/NotificationHistory';
 import { AdminTestimonials } from './pages/AdminTestimonials';
 import { AcceptInvite } from './pages/AcceptInvite';
 import { Quests } from './pages/Quests';
@@ -74,6 +75,7 @@ function App() {
             {/* Dashboard Router */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="change-password" element={<ChangePassword />} />
+            <Route path="notification-history" element={<NotificationHistory />} />
 
             {/* Cube Directory & Profile */}
             <Route path="directory" element={<Directory />} />
