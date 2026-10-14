@@ -514,8 +514,10 @@ model Notification {
   user       User     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
   message    String   @db.Text
   created_at DateTime @default(now())
+  read_at    DateTime?
 
   @@index([user_id, created_at])
+  @@index([user_id, read_at])
 }
 
 /// One-time invitation used to onboard a new user without a shared password.
