@@ -300,7 +300,7 @@ export const CubeVault: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div className="workspace-header">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">The Cube Vault</h1>
           <p className="text-gray-500 mt-1">Completed Iceberg X missions, who built them, and everything they left behind.</p>

@@ -169,13 +169,13 @@ export const Badges: React.FC = () => {
     <div className="flex flex-col gap-6">
       
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="workspace-header">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Badges & Recognition</h1>
           <p className="text-gray-500 mt-1">Recognize milestones, original concepts, and excellent collaboration.</p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="workspace-header-actions">
           {isMentorOrAdmin && (
             <button
               onClick={() => { setShowAwardForm(!showAwardForm); setDesignerDraft(null); }}
@@ -189,7 +189,7 @@ export const Badges: React.FC = () => {
           {isAdmin && (
             <button
               onClick={() => { setDesignerDraft(designerDraft ? null : {}); setShowAwardForm(false); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white font-bold text-xs rounded-xl hover:bg-black transition-colors"
+              className="workspace-secondary-action"
             >
               <Plus className="w-4 h-4" />
               <span>Design Badge</span>

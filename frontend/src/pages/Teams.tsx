@@ -166,7 +166,7 @@ export const Teams: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-3">
+      <div className="workspace-header">
         <div className="min-w-0">
           <h1 className="text-3xl font-extrabold tracking-tight">Mission Teams</h1>
           <p className="text-gray-500 mt-1">Manage cross-functional R&D mission teams and participant roles.</p>

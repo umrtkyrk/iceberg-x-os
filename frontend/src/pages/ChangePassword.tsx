@@ -44,10 +44,7 @@ export const ChangePassword: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Change Password</h1>
-        <p className="text-gray-500 mt-1">Update your Iceberg X OS login password.</p>
-      </div>
+      <PageHeader eyebrow="Account" title="Change Password" description="Update your Iceberg X OS login password." />
 
       <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-subtle flex flex-col gap-5">
         {error && (
@@ -131,3 +128,4 @@ export const ChangePassword: React.FC = () => {
     </div>
   );
 };
+import { PageHeader } from '../components/PageHeader';

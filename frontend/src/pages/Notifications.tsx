@@ -70,10 +70,7 @@ export const Notifications: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Send Announcements</h1>
-        <p className="text-gray-500 mt-1">Broadcast targeted custom alerts and notifications directly to Cubes' bell dropdowns.</p>
-      </div>
+      <PageHeader eyebrow="Administration" title="Send Announcements" description="Keep Cubes informed with programme updates and targeted announcements." />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left Column: Form */}
@@ -176,3 +173,4 @@ export const Notifications: React.FC = () => {
     </div>
   );
 };
+import { PageHeader } from '../components/PageHeader';

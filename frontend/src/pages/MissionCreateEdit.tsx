@@ -171,14 +171,16 @@ export const MissionCreateEdit: React.FC = () => {
     <div className="max-w-3xl mx-auto flex flex-col gap-6">
       
       {/* Navigation & Header */}
-      <div className="flex items-center gap-4">
+      <div className="workspace-header">
         <button
           onClick={() => navigate(isEditMode ? `/missions/${id}` : '/missions')}
-          className="p-2 bg-white hover:bg-gray-50 border border-gray-100 rounded-xl text-gray-500 hover:text-magenta transition-colors"
+          className="workspace-icon-button"
+          title="Back to missions"
+          aria-label="Back to missions"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-extrabold tracking-tight">
             {isEditMode ? 'Edit Mission details' : 'Create New R&D Mission'}
           </h1>

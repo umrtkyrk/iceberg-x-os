@@ -186,9 +186,9 @@ export const AdminUsers: React.FC = () => {
     <div className="flex flex-col gap-6">
       
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/admin" className="p-2 hover:bg-gray-50 border border-gray-100 rounded-xl text-gray-500 hover:text-magenta transition-all">
+      <div className="workspace-header">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link to="/dashboard" title="Back to dashboard" aria-label="Back to dashboard" className="workspace-icon-button">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>

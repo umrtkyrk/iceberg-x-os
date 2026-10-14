@@ -352,9 +352,9 @@ export const AdminNda: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="workspace-header">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-3xl font-black tracking-tight text-gray-900">
               Document &amp; NDA Tracking
             </h1>
@@ -372,7 +372,7 @@ export const AdminNda: React.FC = () => {
             type="button"
             onClick={fetchCubes}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            className="workspace-secondary-action"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>

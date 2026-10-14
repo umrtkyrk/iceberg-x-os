@@ -235,10 +235,7 @@ export const Review: React.FC = () => {
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
       
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Cube Scorecard Evaluation</h1>
-        <p className="text-gray-500 mt-1">Submit feedback after Demo Day. Grade abilities and set progression pathways.</p>
-      </div>
+      <PageHeader eyebrow="Mentor workspace" title="Cube Scorecard Evaluation" description="Review the work, record feedback, and decide the next step." />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -524,3 +521,4 @@ export const Review: React.FC = () => {
     </div>
   );
 };
+import { PageHeader } from '../components/PageHeader';

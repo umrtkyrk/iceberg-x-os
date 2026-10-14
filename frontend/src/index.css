@@ -18,6 +18,103 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Shared workspace chrome follows the role dashboards and community pages. */
+.workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: 1.75rem 2rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #14141c;
+  color: white;
+  box-shadow: 0 16px 40px -24px rgba(17, 17, 17, 0.3);
+}
+.workspace-header h1 {
+  margin: 0;
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.workspace-header > div { min-width: 0; }
+.workspace-header.flex-col { align-items: stretch; }
+.workspace-header p:not(.workspace-eyebrow) {
+  max-width: 46rem;
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.workspace-eyebrow {
+  margin: 0 0 0.5rem;
+  color: #a5e7ee;
+  font-size: 0.625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.workspace-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.workspace-primary-action,
+.workspace-secondary-action,
+.workspace-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: background-color 0.15s;
+}
+.workspace-primary-action { background: #e6007e; color: white; }
+.workspace-primary-action:hover { background: #c9006e; }
+.workspace-secondary-action,
+.workspace-icon-button { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: white; }
+.workspace-secondary-action:hover,
+.workspace-icon-button:hover { background: rgba(255, 255, 255, 0.16); }
+.workspace-icon-button { width: 2.5rem; padding: 0; flex-shrink: 0; }
+.workspace-header button:disabled { opacity: 0.5; cursor: wait; }
+.workspace-content { font-family: Manrope, Inter, system-ui, sans-serif; }
+.workspace-content :where(input, textarea, select):focus-visible {
+  outline: 2px solid rgba(230, 0, 126, 0.35);
+  outline-offset: 2px;
+}
+.workspace-content :where(a, button):focus-visible {
+  outline: 2px solid #e6007e;
+  outline-offset: 3px;
+}
+.workspace-content table th {
+  padding: 0.875rem 0.75rem;
+  background: #f8f9fb;
+  color: #6b7280;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.workspace-content table td { padding: 0.875rem 0.75rem; }
+.workspace-content table tbody tr { border-color: #eef0f4; }
+@media (max-width: 639px) {
+  .workspace-header { padding: 1.5rem; gap: 1rem; border-radius: 1.25rem; }
+  .workspace-header h1 { font-size: 1.5rem; }
+  .workspace-header-actions { width: 100%; }
+}
+
 /* ==========================================================================
    Epic badge frame
    --------------------------------------------------------------------------

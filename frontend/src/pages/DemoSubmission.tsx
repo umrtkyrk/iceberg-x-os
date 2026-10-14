@@ -160,10 +160,7 @@ export const DemoSubmission: React.FC = () => {
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
       
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Demo Day Submission</h1>
-        <p className="text-gray-500 mt-1">Register your prototype and reflect on your R&D learnings.</p>
-      </div>
+      <PageHeader eyebrow="Mission delivery" title="Demo Day Submission" description="Share what you built, what you learned, and what comes next." />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -388,3 +385,4 @@ export const DemoSubmission: React.FC = () => {
     </div>
   );
 };
+import { PageHeader } from '../components/PageHeader';
