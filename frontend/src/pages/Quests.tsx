@@ -189,8 +189,8 @@ export const Quests: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 py-8 flex flex-col gap-8 font-sans">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-8 font-sans">
+      <div className="workspace-header flex-col items-start">
         <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
           <Trophy className="w-8 h-8 text-magenta" />
           <span>Quest Board</span>

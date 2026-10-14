@@ -128,7 +128,7 @@ export const Missions: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      <div className="workspace-header">
         <div className="min-w-0">
           <h1 className="text-3xl font-extrabold tracking-tight">R&amp;D Missions</h1>
           <p className="text-gray-500 mt-1">Explore, prototype, and deliver active commercial-grade challenges.</p>

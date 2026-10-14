@@ -365,8 +365,8 @@ ${mission.description || 'No description provided.'}
       <div className="lg:col-span-2 flex flex-col gap-8">
         
         {/* Title Block */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
+        <div className="workspace-header flex-col items-stretch">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="bg-magenta/5 border border-magenta/10 text-magenta font-extrabold text-xs px-2.5 py-1 rounded-full uppercase tracking-wider">
               {mission.difficulty_level.replace(/_/g, ' ')}
             </span>
@@ -379,12 +379,12 @@ ${mission.description || 'No description provided.'}
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 mt-1 leading-snug">{mission.title}</h1>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-gray-500 font-medium">Created by {mission.created_by.name} · Mentor: {mission.mentor ? mission.mentor.name : 'Unassigned'}</p>
+            <p className="text-gray-500 font-medium">Created by {mission.created_by?.name || 'Unknown'} · Mentor: {mission.mentor?.name || 'Unassigned'}</p>
             {canDownloadMarkdown && (
               <button
                 type="button"
                 onClick={handleDownloadMarkdown}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-magenta/5 border border-gray-200 hover:border-magenta/25 text-[11px] font-bold text-gray-600 hover:text-magenta rounded-xl transition-all shadow-sm"
+                className="workspace-secondary-action"
                 title="Download mission details as Markdown file"
               >
                 <Download className="w-3.5 h-3.5" />

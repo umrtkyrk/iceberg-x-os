@@ -285,9 +285,9 @@ Iceberg Digital Ekibi`
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] text-[#11151C] font-sans pb-16">
-      <main className="max-w-[1400px] mx-auto px-6">
+      <main className="w-full">
         {/* Page Header */}
-        <div className="flex items-end justify-between gap-6 pt-8 pb-5 border-b border-[#E7E9EE]">
+        <div className="workspace-header">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight m-0">
               Offboarding &amp; Alumni
@@ -298,7 +298,7 @@ Iceberg Digital Ekibi`
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right">
-              <div className="font-mono text-2xl font-semibold text-[#11151C]">{cubes.length}</div>
+              <div className="font-mono text-2xl font-semibold text-white">{cubes.length}</div>
               <div className="text-[10px] font-bold tracking-wider text-[#8A93A0]">IN QUEUE</div>
             </div>
             <div className="w-[1px] h-8 bg-[#E1E4EA]" />

@@ -224,9 +224,9 @@ export const Meetings: React.FC = () => {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="w-full">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="workspace-header mb-8">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Meetings Log</h1>
           <p className="text-gray-500 mt-1">Schedule new meetings, log discussion topics, and track attendance.</p>
@@ -234,7 +234,7 @@ export const Meetings: React.FC = () => {
         {isAdminOrMentor && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-gray-900 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition shadow-md shadow-gray-200 text-sm self-start md:self-auto"
+            className="workspace-primary-action"
           >
             <Plus size={18} />
             Schedule Meeting

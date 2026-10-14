@@ -57,17 +57,19 @@ export const AdminTestimonials: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-8">
       
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="workspace-header">
         <Link
-          to="/admin"
-          className="p-2 bg-white hover:bg-gray-50 border border-gray-100 rounded-xl transition"
+          to="/dashboard"
+          title="Back to dashboard"
+          aria-label="Back to dashboard"
+          className="workspace-icon-button"
         >
-          <ArrowLeft size={16} className="text-gray-600" />
+          <ArrowLeft size={16} />
         </Link>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-extrabold tracking-tight">Moderate Testimonials</h1>
           <p className="text-gray-500 mt-1">Approve or reject Cube testimonials for the landing page.</p>
         </div>

@@ -139,10 +139,7 @@ export const Directory: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Cube Directory</h1>
-        <p className="text-gray-500 mt-1">Directory of all active and past fellowship builders.</p>
-      </div>
+      <PageHeader eyebrow="Community" title="Cube Directory" description="Meet the Cubes building the programme, past and present." />
 
       {/* Search & Filter Controls */}
       <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-subtle flex flex-col md:flex-row gap-4 items-center">
@@ -569,3 +566,4 @@ export const Directory: React.FC = () => {
     </div>
   );
 };
+import { PageHeader } from '../components/PageHeader';

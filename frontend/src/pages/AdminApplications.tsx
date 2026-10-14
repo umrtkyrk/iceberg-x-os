@@ -107,13 +107,13 @@ export const AdminApplications: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-8">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="workspace-header">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Recruitment Applications</h1>
-          <p className="text-gray-400 text-sm font-semibold tracking-wide uppercase mt-1">Review and approve prospective Ice Cubes</p>
+          <p className="text-gray-400 text-sm font-semibold mt-1">Review applications and welcome the next Cubes.</p>
         </div>
       </div>
 

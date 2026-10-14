@@ -4,131 +4,25 @@
 import { Router } from 'express';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { IN_PROGRAMME_CUBE_LEVELS, ACTIVE_MISSION_STATUSES } from '../config/constants';
+import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
+import { loadAdminDashboard } from '../services/adminDashboard.service';
+import { getAdminBriefing } from '../services/adminBriefing.service';
 import { sendError } from '../utils/http';
 
 const router = Router();
 
-/** Keeps the first entry per Cube, preserving order. */
-function dedupeByCube<T extends { cubeId?: string }>(rows: T[]): T[] {
-  const seen = new Set<string>();
-  return rows.filter(row => {
-    if (!row.cubeId || seen.has(row.cubeId)) return false;
-    seen.add(row.cubeId);
-    return true;
-  });
-}
-
 router.get('/admin/dashboard', requireAuth, isAdmin, async (req, res) => {
   try {
-    const totalCubes = await prisma.cubeProfile.count();
-    const pendingApplicationsCount = await prisma.cubeApplication.count({ where: { status: 'pending' } });
-    // Same definition as GET /cubes?active=true, which previously counted only
-    // level "Cube" and disagreed with this dashboard.
-    const activeCubes = await prisma.cubeProfile.count({
-      where: { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } }
-    });
-    const activeMissions = await prisma.mission.count({
-      where: { status: { in: ACTIVE_MISSION_STATUSES } }
-    });
+    return res.json(await loadAdminDashboard());
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
 
-    const missionsByStatus = await prisma.mission.groupBy({
-      by: ['status'],
-      _count: true
-    });
-
-    const upcomingDemoDays = await prisma.demoDay.findMany({
-      where: { date: { gte: new Date() } },
-      take: 3,
-      orderBy: { date: 'asc' }
-    });
-
-    const recentDemos = await prisma.demoSubmission.findMany({
-      take: 5,
-      orderBy: { submitted_at: 'desc' },
-      include: {
-        mission: { select: { title: true } },
-        submitted_by: { select: { name: true } }
-      }
-    });
-
-    const recentBadges = await prisma.cubeBadge.findMany({
-      take: 5,
-      orderBy: { awarded_at: 'desc' },
-      include: {
-        cube: { include: { user: { select: { name: true } } } },
-        badge: true
-      }
-    });
-
-    // Cubes recommended for progression
-    // Only Cubes still in the programme belong on these action lists: someone
-    // who has already left cannot be progressed or chased for inactivity.
-    const stillInProgramme = {
-      cube_profile: { is: { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } } }
-    };
-
-    const recommendedFeedback = await prisma.mentorFeedback.findMany({
-      where: {
-        recommended_next_step: {
-          in: ['Consider_for_Senior_Cube', 'Consider_as_Iceberger', 'Consider_as_Alumni']
-        },
-        cube: stillInProgramme
-      },
-      include: {
-        cube: { select: { id: true, name: true, cube_profile: { select: { id: true, current_level: true } } } },
-        mentor: { select: { name: true } }
-      },
-      orderBy: { created_at: 'desc' }
-    });
-
-    // One row per Cube: the list is ordered newest-first, so the first entry a
-    // Cube appears in is their latest recommendation. Without this a Cube was
-    // listed once per feedback record.
-    const progressionCubes = dedupeByCube(
-      recommendedFeedback.map(f => ({
-        cubeId: f.cube.cube_profile?.id,
-        name: f.cube.name,
-        current_level: f.cube.cube_profile?.current_level,
-        recommended: f.recommended_next_step,
-        by: f.mentor.name
-      }))
-    ).slice(0, 5);
-
-    // Cubes at inactive risk
-    const inactiveRiskFeedback = await prisma.mentorFeedback.findMany({
-      where: {
-        recommended_next_step: 'Inactive_Risk',
-        cube: stillInProgramme
-      },
-      include: {
-        cube: { select: { id: true, name: true, cube_profile: { select: { id: true } } } },
-        mentor: { select: { name: true } }
-      },
-      orderBy: { created_at: 'desc' }
-    });
-
-    const inactiveRiskCubes = dedupeByCube(
-      inactiveRiskFeedback.map(f => ({
-        cubeId: f.cube.cube_profile?.id,
-        name: f.cube.name,
-        by: f.mentor.name
-      }))
-    );
-
-    return res.json({
-      totalCubes,
-      activeCubes,
-      activeMissions,
-      missionsByStatus,
-      upcomingDemoDays,
-      recentDemos,
-      recentBadges,
-      progressionCubes,
-      inactiveRiskCubes,
-      pendingApplicationsCount
-    });
-  } catch (error: any) {
+router.post('/admin/dashboard/briefing', requireAuth, isAdmin, async (req, res) => {
+  try {
+    return res.json(await getAdminBriefing());
+  } catch (error) {
     return sendError(res, error);
   }
 });

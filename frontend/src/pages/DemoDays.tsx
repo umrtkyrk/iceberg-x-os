@@ -121,7 +121,7 @@ export const DemoDays: React.FC = () => {
     <div className="flex flex-col gap-6">
       
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="workspace-header">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Demo Days</h1>
           <p className="text-gray-500 mt-1">Scheduled R&D reviews, live product showcase details, and mentor summaries.</p>
