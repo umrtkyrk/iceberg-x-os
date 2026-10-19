@@ -83,7 +83,7 @@ export const PublicProfile: React.FC = () => {
     );
   }
 
-  const { profile, stats, missions = [], peer_titles: peerTitles = [] } = data;
+  const { profile, stats, missions = [], peer_titles: peerTitles = [], pinned_quotes: pinnedQuotes = [] } = data;
   const offboarding = profile.offboarding_record;
   const isAlumni = !!offboarding;
   const isAchievement = offboarding?.type === 'success' || offboarding?.type === 'achievement';
@@ -316,6 +316,33 @@ export const PublicProfile: React.FC = () => {
                 .map((t: any) => (
                   <PeerTitleCard key={t.category} title={t} />
                 ))}
+            </div>
+          </section>
+        )}
+
+        {/* In their teammates' words: quotes the Cube chose to show. No names. */}
+        {pinnedQuotes.length > 0 && (
+          <section className="mt-7">
+            <div className="flex items-baseline justify-between gap-4 mb-4">
+              <h2 className="text-xl font-extrabold tracking-tight m-0 flex items-center gap-2">
+                <HeartHandshake className="w-5 h-5 text-[#E5007D]" />
+                <span>In their teammates' words</span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pinnedQuotes.map((q: any) => (
+                <figure key={q.id} className="m-0 rounded-2xl border border-[#EEF0F3] bg-gradient-to-br from-[#FAFBFC] to-white p-5">
+                  <blockquote className="m-0 text-sm font-medium italic leading-relaxed text-[#2B3340]">“{q.note}”</blockquote>
+                  <figcaption className="mt-3 flex flex-wrap items-center gap-1.5">
+                    {(q.tags || []).map((t: any) => (
+                      <span key={t.key} className="rounded-full bg-[#FFF0F8] px-2.5 py-0.5 text-[10px] font-extrabold text-[#E5007D]">
+                        {t.label}
+                      </span>
+                    ))}
+                    <span className="text-[10px] font-bold text-[#8A93A0]">· {q.period}</span>
+                  </figcaption>
+                </figure>
+              ))}
             </div>
           </section>
         )}

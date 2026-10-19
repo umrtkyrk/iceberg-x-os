@@ -136,9 +136,13 @@ export async function refreshPeerSignal(cubeProfileId: string): Promise<void> {
   // once enough independent people agree.
   let concernEff = 0;
   let concernGivers = 0;
+  // Different people who raised a concern at all (any context, not retaliation).
+  // This is what puts a Cube on the Radar; it does not move the score.
+  let concernGiversAll = 0;
   const concernCategories = new Map<string, Set<string>>();
   for (const [hash, agg] of concerns) {
     if (reciprocal.has(hash)) continue;
+    concernGiversAll += 1;
     if (agg.weight < MIN_CONCERN_SCORE_WEIGHT) continue;
     concernGivers += 1;
     concernEff += agg.weight * rel(hash) * (rivals.has(hash) ? RIVAL_CONCERN_FACTOR : 1);
@@ -171,6 +175,7 @@ export async function refreshPeerSignal(cubeProfileId: string): Promise<void> {
     concern: toCounts(concernCategories),
     observation: toCounts(observationCategories),
     concern_givers: concernGivers,
+    concern_givers_all: concernGiversAll,
     observation_givers: observations.size,
     reciprocal_flags: reciprocal.size,
     mentor_visibility: visibility
@@ -199,13 +204,13 @@ function titleTierFor(givers: number, contexts: number, weeks: number): BadgeRar
   return null;
 }
 
-async function recomputeTitles(cubeProfileId: string, cutoff: Date): Promise<void> {
+async function recomputeTitles(cubeProfileId: string): Promise<void> {
+  // Kudos count the moment they arrive; only the growth signal below waits.
   const delivered = await prisma.peerFeedback.findMany({
     where: {
       receiver_id: cubeProfileId,
       kind: PeerFeedbackKind.KUDOS,
-      status: PeerFeedbackStatus.ACTIVE,
-      created_at: { lt: cutoff }
+      status: PeerFeedbackStatus.ACTIVE
     },
     select: {
       giver_hash: true,
@@ -343,9 +348,9 @@ async function recomputeGrowthSignal(cubeProfileId: string, cutoff: Date): Promi
  * Idempotent and best-effort; callers must not let it fail their own action.
  */
 export async function recomputeCubePeerState(cubeProfileId: string): Promise<void> {
-  const cutoff = digestCutoff();
-  await recomputeTitles(cubeProfileId, cutoff);
-  await recomputeGrowthSignal(cubeProfileId, cutoff);
+  await recomputeTitles(cubeProfileId);
+  // A growth indicator is shown to the person, so it keeps the weekly pause.
+  await recomputeGrowthSignal(cubeProfileId, digestCutoff());
 }
 
 let lastFullRecompute = 0;

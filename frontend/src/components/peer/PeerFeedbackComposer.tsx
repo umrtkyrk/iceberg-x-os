@@ -78,7 +78,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<{ kind: PeerKind; budget: PeerBudget } | null>(null);
+  const [sent, setSent] = useState<{ kind: PeerKind; budget: PeerBudget | null } | null>(null);
 
   // Reset whenever the composer is (re)opened.
   useEffect(() => {
@@ -228,7 +228,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">Who sees what</p>
           {kind === 'KUDOS' && (
             <>
-              <Visibility who="The person" what="Your words, anonymously, after the weekly cut-off. They may pin it to their profile." tone="ok" />
+              <Visibility who="The person" what="Your words, anonymously, right away. They can choose to show it on their public profile." tone="ok" />
               <Visibility who="Mentors & admins" what="They can read your note and see which mission it was about, never who wrote it." tone="muted" />
               <Visibility who="You" what="Everything you sent, in your own history." tone="muted" />
             </>
@@ -312,10 +312,10 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
               </h3>
               <p className="text-sm leading-relaxed text-slate-500">
                 {sent.kind === 'KUDOS'
-                  ? `${target?.name || 'They'} will see it, anonymously, after the weekly cut-off.`
+                  ? `${target?.name || 'They'} will see it right away, anonymously, and can choose to show it on their public profile.`
                   : 'It was recorded anonymously. Mentors can read it, but never who wrote it.'}
               </p>
-              {sent.kind === 'KUDOS' && (
+              {sent.kind === 'KUDOS' && sent.budget && (
                 <p className="text-xs font-bold text-slate-400">
                   {sent.budget.kudos.remaining} of {sent.budget.kudos.limit} kudos left this week
                 </p>
@@ -534,7 +534,7 @@ export const PeerFeedbackComposer: React.FC<Props> = ({ open, onClose, receiver,
                 <p className="flex items-start gap-1.5 text-[11px] font-medium leading-relaxed text-slate-400">
                   {kind === 'KUDOS' ? <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                   {kind === 'KUDOS'
-                    ? 'The person will read this note and may pin it to their profile for everyone in the programme to see. Keep it free of names and private details.'
+                    ? 'The person will read this note and may choose to show it on their public profile, which anyone with the link can read. Keep it free of names and private details.'
                     : 'This note is never shown to the person. Mentors and admins can read it, but never who wrote it.'}
                 </p>
               </div>

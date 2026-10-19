@@ -3,7 +3,7 @@
  *
  * Privacy contract (enforced here, not just in the UI):
  *  - giver_hash is never selected into any returned object.
- *  - Recipients only ever see KUDOS text, and only after the weekly cutoff.
+ *  - Recipients only ever see KUDOS text, and they see it right away.
  *  - OBSERVATION and CONCERN text is never returned to the person it is about.
  *    Mentors and admins can read it (see staffFeedback.service.ts), but never
  *    who wrote it.
@@ -37,8 +37,9 @@ import {
   WEIGHT_SHARED_WORK,
   validTagsFor
 } from '../config/peer';
-import { daysAgo, digestCutoff, giverHash, monthKey, monthLabel, previousMonthKey, monthRange } from './peerCore';
+import { daysAgo, giverHash, monthKey, monthLabel, previousMonthKey, monthRange } from './peerCore';
 import { recomputeCubePeerState, refreshPeerSignal } from './peerSignal.service';
+import { createSingleNotification } from './notification.service';
 import { getHashIndex } from './peerAbuse.service';
 import { ensureAutoQuestsForCube, recalculateAllQuestsForCube } from './quest.service';
 
@@ -231,7 +232,7 @@ export async function createPeerFeedback(
     prisma.cubeProfile.findUnique({ where: { id: giverCubeId }, select: { id: true, current_level: true } }),
     prisma.cubeProfile.findUnique({
       where: { id: receiverId },
-      select: { id: true, current_level: true, user: { select: { name: true } } }
+      select: { id: true, current_level: true, user_id: true, user: { select: { name: true } } }
     })
   ]);
   if (!giver || !IN_PROGRAMME_CUBE_LEVELS.includes(giver.current_level)) {
@@ -358,6 +359,19 @@ export async function createPeerFeedback(
     select: { id: true, kind: true }
   });
 
+  // Tell the person straight away that something arrived, without saying who
+  // sent it. This is what makes giving feel worth it. Best-effort.
+  if (kind === PeerFeedbackKind.KUDOS) {
+    const labels = tags
+      .map(key => KUDOS_TAGS.find(t => t.key === key)?.label)
+      .filter(Boolean)
+      .join(', ');
+    void createSingleNotification(
+      receiver.user_id,
+      `A teammate recognised you${labels ? ` as ${labels}` : ''}! Open your profile to read it and choose whether to show it on your public profile.`
+    );
+  }
+
   // Aggregates and quests are best-effort; the feedback itself is saved.
   void (async () => {
     try {
@@ -369,10 +383,23 @@ export async function createPeerFeedback(
     }
   })();
 
-  return { id: created.id, kind: created.kind, budget: await getBudget(userId) };
+  // The feedback is already saved. If reading the remaining budget fails, the
+  // person must not be told it failed (they would retry and hit the cooldown),
+  // so return without it and let the client cope.
+  let budget: Awaited<ReturnType<typeof getBudget>> | null = null;
+  try {
+    budget = await getBudget(userId);
+  } catch (err) {
+    console.error('[peer] budget lookup after write failed:', err);
+  }
+
+  return { id: created.id, kind: created.kind, budget };
 }
 
-/** Kudos the Cube has received, after the weekly cutoff. No giver, no dates. */
+/**
+ * Kudos the Cube has received, newest first, available the moment they are sent.
+ * No giver, and only the month: the exact time is never shown.
+ */
 export async function listReceived(cubeProfileId: string) {
   await recomputeCubePeerState(cubeProfileId).catch(err =>
     console.error('[peer] recompute on inbox failed:', err)
@@ -382,8 +409,7 @@ export async function listReceived(cubeProfileId: string) {
     where: {
       receiver_id: cubeProfileId,
       kind: PeerFeedbackKind.KUDOS,
-      status: PeerFeedbackStatus.ACTIVE,
-      created_at: { lt: digestCutoff() }
+      status: PeerFeedbackStatus.ACTIVE
     },
     orderBy: { created_at: 'desc' },
     select: {
@@ -446,8 +472,7 @@ async function ownDeliveredKudos(cubeProfileId: string, feedbackId: string) {
       id: feedbackId,
       receiver_id: cubeProfileId,
       kind: PeerFeedbackKind.KUDOS,
-      status: PeerFeedbackStatus.ACTIVE,
-      created_at: { lt: digestCutoff() }
+      status: PeerFeedbackStatus.ACTIVE
     }
   });
   if (!item) throw notFound('Feedback not found.');
@@ -593,14 +618,12 @@ export async function getPeerSummary(targetCubeId: string, viewer: PeerSummaryVi
 
   if (!isSelf) return summary;
 
-  const cutoff = digestCutoff();
   const [delivered, growth] = await Promise.all([
     prisma.peerFeedback.findMany({
       where: {
         receiver_id: targetCubeId,
         kind: PeerFeedbackKind.KUDOS,
-        status: PeerFeedbackStatus.ACTIVE,
-        created_at: { lt: cutoff }
+        status: PeerFeedbackStatus.ACTIVE
       },
       select: { giver_hash: true, tags: true, created_at: true }
     }),
