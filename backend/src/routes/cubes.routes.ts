@@ -15,6 +15,7 @@ import { recalculateAllQuestsForCube } from '../services/quest.service';
 import { StorageService } from '../services/storage.service';
 import { computeScoreBreakdown } from '../services/score.service';
 import { TITLE_LABELS } from '../config/peer';
+import { monthKey, monthLabel } from '../services/peerCore';
 import { afterLevelChange } from '../services/hallOfFame.service';
 
 const router = Router();
@@ -840,7 +841,28 @@ router.get('/cubes/public/:identifier', async (req, res) => {
       select: { category: true, rarity: true }
     });
 
+    // Quotes the Cube chose to show. Only the tags, the text and the month, never
+    // who wrote it or what it was about.
+    const pinnedQuotes = await prisma.peerFeedback.findMany({
+      where: {
+        receiver_id: profile.id,
+        is_pinned: true,
+        kind: 'KUDOS',
+        status: 'ACTIVE',
+        note: { not: null }
+      },
+      orderBy: { pinned_at: 'desc' },
+      take: 3,
+      select: { id: true, tags: true, note: true, created_at: true }
+    });
+
     return res.json({
+      pinned_quotes: pinnedQuotes.map(q => ({
+        id: q.id,
+        note: q.note,
+        tags: q.tags.map(key => ({ key, label: TITLE_LABELS[key] || key })),
+        period: monthLabel(monthKey(q.created_at))
+      })),
       peer_titles: peerTitles.map(t => ({
         category: t.category,
         label: TITLE_LABELS[t.category] || t.category,

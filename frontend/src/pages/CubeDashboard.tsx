@@ -15,6 +15,7 @@ import {
   Trophy,
   CalendarDays,
   UserRound,
+  HeartHandshake,
   ChevronDown,
   Users
 } from 'lucide-react';
@@ -25,6 +26,7 @@ import { compareByRarity, getRarityMeta } from '../utils/badgeRarity';
 import { MVCubesShelf } from '../components/peer/MVCubesShelf';
 import { GiveFeedbackButton } from '../components/peer/GiveFeedbackButton';
 import { QuestBoard } from '../components/dashboard/QuestBoard';
+import { peerApi } from '../utils/peer';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
 
 export const CubeDashboard: React.FC = () => {
@@ -52,6 +54,7 @@ export const CubeDashboard: React.FC = () => {
   const [showAllFeedback, setShowAllFeedback] = useState(false);
 
   const [quests, setQuests] = useState<any[]>([]);
+  const [kudos, setKudos] = useState<any[]>([]);
 
   const fetchDashboardData = async () => {
     try {
@@ -61,6 +64,8 @@ export const CubeDashboard: React.FC = () => {
       ]);
       setData(res);
       setQuests(questsRes);
+      // Kudos received are a nice-to-have on this page; never block the dashboard on them.
+      peerApi.received().then(setKudos).catch(() => setKudos([]));
     } catch (err: any) {
       setError(err.message || 'Failed to fetch dashboard data');
     } finally {
@@ -523,6 +528,41 @@ export const CubeDashboard: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Kudos received: the reward for being useful to teammates */}
+          <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-base font-extrabold">
+                <HeartHandshake className="h-5 w-5 text-magenta" /> Kudos for you
+              </h3>
+              <span className="rounded-full bg-magenta/10 px-2.5 py-0.5 text-[11px] font-black text-magenta">{kudos.length}</span>
+            </div>
+
+            {kudos.length > 0 ? (
+              <>
+                <ul className="flex flex-col gap-3">
+                  {kudos.slice(0, 2).map((k: any) => (
+                    <li key={k.id} className="rounded-2xl bg-gradient-to-br from-slate-50 to-white p-3.5 ring-1 ring-gray-100">
+                      <p className="line-clamp-3 text-xs font-medium italic leading-relaxed text-gray-700">
+                        {k.note ? `“${k.note}”` : 'Recognised without a note.'}
+                      </p>
+                      <p className="mt-2 text-[10px] font-extrabold uppercase tracking-wide text-magenta">
+                        {(k.tags || []).join(' · ').replace(/_/g, ' ')}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <Link to={`/cubes/${profile.id}`} className="text-xs font-extrabold text-magenta hover:underline">
+                  Read them all and choose what to show publicly
+                </Link>
+              </>
+            ) : (
+              <p className="text-xs font-semibold leading-relaxed text-gray-400">
+                Nobody has recognised you yet. Recognising a teammate is the quickest way to start: people who give
+                kudos tend to get them.
+              </p>
+            )}
+          </div>
 
           {/* Badges */}
           <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">

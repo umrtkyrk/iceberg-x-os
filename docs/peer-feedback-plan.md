@@ -438,3 +438,30 @@ Each item: kind, tags (with labels), note, context (type and the mission/team/me
 - **Context narrows the writer.** A note tagged with a four-person mission was written by one of the other three. Staff should not try to work out who, and the UI says so. If this proves a problem, hide the mission title in `staffFeedback.service.ts` (`contextLabels`).
 - **Earlier feedback was written under the old promise** ("mentors only see counts and themes"). It is readable now. Tell Cubes with the Broadcast page.
 - The composer copy was updated so every promise it makes is true: mentors can read it, never who wrote it.
+
+---
+
+## 12. Revision: kudos are felt at once and can be made public (shipped)
+
+The weekly delivery pause meant a kudos written this week was invisible to the person until the next Monday: no inbox entry, no pin, no title, no quest progress. Nobody saw anything, so giving felt pointless. Changes:
+
+| What | Before | Now |
+|---|---|---|
+| Kudos in the person's inbox | After the weekly cutoff | **Immediately** |
+| Notification to the person | None | **Immediately**, without naming the sender |
+| Pin / "this helped" | Only on delivered kudos | Any kudos they have received |
+| Peer titles, "people who recognised you" quest | Counted delivered kudos only | Count kudos as they arrive |
+| Chosen quotes | Signed-in members only | **Also on the public profile** (`/x/:cubeNumber`), quote + tags + month only |
+| Cube dashboard | Nothing | A "Kudos for you" card |
+| Radar "Emerging patterns" | 3 different people | **2 different people** (`ALERT_MIN_GIVERS`) |
+
+### Unchanged
+- Negative feedback (concerns and observations) is readable only by mentors and admins. The person never sees it, and it is never on a public page.
+- A single concern still does not move the score; that needs three independent people with strong context.
+- The Cube-visible **growth indicator** keeps its weekly pause, because it is shown to the person.
+- The writer is never exposed anywhere.
+
+### Trade-offs
+- **Timing.** Instant delivery lets someone who has just talked to a teammate guess a kudos was theirs. The exact time is still never shown (month only) and the notification does not name anyone.
+- **Public quotes.** Anyone with the link can read a quote the Cube chose to show. The Cube decides, can remove it at any time, and the composer tells writers this will happen. Names are rejected at pin time.
+- **Repeat alerts at 2.** Two people is a lower bar than the earlier three. It only puts the Cube in front of a mentor, who can read what was written; it does not affect the score or what the person sees.

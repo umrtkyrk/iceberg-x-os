@@ -10,6 +10,7 @@ import { PeerFeedbackKind, PeerFeedbackStatus, PeerSignalState } from '@prisma/c
 import { badRequest, conflict, notFound } from '../utils/http';
 import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 import {
+  ALERT_MIN_GIVERS,
   K_ANONYMITY,
   MAX_RELIABILITY,
   MIN_RELIABILITY,
@@ -146,16 +147,20 @@ export async function listNeedsAttention() {
     };
   });
 
-  // Not yet a growth signal, but enough independent people noticed something
-  // that a mentor may want to look. "Max" keeps the distinct-people claim safe.
+  // Not yet a growth signal, but the same thing has now been raised by more
+  // than one person, which is worth a mentor's attention. Counted over
+  // different people ("max" so the same person is never counted twice).
   const emergingCards = emerging
     .filter(c => !openCubeIds.has(c.id))
     .map(c => {
       const counts = (c.peer_signal!.tag_counts as any) || {};
-      const people = Math.max(counts.concern_givers ?? 0, counts.observation_givers ?? 0);
+      const people = Math.max(
+        counts.concern_givers_all ?? counts.concern_givers ?? 0,
+        counts.observation_givers ?? 0
+      );
       return { cube: c, counts, people };
     })
-    .filter(x => x.people >= K_ANONYMITY)
+    .filter(x => x.people >= ALERT_MIN_GIVERS)
     .map(x => ({
       cube: cubeCard(x.cube),
       people: x.people,

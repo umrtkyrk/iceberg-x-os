@@ -12,6 +12,13 @@ export const PEER_SCORE_CAP = 0.2;
 /** No aggregate is shown (or counted) below this many distinct givers. */
 export const K_ANONYMITY = 3;
 
+/**
+ * Two or more different people raising a concern or observation about the same
+ * Cube puts them on the mentors' Radar. Mentors can read the feedback itself, so
+ * this does not need the stricter anonymity floor used for scoring.
+ */
+export const ALERT_MIN_GIVERS = 2;
+
 /** Distinct, context-weighted concern givers needed before a concern counts. */
 export const CORROBORATION_GIVERS = 3;
 

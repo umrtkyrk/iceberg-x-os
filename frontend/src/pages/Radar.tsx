@@ -175,9 +175,9 @@ export const Radar: React.FC = () => {
           <div>
             <h2 className="mb-1 text-sm font-extrabold uppercase tracking-wider text-slate-700">Emerging patterns</h2>
             <p className="mb-3 max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
-              Not yet a verified signal. Several people could not see this Cube's work or raised a similar
-              area. Often a quiet teammate who needs a hand being seen, sometimes a real gap. A short
-              check-in tells you which.
+              Two or more different people raised something about this Cube. Not yet a verified growth signal, but
+              repeated enough to look at. Read the feedback on their profile or in the Feedback tab. Often a quiet
+              teammate who needs a hand being seen, sometimes a real gap.
             </p>
             {attention.emerging.length === 0 ? (
               <Empty icon={Users} title="No emerging patterns" body="Nothing is building up right now." />

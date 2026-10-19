@@ -8,8 +8,7 @@
  * Design rules:
  *  - Giving is rewarded for breadth and quality, never for negativity. There is
  *    no "number of concerns filed" criterion.
- *  - Receive-side progress only counts feedback delivered before the start of
- *    the current ISO week, so progress cannot reveal who just wrote kudos.
+ *  - Receive-side progress counts kudos as soon as they arrive.
  *  - Peer quests are sticky: once complete they are never reverted, because a
  *    peer-derived value can fall (a concern is dismissed, a rate dips) and a
  *    badge must not silently disappear.
@@ -17,7 +16,7 @@
 import prisma from './prisma';
 import { PeerFeedbackKind, PeerFeedbackStatus } from '@prisma/client';
 import { RARITY_ORDINAL } from '../config/peer';
-import { digestCutoff, giverHash } from './peerCore';
+import { giverHash } from './peerCore';
 
 export const PEER_CRITERIA = [
   'peer_kudos_given',
@@ -132,7 +131,7 @@ export const PEER_QUESTS: Record<PeerCriteria, PeerQuestAlgorithm> = {
     }
   },
 
-  // Different people who recognised this Cube (delivered feedback only).
+  // Different people who recognised this Cube.
   peer_distinct_givers_received: {
     eligible: always,
     progress: async cubeProfileId => {
@@ -140,8 +139,7 @@ export const PEER_QUESTS: Record<PeerCriteria, PeerQuestAlgorithm> = {
         where: {
           receiver_id: cubeProfileId,
           kind: PeerFeedbackKind.KUDOS,
-          status: PeerFeedbackStatus.ACTIVE,
-          created_at: { lt: digestCutoff() }
+          status: PeerFeedbackStatus.ACTIVE
         },
         distinct: ['giver_hash'],
         select: { giver_hash: true }
