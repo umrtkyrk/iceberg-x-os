@@ -17,6 +17,9 @@ import { peerApi, tagStyle, CATEGORY_LABELS, MVCUBES_STYLE } from '../../utils/p
 import { PeerTitleCard } from './PeerTitleCard';
 import { GiveFeedbackButton } from './GiveFeedbackButton';
 
+/** Mirrors MAX_PINNED on the server: the most quotes a Cube can show publicly. */
+const MAX_SHOWN = 3;
+
 interface Props {
   cubeId: string;
   isSelf: boolean;
@@ -82,6 +85,7 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
 
   const titles: any[] = summary.titles || [];
   const pinned: any[] = summary.pinned || [];
+  const atLimit = pinned.length >= MAX_SHOWN;
   const awards: any[] = summary.awards || [];
   const self = summary.self;
   const hasAnything = titles.length > 0 || pinned.length > 0 || awards.length > 0;
@@ -99,7 +103,7 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
           <HeartHandshake className="h-5 w-5 text-magenta" />
           <span>Peer Recognition</span>
         </h3>
-        <GiveFeedbackButton receiver={isSelf ? null : { id: cubeId, name, avatarUrl }} variant="soft" label={`Recognise ${name.split(' ')[0]}`} />
+        <GiveFeedbackButton receiver={isSelf ? null : { id: cubeId, name, avatarUrl }} variant="soft" label={isSelf ? 'Recognise a teammate' : `Recognise ${name.split(' ')[0]}`} />
       </header>
 
       {error && (
@@ -222,6 +226,15 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
                 private
               </span>
             </h4>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${
+                atLimit ? 'bg-magenta/10 text-magenta' : 'bg-slate-100 text-slate-600'
+              }`}
+              title="Quotes anyone can read on your public profile"
+            >
+              <Pin className="h-3.5 w-3.5" />
+              Public profile: {pinned.length} of {MAX_SHOWN} chosen
+            </span>
             {self.trend && (
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${
@@ -269,8 +282,8 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
             <div className="mb-4 flex items-start gap-3 rounded-2xl border border-magenta/15 bg-magenta/5 p-4">
               <Pin className="mt-0.5 h-4 w-4 shrink-0 text-magenta" />
               <p className="text-xs font-semibold leading-relaxed text-slate-700">
-                Pick up to {3} kudos to show on your <b>public profile</b>. It is your call: anyone with your profile
-                link will be able to read what you choose, anonymously, and you can remove it at any time.
+                Pick up to {MAX_SHOWN} kudos to show on your <b>public profile</b>. It is your call: anyone with your
+                profile link can read what you choose, anonymously. You can swap them whenever you like.
               </p>
             </div>
           )}
@@ -316,13 +329,26 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
                       {item.note && (
                         <button
                           onClick={() => act(item.id, () => (item.pinned ? peerApi.unpin(item.id) : peerApi.pin(item.id)))}
-                          disabled={busyId === item.id}
+                          disabled={busyId === item.id || (!item.pinned && atLimit)}
+                          title={
+                            !item.pinned && atLimit
+                              ? `You already show ${MAX_SHOWN}. Remove one first to choose this instead.`
+                              : undefined
+                          }
                           className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold transition ${
-                            item.pinned ? 'bg-magenta-100 text-magenta' : 'bg-slate-100 text-slate-600 hover:bg-magenta-100 hover:text-magenta'
+                            item.pinned
+                              ? 'bg-magenta-100 text-magenta'
+                              : atLimit
+                              ? 'cursor-not-allowed bg-slate-50 text-slate-300'
+                              : 'bg-slate-100 text-slate-600 hover:bg-magenta-100 hover:text-magenta'
                           }`}
                         >
                           {item.pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-                          {item.pinned ? 'Shown publicly · Remove' : 'Show on public profile'}
+                          {item.pinned
+                            ? 'Shown publicly · Remove'
+                            : atLimit
+                            ? `Remove one of ${MAX_SHOWN} first`
+                            : 'Show on public profile'}
                         </button>
                       )}
                     </div>

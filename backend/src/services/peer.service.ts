@@ -488,7 +488,7 @@ export async function pinFeedback(cubeProfileId: string, feedbackId: string) {
     where: { receiver_id: cubeProfileId, is_pinned: true }
   });
   if (pinned >= MAX_PINNED) {
-    throw conflict(`You can pin up to ${MAX_PINNED} quotes. Unpin one first.`);
+    throw conflict(`You can show up to ${MAX_PINNED} quotes on your public profile. Remove one first to choose another.`);
   }
 
   // A pinned quote is public to the programme, so it must not name anyone.
