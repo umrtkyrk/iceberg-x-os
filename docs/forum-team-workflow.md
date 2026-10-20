@@ -16,19 +16,19 @@ git remote add upstream https://github.com/yemrealtanay/iceberg-x-os.git
 git remote set-url --push upstream https://example.invalid/upstream-push-disabled
 git config remote.pushDefault origin
 git config push.default current
-git switch --track origin/codex/forum-mvp
+git switch --track origin/forum-mvp
 ```
 
 `origin` fork'tur. `upstream` orijinalden yalnızca güncelleme almak içindir. Git ayarları yereldir; her ekip üyesi kendi klonunda yapmalıdır. URL'yi doğrudan yazarak yapılan push işlemleri bu uzak repo ayarlarıyla engellenmez; hedef her zaman fork olmalıdır.
 
 ## Dallar ve PR'lar
 
-`main`, başlangıçta upstream ile aynı tutulur. `codex/forum-mvp`, forumun ortak entegrasyon dalıdır. Her geliştirici bu daldan ayrı bir `codex/forum-...` dalı açar, değişikliklerini kendi dalına gönderir ve diğer ekip üyesinden inceleme ister.
+`main`, başlangıçta upstream ile aynı tutulur. `forum-mvp`, forumun ortak entegrasyon dalıdır. Her geliştirici bu daldan ayrı bir `forum-...` dalı açar, değişikliklerini kendi dalına gönderir ve diğer ekip üyesinden inceleme ister.
 
 PR açarken hedefi özellikle kontrol edin:
 
 - Base repository: **umrtkyrk/iceberg-x-os**
-- Base branch: **codex/forum-mvp**
+- Base branch: **forum-mvp**
 
 GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Bu görevde hedef fork olarak seçilir. Hazır olduğunda fork'un `main` dalına geçiş ayrıca değerlendirilir; üretim portalına katkı gönderilmez.
 
