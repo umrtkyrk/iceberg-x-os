@@ -28,3 +28,9 @@ lerna-debug.log*
 # Database files
 *.db
 *.sqlite
+
+# Local-only feature flags and development settings
+.env.local
+.env.*.local
+frontend/.env.local
+frontend/.env.*.local
