@@ -209,3 +209,7 @@ Deploying this monorepo to Railway is straightforward:
      - `APP_URL`: (the domain URL of your frontend service)
      - `NODE_ENV`: `production`
      - `PORT`: `5001`
+
+## Cube Forum design preview (fork)
+
+The retained forum design is available behind `VITE_CUBE_FORUM_PREVIEW=true` on `/forum` under Community. See [local setup and scope](docs/forum-design-preview.md). This is a browser-only preview; the forum backend, moderation and notification delivery remain future work.
