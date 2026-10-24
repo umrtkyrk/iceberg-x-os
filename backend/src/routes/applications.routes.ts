@@ -5,9 +5,9 @@ import { Router } from 'express';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { applicationRateLimit } from '../middlewares/rateLimit.middleware';
-import { sendError, parseCubeNumber, highestCubeNumber, badRequest, notFound } from '../utils/http';
+import { sendError, parseCubeNumber, highestCubeNumber } from '../utils/http';
 import { INVITE_TTL_HOURS, issueInvite, unusablePasswordHash } from '../services/invite.service';
-import { Role, CubeLevel, RecruitmentStage } from '@prisma/client';
+import { Role, CubeLevel } from '@prisma/client';
 
 const router = Router();
 
@@ -58,69 +58,6 @@ router.get('/admin/applications', requireAuth, isAdmin, async (req, res) => {
       orderBy: { created_at: 'desc' }
     });
     return res.json(applications);
-  } catch (error: any) {
-    return sendError(res, error);
-  }
-});
-
-const PIPELINE_SCORE_FIELDS = ['score_case', 'score_communication', 'score_ownership', 'score_teamfit'] as const;
-
-/** Parses a 0..100 recruitment score; null clears it, anything else invalid is rejected. */
-function parsePipelineScore(value: any, field: string): number | null {
-  if (value === null || value === '') return null;
-  const num = Number(value);
-  if (!Number.isInteger(num) || num < 0 || num > 100) {
-    throw badRequest(`${field} must be a whole number between 0 and 100`);
-  }
-  return num;
-}
-
-// Admin Route: Update recruitment pipeline data (stage, evaluation, interview)
-router.patch('/admin/applications/:id/pipeline', requireAuth, isAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const body = req.body || {};
-
-    const application = await prisma.cubeApplication.findUnique({ where: { id } });
-    if (!application) throw notFound('Application not found');
-    if (application.status !== 'pending') {
-      throw badRequest('Only pending applications can be changed in the pipeline');
-    }
-
-    const data: Record<string, any> = {};
-
-    if (body.stage !== undefined) {
-      if (!Object.values(RecruitmentStage).includes(body.stage)) throw badRequest('Invalid stage');
-      data.stage = body.stage;
-    }
-
-    for (const field of PIPELINE_SCORE_FIELDS) {
-      if (body[field] !== undefined) data[field] = parsePipelineScore(body[field], field);
-    }
-
-    for (const field of ['evaluation_note', 'interview_note'] as const) {
-      if (body[field] !== undefined) {
-        if (body[field] !== null && typeof body[field] !== 'string') throw badRequest(`${field} must be text`);
-        const text = (body[field] || '').trim();
-        if (text.length > 2000) throw badRequest(`${field} must be at most 2000 characters`);
-        data[field] = text || null;
-      }
-    }
-
-    if (body.interview_at !== undefined) {
-      if (body.interview_at === null || body.interview_at === '') {
-        data.interview_at = null;
-      } else {
-        const when = new Date(body.interview_at);
-        if (Number.isNaN(when.getTime())) throw badRequest('Invalid interview date');
-        data.interview_at = when;
-      }
-    }
-
-    if (Object.keys(data).length === 0) throw badRequest('Nothing to update');
-
-    const updated = await prisma.cubeApplication.update({ where: { id }, data });
-    return res.json({ success: true, application: updated });
   } catch (error: any) {
     return sendError(res, error);
   }

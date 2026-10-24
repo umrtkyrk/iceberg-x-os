@@ -457,14 +457,57 @@ model CubeApplication {
   interview_at        DateTime?
   interview_note      String?  @db.Text
 
+  case ApplicationCase?
+
   @@index([stage])
 }
 
+/// "Evaluation" and the score_* / evaluation_note columns predate the case flow
+/// and are no longer written; they stay so the migration history stays additive.
 enum RecruitmentStage {
   Applied
   Evaluation
   Interview
   Offer
+  CaseSent
+  CaseSubmitted
+  Evaluated
+}
+
+enum CaseDecision {
+  StrongYes
+  Yes
+  Maybe
+  No
+}
+
+/// The written case sent to a candidate through a single-use public link.
+/// Only the SHA-256 of the token is stored. Scores are Json keyed by rubric
+/// criterion; ai_* is the AI suggestion, final_* is what the reviewer settled on.
+model ApplicationCase {
+  id             String          @id @default(uuid())
+  application_id String          @unique
+  application    CubeApplication @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  token_hash     String          @unique
+  expires_at     DateTime
+  created_by_id  String?
+  created_at     DateTime        @default(now())
+
+  consent_at   DateTime?
+  submitted_at DateTime?
+  answers      Json?
+
+  ai_model           String?
+  ai_scored_at       DateTime?
+  ai_scores          Json?
+  ai_reduction       String?   @db.Text
+  ai_interview_focus String?   @db.Text
+
+  final_scores   Json?
+  decision       CaseDecision?
+  reviewer_note  String?       @db.Text
+  reviewed_by_id String?
+  reviewed_at    DateTime?
 }
 
 model Meeting {

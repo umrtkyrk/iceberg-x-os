@@ -22,6 +22,7 @@ import { DemoDays } from './pages/DemoDays';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminApplications } from './pages/AdminApplications';
 import { Recruitment } from './pages/Recruitment';
+import { CaseForm } from './pages/CaseForm';
 import { ChangePassword } from './pages/ChangePassword';
 import { Meetings } from './pages/Meetings';
 import { Offboarding } from './pages/Offboarding';
@@ -64,6 +65,7 @@ function App() {
 
           {/* Public one-time invite acceptance */}
           <Route path="/invite/:token" element={<AcceptInvite />} />
+          <Route path="/case/:token" element={<CaseForm />} />
 
           {/* Secure App Routes */}
           <Route
