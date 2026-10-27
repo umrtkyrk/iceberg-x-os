@@ -1,10 +1,10 @@
-# Cube Forum: portal içinde tasarım önizlemesi
+# Cube Forum — UI V2
 
-`umrtkyrk/mock-forum` tasarımı bu fork'un React 18 uygulamasına taşındı. Portal oturumu gerektirir; üst menü ve footer portalın mevcut Layout bileşeninden gelir. `Community > Forum`, `/forum` rotasını açar.
+Forum, portalın oturum ve gezinme yapısında `/forum` adresinde çalışır. Yeni görünüm tamamen TypeScript'tir. `ui-v2`, fork'un `forum-mvp` sürümünden başlayan tasarım sürümüdür.
 
-## Açma
+## Yerelde açma
 
-Önizleme varsayılan olarak kapalıdır. `frontend/.env.local` oluşturun:
+`frontend/.env.local` içinde:
 
 ```dotenv
 VITE_CUBE_FORUM_PREVIEW=true
@@ -16,30 +16,34 @@ npm ci
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Portal API'si yerel `http://localhost:5001` adresinde çalışmalıdır. Portal hesabıyla giriş yaptıktan sonra `http://localhost:5173/forum` adresini açın. Flag değiştiğinde Vite sunucusunu yeniden başlatın; build için flag derleme anında okunur. Değer `true` olmadığında menü ve route eklenmez; doğrudan `/forum` isteği mevcut catch-all ile dashboard'a döner. `.env.local` Git'e dahil edilmez.
+Portal API'sini projenin normal yerel kurulumuyla `http://localhost:5001` adresinde çalıştırın; yerel veritabanı ve yerel hesap kullanın. Sonra giriş yapıp `http://localhost:5173/forum` adresini açın. Şifreler, `.env.local` ve yerel veritabanı Git'e eklenmez. Feature flag varsayılan olarak kapalıdır; API izni yerine geçmez.
 
-Bu flag yalnızca frontend tasarım önizlemesini kontrol eder. Gelecekteki forum API'sinin feature flag veya yetki uygulaması değildir.
+## Bu sürümde çalışanlar
 
-## Taşınan tasarım
+- Kademe renginde avatar çerçevesi, yazar alanı ve metin etiketi: Cube mavi, Candidate turkuaz, Senior mor, Iceberger altın. Founding Cube, hesap yetkisinden ve gelişim kademesinden ayrı gösterilir.
+- Gerçek kazanılmış rozetler ve Common/Rare/Epic/Legendary görünümü; kişinin kendi rozetlerinden en fazla üç tanesini sıralayabildiği vitrin ve 140 karakterlik imza.
+- Hall of Fame'den gerçek topluluk listesi; isteğe bağlı yüklenen açık profil kartında başarımlar, beceriler, görünür unvanlar, MVCubes ödülleri ve kişinin paylaşmayı seçtiği en fazla üç anonim teşekkür.
+- Oturumdaki Cube'un gerçek quest ilerlemesi, bağımlılık durumu ve quest etiketi; mentor/admin için kişisel ilerleme iddiası taşımayan quest kataloğu. Kişinin görünür mission'larına bağlantı ve konu etiketi.
+- Duyuru, yardım, üretim, fikir ve iş dışı sohbet kategorileri; arama, kademe filtresi, okunmamış/en çok konuşulan sıralaması, kaydetme/takip, sayfalama, konu ve yanıt oluşturma/düzenleme/kaldırma.
+- Ortak MarkdownEditor, güvenli Markdown görünümü, klavye ile modal kapatma/odak döngüsü, profil açıldığında korunan konu taslağı ve mobil forum menüsü. Dar ekranlarda profil ve quest kartları akışın altına taşınır.
 
-Kategoriler, topluluk akışı, arama, quest filtresi, kaydetme/takip, konu ve yanıt oluşturma/düzenleme, yanıt sayfalaması, rapor formu, imza ve üçlü rozet vitrini önizlemesi. Mobil gezinme ve modal klavye odağı korunur. Portalın ortak MarkdownEditor bileşeni ve güvenli Markdown renderer kullanılır; görsel render edilmez.
+## Veri ve işlem sınırı
 
-Portal kullanıcısının kimliği, avatarı, gelişim aşaması ve kazanılmış rozetleri mevcut oturum ve profil API'sinden okunur. Avatar aşaması kullanıcı tarafından seçilmez. Kişinin vitrin seçimi yalnızca kendi kazanılmış rozetlerine göre süzülür. Adaylık `is_senior_candidate` ve `current_level` üzerinden belirlenir. Sunucuya profil yazılmaz.
+Kimlik, başarımlar, questler ve görünür profil bilgileri mevcut portal API'sinden okunur. Forum, açık profil alanlarını tek tek seçer; ham profil/feedback nesnesini saklamaz. Özel feedback, gönderen kimliği, mentor notu, Radar, değerlendirme puanı ve ayrılış yazışmaları forum kartlarına aktarılmaz.
 
-Örnek konular/profiller `demo-data.js` içindedir; bunlar gerçek portal kullanıcı kayıtları değildir. Konu, yanıt, örnek bildirim, rapor formu, imza ve vitrin tercihlerinin etkileşimleri bu aşamada frontend demosudur. Yerel değişiklikler kullanıcı kimliğine ayrılan `cube-forum-preview-v2:<userId>:` anahtarlarıyla tarayıcıda saklanır. Takip ve rapor işlemleri diğer Cubelara veya moderatörlere iletilmez. Silme, görevdeki veritabanı soft-delete davranışını henüz uygulamaz.
+**Takdir butonları mevcut portalın gerçek feedback formunu açar.** Kullanıcı formu gönderirse portal API'sine gerçek bir kayıt yapılır ve mevcut haftalık hak kuralları uygulanır. Önizlemede bu ayrım butonların yanında açıklanır. UI kontrolünde form yalnızca açılıp kapatıldı; feedback gönderilmedi.
 
-Üç sahte rozet kazanmış gibi gösterilmez: hesabın kazanılmış rozeti yoksa vitrin boş durum gösterir. Örnek çevrimiçi/XP/puan istatistikleri kaldırıldı; kartlarda önizlemedeki gerçek yerel katkı sayıları kullanılır.
+Konu/yanıt, kaydetme/takip, imza ve vitrin tercihi bu sürümde tarayıcıya özeldir. Başka cihazlara veya Cubelara ulaşmaz. @mention bildirim oluşturmaz; rapor formu moderatöre rapor göndermez. Quest etiketlemek ilerleme veya rozet kazandırmaz. UI rol ve sahiplik kuralları sunucu yetkilendirmesi değildir.
 
-## Kod sınırları
+Yeni kayıt anahtarı `cube-forum-ui-v2:<authUserId>` biçimindedir. Eski sürümün anahtarları silinmez; gerçek oturum kullanıcısının yazdığı konu/yanıtlar ve tercihleri yeni sürüme taşınır. Eski kurgu mesajları gerçek kullanıcıya atfedilmez. Örnek kişiler ve örnek ödüller açıkça kurgu olarak etiketlenir.
 
-- `frontend/src/pages/forum/Forum.tsx`: typed portal adapter; loading/error/retry durumları.
-- `ForumPreview.jsx` + `ForumPreview.d.ts`: eski tasarımı koruyan JSX görünümü ve typed prop sınırı. Portalın TypeScript strict ayarları gevşetilmedi; retained JSX'in tamamı TypeScript'e dönüştürülmüş değildir.
-- `previewModel.ts`: yerel tercih doğrulama ve duyuru UI kuralı. Backend izin kontrolünün yerine geçmez.
-- `forum.css`: tüm selector'lar `.cube-forum` ile sınırlı, animasyon adları da ayrılmıştır. Global body/root veya portal buton stilleri değiştirilmez.
+## Kod ve doğrulama
 
-Yeni npm bağımlılığı, iframe, yeni React runtime veya veritabanı migration'ı eklenmedi. Normal portal sayfaları ve backend değiştirilmedi.
-
-## Kontroller ve sonraki aşama
+- `Forum.tsx`: forum görünümleri ve etkileşimler.
+- `portalContext.ts`: izin verilen açık alanların projeksiyonu, kısmi hata ve kısa süreli profil önbelleği.
+- `forumModel.ts`, `legacyState.ts`, `types.ts`: yerel veri doğrulama ve sürüm geçişi.
+- `fixtures.ts`: kurgusal örnek içerik.
+- `forum.css`: bütün seçiciler `.cube-forum-v2` altında; diğer portal sayfalarını etkilemez.
 
 ```bash
 cd frontend
@@ -48,8 +52,8 @@ npm run check:forum
 npm run build
 ```
 
-Testler projedeki TypeScript derleyicisini kullanır; Node'un yerleşik TypeScript type-stripping desteğini gerektirmez. Yerel kontroller Node 24 ile çalıştırıldı; mevcut Dockerfile Node 18 kullanır ve bu çalışmada değiştirilmedi. Klasik portal backend kurulum ve test adımları ayrıca geçerlidir.
+17 test; açık alan seçimi, gizlilik, kısmi API hataları, quest rol ayrımı, üç kazanılmış rozet sınırı, kayıt kurtarma, soft-delete, eski sürüm geçişi ve CSS izolasyonunu kapsar. `check:forum` yeni kodu portalın strict ayarlarıyla denetler. Portalın tamamına ait eski `tsc -b` hataları bu tasarım çalışmasının kapsamı dışındadır.
 
-Sonraki iş: görev belgesindeki additive forum veri modeli, gerçek API, soft-delete, sunucu yetkileri/rate limit, bildirim hedefleri, rapor kuyruğu ve moderasyon. Bu PR bunların tamamlandığını iddia etmez. Üretim reposuna push, PR veya deploy yapılmaz; ekip PR hedefi `umrtkyrk/iceberg-x-os` olmalıdır.
+Gerçek forum API'si, paylaşılmış veritabanı, sunucu tarafında sahiplik/moderasyon/rapor kuyruğu ve bildirim üretimi sonraki aşamadır. Bu sürüm bunların tamamlandığını iddia etmez. Yeni bağımlılık veya veritabanı migration'ı eklenmemiştir.
 
-Genel `tsc -b` kontrolünde başlangıç portalından gelen 54 hata devam eder; başlangıç referansında 55 hata vardır. Entegrasyon yeni hata eklemez. `check:forum` yeni adapter ve yardımcıları strict ayarlarla ayrıca denetler.
+Tüm geliştirme `umrtkyrk/iceberg-x-os` fork'undadır. Orijinal repoya push, PR, merge veya deploy yapılmaz. Ayrıntılı özellik eşlemesi `forum-portal-integration.md` içindedir.

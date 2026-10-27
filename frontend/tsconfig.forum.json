@@ -2,7 +2,7 @@
   "extends": "./tsconfig.app.json",
   "include": [
     "src/pages/forum/Forum.tsx",
-    "src/pages/forum/previewModel.ts",
+    "src/pages/forum/forumModel.ts",
     "src/config/features.ts",
     "src/vite-env.d.ts"
   ]

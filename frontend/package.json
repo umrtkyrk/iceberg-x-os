@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:forum": "node --test tests/forum-preview.test.mjs",
+    "test:forum": "node --test tests/forum-model.test.mjs tests/forum-portal-context.test.mjs tests/forum-integration.test.mjs",
     "check:forum": "tsc -p tsconfig.forum.json"
   },
   "dependencies": {
