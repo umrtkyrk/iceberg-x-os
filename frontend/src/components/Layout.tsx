@@ -92,7 +92,7 @@ const COMMUNITY: NavGroup = {
   sections: [
     {
       items: [
-        ...(FORUM_PREVIEW_ENABLED ? [{ path: '/forum', label: 'Forum', hint: 'Cube Forum design preview', icon: MessagesSquare }] : []),
+        ...(FORUM_PREVIEW_ENABLED ? [{ path: '/forum', label: 'Forum', hint: 'Cube community discussions', icon: MessagesSquare }] : []),
         { path: '/directory', label: 'Directory', hint: 'Everyone in the programme', icon: Users },
         { path: '/mvcubes', label: 'MVCubes', hint: 'The most valued each month', icon: Crown },
         { path: '/hall-of-fame', label: 'Hall of Fame', hint: 'The path to the summit', icon: Mountain }
