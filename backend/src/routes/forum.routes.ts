@@ -9,13 +9,13 @@ const router = Router();
 const buckets = new Map<string, { count: number; until: number }>();
 const timer = setInterval(() => { for (const [id, bucket] of buckets) if (bucket.until <= Date.now()) buckets.delete(id); }, 60000);
 timer.unref();
-router.use('/forum', (_req, res, next) => FORUM_ENABLED ? next() : res.status(404).json({ error: 'Forum henüz etkin değil.' }), requireAuth);
+router.use('/forum', (_req, res, next) => FORUM_ENABLED ? next() : res.status(404).json({ error: 'The forum is not enabled yet.' }), requireAuth);
 router.use('/forum', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   if (req.method === 'GET') return next();
   const id = req.user!.id, now = Date.now(), old = buckets.get(id);
   const bucket = old && old.until > now ? old : { count: 0, until: now + 60000 };
   bucket.count++; buckets.set(id, bucket);
-  if (bucket.count > 20) { res.setHeader('Retry-After', Math.ceil((bucket.until - now) / 1000)); return res.status(429).json({ error: 'Çok hızlı işlem yapıyorsun. Biraz bekle.' }); }
+  if (bucket.count > 20) { res.setHeader('Retry-After', Math.ceil((bucket.until - now) / 1000)); return res.status(429).json({ error: 'You are posting too fast. Please wait a moment.' }); }
   next();
 });
 type Handler = (req: AuthenticatedRequest) => Promise<unknown>;
@@ -23,17 +23,18 @@ const handle = (fn: Handler, status = 200) => async (req: AuthenticatedRequest, 
   try { return res.status(status).json(await fn(req)); } catch (error) { return sendError(res, error); }
 };
 function body(req: AuthenticatedRequest): Record<string, unknown> {
-  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) throw badRequest('Geçersiz istek.');
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) throw badRequest('Invalid request.');
   return req.body;
 }
 router.get('/forum/categories', handle(() => forum.forumCategories()));
+router.get('/forum/stats', handle(() => forum.forumStats()));
 router.get('/forum/topics', handle(req => {
-  const category = req.query.category === undefined ? undefined : forumText(req.query.category, 'Kategori', 1, 80);
-  const query = req.query.q === undefined ? undefined : forumText(req.query.q, 'Arama', 1, 100);
-  const view = req.query.view === undefined ? undefined : forumText(req.query.view, 'Görünüm', 1, 20);
-  if (view && !['all', 'saved', 'following', 'unanswered', 'solved'].includes(view)) throw badRequest('Geçersiz görünüm.');
-  const sort = req.query.sort === undefined ? undefined : forumText(req.query.sort, 'Sıralama', 1, 20);
-  if (sort && !['newest', 'active'].includes(sort)) throw badRequest('Geçersiz sıralama.');
+  const category = req.query.category === undefined ? undefined : forumText(req.query.category, 'Category', 1, 80);
+  const query = req.query.q === undefined ? undefined : forumText(req.query.q, 'Search', 1, 100);
+  const view = req.query.view === undefined ? undefined : forumText(req.query.view, 'View', 1, 20);
+  if (view && !['all', 'saved', 'following', 'unanswered', 'solved'].includes(view)) throw badRequest('Invalid view.');
+  const sort = req.query.sort === undefined ? undefined : forumText(req.query.sort, 'Sort', 1, 20);
+  if (sort && !['newest', 'active'].includes(sort)) throw badRequest('Invalid sort order.');
   return forum.listForumTopics(req.user!, { category, query, view, sort, page: forumPage(req.query.page) });
 }));
 router.get('/forum/topics/:id', handle(req => forum.readForumTopic(req.user!, req.params.id, forumPage(req.query.page))));

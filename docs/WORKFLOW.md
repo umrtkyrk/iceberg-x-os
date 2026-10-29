@@ -51,7 +51,7 @@ These settings are local to each clone. They don't block a push typed with a ful
 ```bash
 npm run install-all
 cp backend/.env.example backend/.env        # fill in; never commit
-echo "VITE_CUBE_FORUM_PREVIEW=true" > frontend/.env.local
+echo "VITE_CUBE_FORUM_ENABLED=true" > frontend/.env.local   # plus FORUM_ENABLED=true in backend/.env
 docker-compose up postgres -d
 npm run db:migrate                           # see task 0.4 if this fails on an empty DB
 npm run db:seed

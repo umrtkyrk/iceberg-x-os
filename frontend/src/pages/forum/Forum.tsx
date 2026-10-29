@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { Bell, Bookmark, CheckCircle2, ChevronRight, Home, LockKeyhole, MessagesSquare, Pin, Plus, Search } from 'lucide-react';
+import { ArrowLeft, Bookmark, BookOpen, CheckCircle2, Clock, Coffee, Flame, Hand, Hash, LayoutGrid, LifeBuoy, Link2, LockKeyhole, Megaphone, MessageCircle, MessageCircleQuestion, Minus, Pencil, Pin, Plus, Rocket, Search, Shield, Trash2, Flag, Bell, BellOff, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
-import './forum.css';
+import './talks.css';
 
 interface Author { id: string; name: string; role: string }
 interface Category { id: string; name: string; description: string; staff_only: boolean; _count: { topics: number }; topics: { id: string; title: string; last_activity_at: string }[] }
@@ -15,34 +15,68 @@ interface TopicList { topics: Topic[]; total: number; pageSize: number }
 interface Thread { acceptedReply?: Post | null; topic: Topic; replies: Post[]; total: number; pageSize: number }
 interface Report { id: string; topic_id: string; reply_id: string | null; reason: string; reporter: Author | null; topic: { title: string; body: string; deleted_at: string | null }; reply?: { body: string; deleted_at: string | null } | null }
 interface ReportList { reports: Report[]; total: number; pageSize: number }
+interface Stats { topics: number; replies: number; solved: number; contributors: { author: Author; topics: number; replies: number }[]; unanswered: { id: string; title: string; category_id: string; created_at: string; author: Author | null }[] }
+const emptyStats: Stats = { topics: 0, replies: 0, solved: 0, contributors: [], unanswered: [] };
 interface Editor { kind: 'create' | 'topic' | 'reply'; id?: string; title: string; body: string; category: string }
-const date = (value: string) => new Date(value).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+const date = (value: string) => new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto', style: 'short' });
+const units: [Intl.RelativeTimeFormatUnit, number][] = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+function ago(value: string) {
+  const seconds = (new Date(value).getTime() - Date.now()) / 1000;
+  const unit = units.find(([, size]) => Math.abs(seconds) >= size);
+  return unit ? relative.format(Math.round(seconds / unit[1]), unit[0]) : 'just now';
+}
+// A plain-text teaser for feed cards; formatting is shown only on the topic page.
+const preview = (text: string) => (text || '').replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~[\]()!-]/g, ' ').replace(/\s+/g, ' ').trim();
+const roleLabel = (role?: string) => role === 'ADMIN' ? 'Admin' : role === 'MENTOR' ? 'Mentor' : 'Cube';
 const emptyList: TopicList = { topics: [], total: 0, pageSize: 20 };
 const hints: Record<string, string> = {
-  announcements: 'Duyurunun kapsamını, tarihini ve Cubelardan beklenen adımları açıkça belirt.',
-  introductions: 'Merhaba! Ben…\n\nİlgilendiğim alanlar:\nŞu sıralar öğrendiğim şey:\nBirlikte çalışmak istediğim konular:',
-  help: 'Ne yapmak istiyorum?\n\nKarşılaştığım hata:\n\nDenediğim çözümler:\n\nİlgili kod (gizli anahtar veya parola ekleme):',
-  showcase: 'Projemin amacı:\n\nBu hafta tamamladıklarım:\n\nTakıldığım noktalar:\n\nGeri bildirim istediğim alan:',
-  resources: 'Kaynağın adı ve bağlantısı:\n\nNe anlatıyor?\n\nKimlerin işine yarar?\n\nBenim notlarım:',
-  lounge: 'Sohbeti başlat: bir öneri, bir soru veya gününden küçük bir hikâye…',
+  announcements: 'State the scope and date of the announcement and what Cubes are expected to do.',
+  introductions: 'Hi! I am…\n\nWhat I am into:\nWhat I am learning right now:\nWhat I would like to work on together:',
+  help: 'What am I trying to do?\n\nThe error I get:\n\nWhat I tried:\n\nRelevant code (no secrets or passwords):',
+  showcase: 'What my project is for:\n\nWhat I finished this week:\n\nWhere I am stuck:\n\nWhat I would like feedback on:',
+  resources: 'Resource name and link:\n\nWhat does it cover?\n\nWho is it useful for?\n\nMy notes:',
+  lounge: 'Start the conversation: a recommendation, a question or a small story from your day…',
 };
+const communityStyle: Record<string, { icon: LucideIcon; color: string }> = {
+  announcements: { icon: Megaphone, color: '#e6007e' },
+  introductions: { icon: Hand, color: '#f59e0b' },
+  help: { icon: LifeBuoy, color: '#0ea5e9' },
+  showcase: { icon: Rocket, color: '#8b5cf6' },
+  resources: { icon: BookOpen, color: '#10b981' },
+  lounge: { icon: Coffee, color: '#f97316' },
+};
+const avatarColors = ['#e6007e', '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#f97316', '#14141c', '#0d9488'];
+function Avatar({ name, size = 32 }: { name?: string | null; size?: number }) {
+  const label = name || 'Cube';
+  const color = avatarColors[[...label].reduce((sum, char) => sum + char.charCodeAt(0), 0) % avatarColors.length];
+  return <span className="talk-avatar" style={{ width: size, height: size, background: color, fontSize: Math.round(size * 0.38) }} aria-hidden="true">{label.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span>;
+}
+function CommunityIcon({ id, size = 24 }: { id?: string; size?: number }) {
+  const style = communityStyle[id || ''] || { icon: Hash, color: '#6b7280' };
+  const Icon = style.icon;
+  return <span className="talk-community-icon" style={{ width: size, height: size, background: style.color }} aria-hidden="true"><Icon size={Math.round(size * 0.55)}/></span>;
+}
 function Markdown({ text }: { text: string }) { return <div className="markdown"><ReactMarkdown skipHtml components={{ img: () => null }}>{text || ''}</ReactMarkdown></div>; }
+function RoleBadge({ role }: { role?: string }) { return role && role !== 'CUBE' ? <span className={`talk-role is-${role.toLowerCase()}`}>{roleLabel(role)}</span> : null; }
 
 export default function Forum() {
   const { user } = useAuth();
   const staff = user?.role === 'ADMIN' || user?.role === 'MENTOR';
   const [params, setParams] = useSearchParams();
-  const topicId = params.get('konu');
-  const categoryId = params.get('kategori') || '';
-  const view = params.get('gorunum') || 'all';
+  // `konu` is the pre-English parameter still present in older notification links.
+  const topicId = params.get('topic') || params.get('konu');
+  const categoryId = params.get('category') || '';
+  const view = params.get('view') || 'all';
   const query = params.get('q') || '';
-  const sort = params.get('siralama') === 'newest' ? 'newest' : 'active';
-  const rawPage = Number(params.get('sayfa'));
+  const sort = params.get('sort') === 'newest' ? 'newest' : 'active';
+  const rawPage = Number(params.get('page'));
   const page = Number.isInteger(rawPage) && rawPage > 0 && rawPage < 100000 ? rawPage : 1;
   const [categories, setCategories] = useState<Category[]>([]);
   const [list, setList] = useState<TopicList>(emptyList);
   const [thread, setThread] = useState<Thread | null>(null);
   const [reports, setReports] = useState<ReportList>({ reports: [], total: 0, pageSize: 20 });
+  const [stats, setStats] = useState<Stats>(emptyStats);
   const [search, setSearch] = useState(query);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,11 +89,12 @@ export default function Forum() {
   const [reportTarget, setReportTarget] = useState<{ reply_id?: string } | null>(null);
   const [reason, setReason] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const pageHeading = useRef<HTMLHeadingElement>(null);
   const locationKey = params.toString();
 
   useEffect(() => { setSearch(query); }, [query]);
-  useEffect(() => { setEditor(null); setReportTarget(null); setDeleteTarget(null); setReply(''); setMessage(''); }, [locationKey]);
+  useEffect(() => { setEditor(null); setReportTarget(null); setDeleteTarget(null); setReply(''); setMessage(''); setCollapsed(new Set()); }, [locationKey]);
   useEffect(() => {
     let current = true;
     setLoading(true); setError(''); setThread(null); setList(emptyList); setReports({ reports: [], total: 0, pageSize: 20 });
@@ -80,99 +115,226 @@ export default function Forum() {
         if (topicId) setThread(data as Thread);
         else if (view === 'reports') setReports(data as ReportList);
         else setList((data as TopicList | null) || emptyList);
-      } catch (err) { if (current) setError(err instanceof Error ? err.message : 'Forum yüklenemedi.'); }
+      } catch (err) { if (current) setError(err instanceof Error ? err.message : 'The forum could not be loaded.'); }
       finally { if (current) { setLoading(false); pageHeading.current?.focus(); } }
     }
     void load();
     return () => { current = false; };
   }, [locationKey, revision, user?.id]);
+  // Sidebar statistics are best-effort; a failure here must not hide the main content.
+  useEffect(() => {
+    let current = true;
+    api.get<Stats>('/forum/stats')
+      .then(next => { if (current && next) setStats(next); })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [revision, user?.id]);
 
   const go = (values: Record<string, string> = {}) => { if (!busyRef.current) setParams(values); };
-  const openTopic = (id: string) => go({ konu: id });
-  const changePage = (next: number) => { const values = Object.fromEntries(params); values.sayfa = String(next); go(values); };
+  const openTopic = (id: string) => go({ topic: id });
+  const changePage = (next: number) => { const values = Object.fromEntries(params); values.page = String(next); go(values); };
   async function mutate(action: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true); setError(''); setMessage('');
     try { await action(); setRevision(n => n + 1); }
-    catch (err) { setError(err instanceof Error ? err.message : 'İşlem tamamlanamadı. Yazdıkların korunuyor.'); }
+    catch (err) { setError(err instanceof Error ? err.message : 'The action could not be completed. Your text has been kept.'); }
     finally { busyRef.current = false; setBusy(false); }
   }
-  const currentCategory = categories.find(c => c.id === categoryId);
-  const title = thread?.topic.title || (topicId ? 'Konu' : view === 'reports' ? 'Moderasyon bildirimleri' : currentCategory?.name || (view === 'saved' ? 'Kaydettiğim konular' : view === 'following' ? 'Takip ettiğim konular' : view === 'unanswered' ? 'Yanıt bekleyen sorular' : view === 'solved' ? 'Çözülen sorular' : view === 'all' || query ? 'Topluluk akışı' : 'Forumlar'));
+  const community = categories.find(c => c.id === (thread?.topic.category_id || categoryId));
+  const feeds: [string, string, LucideIcon][] = [['all', 'Home', Flame], ['index', 'All communities', LayoutGrid], ['unanswered', 'Unanswered', MessageCircleQuestion], ['solved', 'Solved', CheckCircle2], ['saved', 'Saved', Bookmark], ['following', 'Following', Bell], ...(staff ? [['reports', 'Moderation', Shield] as [string, string, LucideIcon]] : [])];
+  const feedTitle = feeds.find(([key]) => key === view)?.[1] || 'Home';
+  const title = thread?.topic.title || (topicId ? 'Topic' : (categoryId && community?.name) || (query ? 'Search results' : feedTitle));
   const canCreate = categories.some(c => !c.staff_only || staff);
   const total = topicId ? thread?.total || 0 : view === 'reports' ? reports.total : list.total;
   const pageSize = topicId ? thread?.pageSize || 20 : view === 'reports' ? reports.pageSize : list.pageSize;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const topicPath = thread ? `/forum/topics/${encodeURIComponent(thread.topic.id)}` : '';
+  const startTopic = () => { const category = community && (!community.staff_only || staff) ? community.id : categories.find(c => !c.staff_only)?.id || categories[0]?.id || ''; setEditor({ kind: 'create', title: '', body: '', category }); setReportTarget(null); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const toggleCollapsed = (id: string) => setCollapsed(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const toggleState = (key: 'saved' | 'following', topic: Topic) => void mutate(async () => { await api.put(`/forum/topics/${encodeURIComponent(topic.id)}/state`, { [key]: !topic.states?.[0]?.[key] }); });
+  const share = async (topic: Topic) => {
+    try { await navigator.clipboard.writeText(new URL(`?topic=${encodeURIComponent(topic.id)}`, window.location.href).href); setMessage('Link copied to clipboard.'); }
+    catch { setMessage('Your browser blocked copying the link.'); }
+  };
 
-  const renderPost = (post: Post, first: boolean, number: number) => <article className={`live-post ${!first && thread?.topic.accepted_reply_id === post.id ? 'accepted-post' : ''}`} key={post.id}>
-    <aside><span className="live-initials" aria-hidden="true">{(post.author?.name || 'Cube').split(' ').map(part => part[0]).slice(0, 2).join('')}</span><strong>{post.author?.name || 'Bilinmeyen Cube'}</strong><small>{post.author?.role === 'CUBE' ? 'Cube' : post.author?.role === 'ADMIN' ? 'Admin' : 'Mentor'}</small></aside>
-    <div className="live-post-body"><div className="live-post-date"><span>{date(post.created_at)}{post.updated_at !== post.created_at ? ' · düzenlendi' : ''}</span><span>{number ? `#${number}` : 'Çözüm'}</span></div>{!first && thread?.topic.accepted_reply_id === post.id && <p className="accepted-label"><CheckCircle2 size={17}/>Kabul edilen çözüm</p>}<Markdown text={post.body}/><div className="live-post-actions">
-      {!first && thread?.topic.category_id === 'help' && thread.topic.author?.id === user?.id && !thread.topic.locked && <button disabled={busy} onClick={() => void mutate(async () => { await api.put(`${topicPath}/answer`, { reply_id: thread.topic.accepted_reply_id === post.id ? null : post.id }); })}>{thread.topic.accepted_reply_id === post.id ? 'Çözüm seçimini kaldır' : 'Çözüm olarak kabul et'}</button>}
-      {post.author?.id === user?.id && !thread?.topic.locked && <button disabled={busy} onClick={() => { setEditor({ kind: first ? 'topic' : 'reply', id: post.id, title: thread?.topic.title || '', body: post.body, category: thread?.topic.category_id || '' }); setReportTarget(null); }}>Düzenle</button>}
-      {(post.author?.id === user?.id || staff) && <button disabled={busy} onClick={() => setDeleteTarget(first ? topicPath : `${topicPath}/replies/${post.id}`)}>Sil</button>}
-      <button disabled={busy} onClick={() => { setReportTarget(first ? {} : { reply_id: post.id }); setReason(''); setEditor(null); }}>Moderatöre bildir</button>
-      {!thread?.topic.locked && <button onClick={() => { setReply(text => `${text}${text ? '\n\n' : ''}> ${(post.body || '').slice(0, 800).replace(/\n/g, '\n> ')}\n\n`); document.getElementById('live-reply')?.focus(); }}>Alıntıla</button>}
-    </div></div>
-  </article>;
+  const submitEditor = (event: FormEvent) => { event.preventDefault(); if (!editor) return; void mutate(async () => {
+    if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category }); setParams({ topic: created.id }); }
+    else await api.patch(editor.kind === 'topic' ? topicPath : `${topicPath}/replies/${editor.id}`, { title: editor.title, body: editor.body });
+    setEditor(null); setMessage('Your post has been saved.');
+  }); };
+  const editorForm = (current: Editor) => <form className="talk-card talk-form" onSubmit={submitEditor}>{current.kind === 'create' && <h2>Create a post</h2>}<fieldset disabled={busy || loading}>
+    {current.kind === 'create' && <label>Community<select value={current.category} onChange={event => setEditor({ ...current, category: event.target.value })}>{categories.filter(c => !c.staff_only || staff).map(c => <option key={c.id} value={c.id}>c/{c.id} · {c.name}</option>)}</select></label>}
+    {current.kind !== 'reply' && <label>Title<input required minLength={8} maxLength={160} value={current.title} onChange={event => setEditor({ ...current, title: event.target.value })} placeholder="A title that clearly describes the topic"/></label>}
+    <label htmlFor="live-editor">Body</label><MarkdownEditor id="live-editor" required disabled={busy} value={current.body} onChange={body => setEditor({ ...current, body: body.slice(0, current.kind === 'reply' ? 5000 : 10000) })} placeholder={hints[current.category] || 'What would you like to share?'} rows={8}/>
+    <p className="talk-hint">{current.kind === 'reply' ? 'Up to 5,000' : '15–10,000'} characters · Markdown supported · no image uploads</p>
+    <div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" onClick={() => setEditor(null)}>Cancel</button><button className="talk-btn is-primary" disabled={current.body.trim().length < (current.kind === 'reply' ? 1 : 15) || (current.kind !== 'reply' && current.title.trim().length < 8)}>{busy ? 'Saving…' : current.kind === 'create' ? 'Post' : 'Save'}</button></div>
+  </fieldset></form>;
+  const reportForm = <form className="talk-card talk-form" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/reports`, { ...reportTarget, reason }); setReportTarget(null); setMessage('Thanks — the moderators will take a look.'); }); }}><label>Why are you reporting this?<textarea required minLength={10} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Briefly explain the problem."/></label><div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" disabled={busy} onClick={() => setReportTarget(null)}>Cancel</button><button className="talk-btn is-primary" disabled={busy || reason.trim().length < 10}>Report</button></div></form>;
+  const deleteConfirm = (target: string) => deleteTarget === target && <div className="talk-card talk-danger" role="alert"><p>Delete this post? This cannot be undone.</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="talk-btn is-danger" disabled={busy} onClick={() => void mutate(async () => { await api.delete(target); if (target === topicPath) setParams({}); setDeleteTarget(null); setMessage('The post has been deleted.'); })}>Delete</button></div></div>;
+  const quote = (post: Post) => { setReply(text => `${text}${text ? '\n\n' : ''}> ${(post.body || '').slice(0, 800).replace(/\n/g, '\n> ')}\n\n`); document.getElementById('live-reply')?.focus(); };
+  const ownActions = (post: Post, first: boolean) => <>
+    {post.author?.id === user?.id && !thread?.topic.locked && <button className="talk-pill" disabled={busy} onClick={() => { setEditor({ kind: first ? 'topic' : 'reply', id: post.id, title: thread?.topic.title || '', body: post.body, category: thread?.topic.category_id || '' }); setReportTarget(null); }}><Pencil size={14}/>Edit</button>}
+    {(post.author?.id === user?.id || staff) && <button className="talk-pill" disabled={busy} onClick={() => setDeleteTarget(first ? topicPath : `${topicPath}/replies/${post.id}`)}><Trash2 size={14}/>Delete</button>}
+    <button className="talk-pill" disabled={busy} onClick={() => { setReportTarget(first ? {} : { reply_id: post.id }); setReason(''); setEditor(null); }}><Flag size={14}/>Report</button>
+  </>;
+  const flairs = (topic: Topic) => <>
+    {topic.pinned && <span className="talk-flair is-pinned"><Pin size={11}/>Pinned</span>}
+    {topic.locked && <span className="talk-flair"><LockKeyhole size={11}/>Locked</span>}
+    {topic.accepted_reply_id && <span className="talk-flair is-solved"><CheckCircle2 size={11}/>Solved</span>}
+  </>;
+  const renderComment = (post: Post) => {
+    const accepted = thread?.topic.accepted_reply_id === post.id;
+    const hidden = collapsed.has(post.id);
+    return <li className={`talk-comment ${accepted ? 'is-accepted' : ''}`} key={post.id}>
+      <div className="talk-comment-rail">
+        <Avatar name={post.author?.name} size={28}/>
+        <button className="talk-thread-line" aria-label={hidden ? 'Expand comment' : 'Collapse comment'} aria-expanded={!hidden} onClick={() => toggleCollapsed(post.id)}/>
+      </div>
+      <div className="talk-comment-body">
+        <p className="talk-meta">
+          <strong>{post.author?.name || 'Unknown Cube'}</strong><RoleBadge role={post.author?.role}/>
+          {post.author?.id && post.author.id === thread?.topic.author?.id && <span className="talk-op-tag">OP</span>}
+          <span>·</span><time dateTime={post.created_at} title={date(post.created_at)}>{ago(post.created_at)}</time>{post.updated_at !== post.created_at && <span title={date(post.updated_at)}>· edited</span>}
+          {hidden && <button className="talk-expand" onClick={() => toggleCollapsed(post.id)}><Plus size={12}/></button>}
+        </p>
+        {!hidden && <>
+          {accepted && <p className="talk-accepted"><CheckCircle2 size={14}/>Accepted answer</p>}
+          {editor?.kind === 'reply' && editor.id === post.id ? editorForm(editor) : <Markdown text={post.body}/>}
+          <div className="talk-actions">
+            {!thread?.topic.locked && <button className="talk-pill" onClick={() => quote(post)}><MessageCircle size={14}/>Reply</button>}
+            {thread?.topic.category_id === 'help' && thread.topic.author?.id === user?.id && !thread.topic.locked && <button className="talk-pill" disabled={busy} onClick={() => void mutate(async () => { await api.put(`${topicPath}/answer`, { reply_id: accepted ? null : post.id }); })}><CheckCircle2 size={14}/>{accepted ? 'Unmark answer' : 'Accept answer'}</button>}
+            {ownActions(post, false)}
+            <button className="talk-pill" onClick={() => toggleCollapsed(post.id)}><Minus size={14}/>Collapse</button>
+          </div>
+          {reportTarget?.reply_id === post.id && reportForm}
+          {deleteConfirm(`${topicPath}/replies/${post.id}`)}
+        </>}
+      </div>
+    </li>;
+  };
+  const pagination = (pages > 1 || page > 1) && <nav className="talk-pagination" aria-label="Pages">
+    <button className="talk-btn is-ghost" disabled={busy || page <= 1} onClick={() => changePage(page - 1)}>Previous</button>
+    <span>Page {page} of {pages}</span>
+    <button className="talk-btn is-ghost" disabled={busy || page >= pages} onClick={() => changePage(page + 1)}>Next</button>
+  </nav>;
 
-  return <div className="cube-forum app-shell classic-forum live-forum hybrid-forum" aria-busy={loading || busy}>
-    <header className="classic-masthead"><div><span className="classic-kicker">ICEBERG X / COMMUNITY</span><h1>Birlikte daha iyi cevaplar.</h1><p>Sorular, projeler ve aradaki güzel sohbetler. Cube topluluğunun buluşma yeri.</p></div><MessagesSquare size={48} aria-hidden="true"/></header>
-    <form className="live-search" onSubmit={event => { event.preventDefault(); go({ gorunum: 'all', ...(search.trim() ? { q: search.trim() } : {}) }); }}><label htmlFor="forum-search"><Search size={16}/>Forumda ara</label><input id="forum-search" maxLength={100} value={search} onChange={event => setSearch(event.target.value)} placeholder="Konu başlığı veya mesaj içeriği…"/><button className="button button-outline" disabled={busy}>Ara</button></form>
-    <div className="hybrid-layout">
-      <aside className="hybrid-sidebar"><nav aria-label="Topluluk menüsü">
-        {[['all', 'Topluluk akışı', Home], ['unanswered', 'Yanıt bekleyenler', MessagesSquare], ['solved', 'Çözülen sorular', CheckCircle2], ['saved', 'Kaydedilenler', Bookmark], ['following', 'Takip ettiklerim', Bell]].map(([key, label, NavIcon]) => { const Icon = NavIcon as typeof Home; return <button key={String(key)} disabled={busy} className={!topicId && view === key && !categoryId ? 'selected' : ''} onClick={() => go({ gorunum: String(key) })}><Icon size={17}/>{String(label)}</button>; })}
-        <h2>TOPLULUKLAR</h2>{categories.map(category => <button key={category.id} disabled={busy} className={categoryId === category.id ? 'selected' : ''} onClick={() => go({ kategori: category.id })}><span className="hybrid-channel-mark">#</span><span>{category.name}</span><small>{category._count?.topics || 0}</small></button>)}
-        <button disabled={busy} onClick={() => go({ gorunum: 'index' })}>Tüm forumları keşfet <ChevronRight size={14}/></button>
-        {staff && <button disabled={busy} onClick={() => go({ gorunum: 'reports' })}>Moderasyon bildirimleri</button>}
-      </nav><p className="hybrid-sidebar-note">İyi bir cevap, bir sonraki Cube’un da yolunu açar.</p></aside>
-    <main className="main-content"><nav className="classic-breadcrumb" aria-label="Forum yolu"><Home size={14}/><button disabled={busy} onClick={() => go()}>Topluluk</button>{(currentCategory || thread?.topic.category) && <><ChevronRight size={13}/><button onClick={() => go({ kategori: thread?.topic.category_id || categoryId })}>{thread?.topic.category?.name || currentCategory?.name}</button></>}</nav>
-      <div className="page-heading"><h2 ref={pageHeading} tabIndex={-1} className="live-heading">{title}</h2>{!topicId && view !== 'reports' && canCreate && <button disabled={busy || loading} className="button button-dark" onClick={() => { const category = currentCategory && (!currentCategory.staff_only || staff) ? currentCategory.id : categories.find(c => !c.staff_only)?.id || categories[0]?.id || ''; setEditor({ kind: 'create', title: '', body: '', category }); }}><Plus size={16}/>Yeni konu</button>}</div>
-      {error && <div className="live-error" role="alert">{error}<button disabled={busy} onClick={() => setRevision(n => n + 1)}>Yeniden yükle</button></div>}
-      {message && <p className="live-notice" role="status">{message}</p>}
-      {editor && <form className="live-editor" onSubmit={event => { event.preventDefault(); void mutate(async () => {
-        if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category }); setParams({ konu: created.id }); }
-        else await api.patch(editor.kind === 'topic' ? topicPath : `${topicPath}/replies/${editor.id}`, { title: editor.title, body: editor.body });
-        setEditor(null); setMessage('Mesajın kaydedildi.');
-      }); }}><h3>{editor.kind === 'create' ? 'Yeni bir konu başlat' : 'Mesajını düzenle'}</h3><fieldset disabled={busy || loading}>
-        {editor.kind === 'create' && <label>Forum<select value={editor.category} onChange={event => setEditor({ ...editor, category: event.target.value })}>{categories.filter(c => !c.staff_only || staff).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
-        {editor.kind !== 'reply' && <label>Konu başlığı<input required minLength={8} maxLength={160} value={editor.title} onChange={event => setEditor({ ...editor, title: event.target.value })} placeholder="Konuyu açıkça anlatan bir başlık yaz"/></label>}
-        <label htmlFor="live-editor">Mesajın</label><MarkdownEditor id="live-editor" required disabled={busy} value={editor.body} onChange={body => setEditor({ ...editor, body: body.slice(0, editor.kind === 'reply' ? 5000 : 10000) })} placeholder={hints[editor.category] || 'Ne paylaşmak istersin?'} rows={8}/>
-        <p className="live-hint">{editor.kind === 'reply' ? 'En fazla 5.000' : '15–10.000'} karakter. Markdown desteklenir; görsel yükleme yoktur.</p><div className="live-actions"><button type="button" className="button button-outline" onClick={() => setEditor(null)}>Vazgeç</button><button className="button button-dark" disabled={editor.body.trim().length < (editor.kind === 'reply' ? 1 : 15) || (editor.kind !== 'reply' && editor.title.trim().length < 8)}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button></div>
-      </fieldset></form>}
-      {deleteTarget && <div className="live-error" role="alert"><p>Bu mesajı forumdan kaldırmak istiyor musun?</p><button disabled={busy} onClick={() => setDeleteTarget(null)}>Vazgeç</button><button disabled={busy} onClick={() => void mutate(async () => { await api.delete(deleteTarget); if (deleteTarget === topicPath) setParams({ gorunum: 'all' }); setDeleteTarget(null); setMessage('Mesaj kaldırıldı.'); })}>Evet, kaldır</button></div>}
-      {reportTarget && <form className="live-editor" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/reports`, { ...reportTarget, reason }); setReportTarget(null); setMessage('Bildirimin moderasyon kuyruğuna iletildi.'); }); }}><label>Bildirim nedeni<textarea required minLength={10} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Sorunu kısaca açıkla."/></label><div className="live-actions"><button type="button" disabled={busy} onClick={() => setReportTarget(null)}>Vazgeç</button><button className="button button-dark" disabled={busy || reason.trim().length < 10}>Bildirimi gönder</button></div></form>}
-      {loading ? <p className="live-empty" role="status">Forum yükleniyor…</p> : thread ? <>
-        <div className="live-actions live-thread-tools"><span>{thread.total} yanıt</span>{thread.topic.locked && <span><LockKeyhole size={14}/>Kilitli</span>}{thread.topic.pinned && <span><Pin size={14}/>Sabit</span>}
-          <button disabled={busy} onClick={() => void mutate(async () => { await api.put(`${topicPath}/state`, { following: !thread.topic.states?.[0]?.following }); })}><Bell size={15}/>{thread.topic.states?.[0]?.following ? 'Takibi bırak' : 'Takip et'}</button>
-          <button disabled={busy} onClick={() => void mutate(async () => { await api.put(`${topicPath}/state`, { saved: !thread.topic.states?.[0]?.saved }); })}><Bookmark size={15}/>{thread.topic.states?.[0]?.saved ? 'Kaydı kaldır' : 'Kaydet'}</button>
-          {staff && <><button disabled={busy} onClick={() => void mutate(async () => { await api.patch(`${topicPath}/moderation`, { locked: !thread.topic.locked, pinned: thread.topic.pinned }); })}>{thread.topic.locked ? 'Kilidi aç' : 'Konuyu kilitle'}</button><button disabled={busy} onClick={() => void mutate(async () => { await api.patch(`${topicPath}/moderation`, { locked: thread.topic.locked, pinned: !thread.topic.pinned }); })}>{thread.topic.pinned ? 'Sabitlemeyi kaldır' : 'Sabitle'}</button></>}
-        </div>{renderPost(thread.topic, true, 1)}{thread.acceptedReply && !thread.replies.some(post => post.id === thread.acceptedReply?.id) && renderPost(thread.acceptedReply, false, 0)}{thread.replies.map((post, index) => renderPost(post, false, (page - 1) * pageSize + index + 2))}
-        {!thread.total && <p className="live-empty">Henüz yanıt yok. İlk yanıtı sen yaz.</p>}
-        {thread.topic.locked ? <p className="live-notice">Bu konu moderatör tarafından yeni yanıtlara kapatıldı.</p> : <form className="live-editor" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setParams({ konu: thread.topic.id, sayfa: String(Math.ceil((thread.total + 1) / pageSize)) }); setMessage('Yanıtın yayımlandı.'); }); }}><label htmlFor="live-reply">Hızlı yanıt</label><MarkdownEditor id="live-reply" required disabled={busy} value={reply} onChange={value => setReply(value.slice(0, 5000))} placeholder="Çözümünü, deneyimini veya sorunu yaz…"/><div className="live-actions"><small>{reply.length}/5000</small><button className="button button-dark" disabled={busy || !reply.trim()}>{busy ? 'Gönderiliyor…' : 'Yanıtı gönder'}</button></div></form>}
-      </> : topicId ? null : view === 'reports' ? <section>{reports.reports.map(report => <article className="live-editor" key={report.id}><h3>{report.topic?.title || 'Kaldırılmış konu'}</h3><p><strong>Bildiren:</strong> {report.reporter?.name || 'Bilinmeyen Cube'}</p><p>{report.reason}</p><blockquote><Markdown text={report.reply?.body || report.topic?.body || ''}/></blockquote><div className="live-actions"><button onClick={() => openTopic(report.topic_id)}>Konuyu aç</button><button disabled={busy} onClick={() => void mutate(async () => { await api.patch(`/forum/reports/${report.id}`, {}); setMessage('Bildirim sonuçlandırıldı.'); })}>İncelendi olarak işaretle</button></div></article>)}{!reports.total && <p className="live-empty">İncelenmeyi bekleyen bildirim yok.</p>}</section> : view === 'index' && !categoryId && !query ? <section className="category-directory" aria-label="Forum kategorileri">
-        <div className="classic-section-title"><h3>Topluluk forumları</h3><span>Kalıcı bilgi, iyi sohbet.</span></div><div className="live-category-head" aria-hidden="true"><span>Forum / Açıklama</span><span>Konular</span><span>Son hareket</span></div>
-        {categories.map(category => <div className="live-category-row" key={category.id}><button className="classic-category-name" onClick={() => go({ kategori: category.id })}><span className="classic-folder"><MessagesSquare size={22}/></span><span><strong>{category.name}</strong><small>{category.description}{category.staff_only && ' Konu açma: Mentor / Admin.'}</small></span></button><div className="classic-count"><strong>{category._count?.topics || 0}</strong><small>konu</small></div><div className="classic-last-post">{category.topics?.[0] ? <><button onClick={() => openTopic(category.topics[0].id)}>{category.topics[0].title}</button><small>{date(category.topics[0].last_activity_at)}</small></> : <small>İlk konu henüz açılmadı.</small>}</div></div>)}
-        {!categories.length && !error && <p className="live-empty">Forum kategorileri henüz hazırlanmadı.</p>}
-        <div className="classic-welcome"><MessagesSquare size={20}/><p><strong>Hoş geldin, {user?.name || 'Cube'}.</strong>Konuyu doğru alanda aç; başlığı açık yaz, kişilere değil fikirlere odaklan.</p></div>
-      </section> : <section>
-        <div className="hybrid-feed-tabs"><div><button className={sort === 'active' ? 'selected' : ''} disabled={busy} onClick={() => go({ ...Object.fromEntries(params), siralama: 'active', sayfa: '1' })}>Son hareketler</button><button className={sort === 'newest' ? 'selected' : ''} disabled={busy} onClick={() => go({ ...Object.fromEntries(params), siralama: 'newest', sayfa: '1' })}>En yeni</button></div><span>{list.total} konu</span></div>
-        {query && <p className="live-hint">“{query}” için arama sonuçları</p>}
-        {list.topics.map(topic => <article className="hybrid-topic" key={topic.id}>
-          <div className={`hybrid-answer-count ${topic.accepted_reply_id ? 'is-solved' : ''}`}>{topic.accepted_reply_id ? <CheckCircle2 size={21}/> : <MessagesSquare size={20}/>}<strong>{topic._count?.replies || 0}</strong><span>{topic.accepted_reply_id ? 'çözüldü' : 'yanıt'}</span></div>
-          <div className="hybrid-topic-content"><div className="hybrid-topic-meta"><button onClick={() => go({ kategori: topic.category_id })}>c/{topic.category_id}</button><span>· {topic.author?.name || 'Bilinmeyen Cube'}</span>{topic.pinned && <span><Pin size={12}/>Sabit</span>}{topic.locked && <span><LockKeyhole size={12}/>Kilitli</span>}</div>
-            <button className="live-topic-title" onClick={() => openTopic(topic.id)}>{topic.title}</button><p className="hybrid-excerpt">{(topic.body || '').replace(/[#*`>]/g, '').slice(0, 240)}</p>
-            <div className="hybrid-topic-footer"><button className="hybrid-category-tag" onClick={() => go({ kategori: topic.category_id })}>{categories.find(category => category.id === topic.category_id)?.name || 'Genel'}</button><button onClick={() => openTopic(topic.id)}>Sohbete katıl <ChevronRight size={13}/></button><time dateTime={topic.last_activity_at}>{date(topic.last_activity_at)}</time></div>
+  return <div className="talk-forum" aria-busy={loading || busy}>
+    <nav className="talk-nav" aria-label="Forum navigation">
+      <ul>{feeds.map(([key, label, Icon]) => <li key={key}><button disabled={busy} className={!topicId && !categoryId && !query && view === key ? 'selected' : ''} onClick={() => go(key === 'all' ? {} : { view: key })}><Icon size={18}/>{label}</button></li>)}</ul>
+      <h2>Communities</h2>
+      <ul>{categories.map(category => <li key={category.id}><button disabled={busy} className={community?.id === category.id && !query ? 'selected' : ''} onClick={() => go({ category: category.id })}><CommunityIcon id={category.id} size={22}/><span>c/{category.id}</span></button></li>)}</ul>
+    </nav>
+
+    <main className="talk-main">
+      <div className="talk-topbar">
+        <form className="talk-search" role="search" onSubmit={event => { event.preventDefault(); go(search.trim() ? { q: search.trim() } : {}); }}><Search size={16} aria-hidden="true"/><label htmlFor="forum-search" className="sr-only">Search the forum</label><input id="forum-search" maxLength={100} value={search} onChange={event => setSearch(event.target.value)} placeholder="Search the forum"/></form>
+        {view !== 'reports' && canCreate && <button className="talk-btn is-primary" disabled={busy || loading} onClick={startTopic}><Plus size={16}/>Create post</button>}
+      </div>
+
+      {thread ? <button className="talk-back" disabled={busy} onClick={() => go({ category: thread.topic.category_id })}><ArrowLeft size={16}/>c/{thread.topic.category_id}</button>
+        : community && categoryId ? <header className="talk-community-head">
+          <CommunityIcon id={community.id} size={56}/>
+          <div><h1 ref={pageHeading} tabIndex={-1}>{community.name}</h1><p>c/{community.id}</p></div>
+        </header>
+          : <h1 ref={pageHeading} tabIndex={-1} className="talk-title">{title}</h1>}
+      {thread && <h1 ref={pageHeading} tabIndex={-1} className="sr-only">{title}</h1>}
+      {!thread && query && <p className="talk-hint">{list.total} {list.total === 1 ? 'result' : 'results'} for “{query}”</p>}
+
+      {!thread && view !== 'reports' && (view !== 'index' || categoryId || query) && <div className="talk-sort" role="group" aria-label="Sort topics">
+        <button className={sort === 'active' ? 'selected' : ''} disabled={busy} onClick={() => go({ ...Object.fromEntries(params), sort: 'active', page: '1' })}><Flame size={15}/>Active</button>
+        <button className={sort === 'newest' ? 'selected' : ''} disabled={busy} onClick={() => go({ ...Object.fromEntries(params), sort: 'newest', page: '1' })}><Clock size={15}/>New</button>
+      </div>}
+
+      {error && <div className="talk-card talk-danger" role="alert"><p>{error}</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setRevision(n => n + 1)}>Reload</button></div></div>}
+      {message && <p className="talk-notice" role="status">{message}</p>}
+      {editor?.kind === 'create' && editorForm(editor)}
+
+      {loading ? <p className="talk-empty" role="status">Loading…</p> : thread ? <>
+        <article className="talk-card talk-post">
+          <p className="talk-meta"><CommunityIcon id={thread.topic.category_id} size={24}/><button disabled={busy} onClick={() => go({ category: thread.topic.category_id })}><strong>c/{thread.topic.category_id}</strong></button><span>·</span><time dateTime={thread.topic.created_at} title={date(thread.topic.created_at)}>{ago(thread.topic.created_at)}</time></p>
+          <p className="talk-meta is-sub">{thread.topic.author?.name || 'Unknown Cube'}<RoleBadge role={thread.topic.author?.role}/>{thread.topic.updated_at !== thread.topic.created_at && <span title={date(thread.topic.updated_at)}>· edited</span>}</p>
+          <h2 className="talk-post-title">{thread.topic.title}</h2>
+          <div className="talk-flairs">{flairs(thread.topic)}</div>
+          {editor?.kind === 'topic' ? editorForm(editor) : <Markdown text={thread.topic.body}/>}
+          <div className="talk-actions">
+            <span className="talk-pill is-static"><MessageCircle size={16}/>{thread.total}</span>
+            <button className={`talk-pill ${thread.topic.states?.[0]?.saved ? 'is-on' : ''}`} disabled={busy} onClick={() => toggleState('saved', thread.topic)}><Bookmark size={16}/>{thread.topic.states?.[0]?.saved ? 'Saved' : 'Save'}</button>
+            <button className={`talk-pill ${thread.topic.states?.[0]?.following ? 'is-on' : ''}`} disabled={busy} onClick={() => toggleState('following', thread.topic)}>{thread.topic.states?.[0]?.following ? <BellOff size={16}/> : <Bell size={16}/>}{thread.topic.states?.[0]?.following ? 'Following' : 'Follow'}</button>
+            <button className="talk-pill" onClick={() => void share(thread.topic)}><Link2 size={16}/>Share</button>
+            {ownActions(thread.topic, true)}
+            {staff && <><button className="talk-pill" disabled={busy} onClick={() => void mutate(async () => { await api.patch(`${topicPath}/moderation`, { locked: !thread.topic.locked, pinned: thread.topic.pinned }); })}><LockKeyhole size={14}/>{thread.topic.locked ? 'Unlock' : 'Lock'}</button><button className="talk-pill" disabled={busy} onClick={() => void mutate(async () => { await api.patch(`${topicPath}/moderation`, { locked: thread.topic.locked, pinned: !thread.topic.pinned }); })}><Pin size={14}/>{thread.topic.pinned ? 'Unpin' : 'Pin'}</button></>}
+          </div>
+          {reportTarget && !reportTarget.reply_id && reportForm}
+          {deleteConfirm(topicPath)}
+        </article>
+
+        {thread.topic.locked ? <p className="talk-notice"><LockKeyhole size={14}/>This topic is locked. New comments cannot be posted.</p> : <form className="talk-composer" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setParams({ topic: thread.topic.id, page: String(Math.ceil((thread.total + 1) / pageSize)) }); setMessage('Your comment has been posted.'); }); }}>
+          <label htmlFor="live-reply" className="sr-only">Your comment</label><MarkdownEditor id="live-reply" required disabled={busy} value={reply} onChange={value => setReply(value.slice(0, 5000))} placeholder="Join the conversation"/>
+          <div className="talk-form-actions"><small>{reply.length}/5000</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
+        </form>}
+
+        {!thread.total && <p className="talk-empty">No comments yet. Be the first to share what you think.</p>}
+        <ol className="talk-comments">
+          {thread.acceptedReply && !thread.replies.some(post => post.id === thread.acceptedReply?.id) && renderComment(thread.acceptedReply)}
+          {thread.replies.map(renderComment)}
+        </ol>
+      </> : topicId ? null : view === 'reports' ? <section className="talk-feed">
+        {reports.reports.map(report => <article className="talk-card" key={report.id}><h3 className="talk-card-title">{report.topic?.title || 'Deleted topic'}</h3><p className="talk-hint">Reported by <b>{report.reporter?.name || 'Unknown Cube'}</b>: {report.reason}</p><blockquote className="talk-quote"><Markdown text={report.reply?.body || report.topic?.body || ''}/></blockquote><div className="talk-form-actions"><button className="talk-btn is-ghost" onClick={() => openTopic(report.topic_id)}>Open topic</button><button className="talk-btn is-primary" disabled={busy} onClick={() => void mutate(async () => { await api.patch(`/forum/reports/${report.id}`, {}); setMessage('The report has been closed.'); })}>Mark reviewed</button></div></article>)}
+        {!reports.total && <p className="talk-empty">There are no reports waiting for review.</p>}
+      </section> : view === 'index' && !categoryId && !query ? <section className="talk-feed">
+        {categories.map(category => <article className="talk-card talk-community-card" key={category.id}>
+          <CommunityIcon id={category.id} size={44}/>
+          <div>
+            <button className="talk-card-title" onClick={() => go({ category: category.id })}>{category.name}</button>
+            <p className="talk-meta is-sub">c/{category.id} · {category._count?.topics || 0} topics{category.staff_only && ' · Mentors & Admins post here'}</p>
+            <p className="talk-snippet">{category.description}</p>
+          </div>
+          <button className="talk-btn is-ghost" onClick={() => go({ category: category.id })}>View</button>
+        </article>)}
+        {!categories.length && !error && <p className="talk-empty">No communities have been set up yet.</p>}
+      </section> : <section className="talk-feed">
+        {list.topics.map(topic => <article className={`talk-card talk-feed-card ${topic.pinned ? 'is-pinned' : ''}`} key={topic.id} onClick={event => { if (!(event.target as HTMLElement).closest('button')) openTopic(topic.id); }}>
+          <p className="talk-meta"><CommunityIcon id={topic.category_id} size={22}/><button onClick={() => go({ category: topic.category_id })}><strong>c/{topic.category_id}</strong></button><span>·</span><time dateTime={topic.created_at} title={date(topic.created_at)}>{ago(topic.created_at)}</time><span>·</span><span>{topic.author?.name || 'Unknown Cube'}</span><RoleBadge role={topic.author?.role}/></p>
+          <h3><button className="talk-card-title" onClick={() => openTopic(topic.id)}>{topic.title}</button></h3>
+          <div className="talk-flairs">{flairs(topic)}</div>
+          <p className="talk-snippet">{preview(topic.body)}</p>
+          <div className="talk-actions">
+            <button className="talk-pill" onClick={() => openTopic(topic.id)}><MessageCircle size={16}/>{topic._count?.replies || 0}</button>
+            <button className={`talk-pill ${topic.states?.[0]?.saved ? 'is-on' : ''}`} disabled={busy} onClick={() => toggleState('saved', topic)}><Bookmark size={16}/>{topic.states?.[0]?.saved ? 'Saved' : 'Save'}</button>
+            <button className={`talk-pill ${topic.states?.[0]?.following ? 'is-on' : ''}`} disabled={busy} onClick={() => toggleState('following', topic)}><Bell size={16}/>{topic.states?.[0]?.following ? 'Following' : 'Follow'}</button>
+            <button className="talk-pill" onClick={() => void share(topic)}><Link2 size={16}/>Share</button>
+            <span className="talk-active">active {ago(topic.last_activity_at)}</span>
           </div>
         </article>)}
-        {!list.topics.length && !error && <div className="live-empty"><MessagesSquare size={30}/><h3>{query ? 'Henüz bir eşleşme yok.' : view === 'unanswered' ? 'Yanıt bekleyen soru yok.' : view === 'solved' ? 'Çözümler burada birikecek.' : 'Bu sohbet seninle başlayabilir.'}</h3><p>{query ? 'Başka bir kelimeyle aramayı deneyebilirsin.' : view === 'saved' ? 'Konulardaki kaydet düğmesiyle kendi okuma listeni oluştur.' : view === 'following' ? 'Gelişmelerinden haberdar olmak istediğin konuları takip et.' : 'Bir soru sor, üzerinde çalıştığın projeyi anlat veya öğrendiğin bir şeyi paylaş.'}</p></div>}
+        {!list.topics.length && !error && <div className="talk-empty"><h3>{query ? 'No matches found' : view === 'unanswered' ? 'No unanswered topics' : view === 'solved' ? 'Solved questions will collect here' : 'Nothing here yet'}</h3><p>{query ? 'Try searching with a different word.' : view === 'saved' ? 'Save topics to build your reading list.' : view === 'following' ? 'Follow topics to get notified about new comments.' : 'Ask a question, share what you are building or post something you learned.'}</p></div>}
       </section>}
-      {!loading && (pages > 1 || page > 1) && <nav className="live-pagination" aria-label="Sayfalar"><button disabled={busy || page <= 1} onClick={() => changePage(page - 1)}>Önceki</button><span>Sayfa {page} / {pages}</span><button disabled={busy || page >= pages} onClick={() => changePage(page + 1)}>Sonraki</button></nav>}
-      <footer className="classic-footer"><span>Iceberg X · Cube Forum</span><span>Saygılı ol. Kaynağını belirt. Bildiğini paylaş.</span></footer>
+
+      {!loading && pagination}
     </main>
-    <aside className="hybrid-about"><section><span className="hybrid-about-kicker">CUBE TOPLULUĞU</span><h2>Merakla başlar.<br/>Paylaşarak büyür.</h2><p>Burası birlikte öğrenmek, bir sorunu çözmek ve ürettiklerini paylaşmak için.</p><div className="hybrid-community-stat"><strong>{categories.reduce((sum, category) => sum + (category._count?.topics || 0), 0)}</strong><span>açılan konu</span><strong>{categories.length}</strong><span>topluluk alanı</span></div></section>
-      <section><h3>İyi bir sorunun üç adımı</h3><ol><li><b>01</b><span>Önce ara.<small>Aynı soruya birlikte cevap vermiş olabiliriz.</small></span></li><li><b>02</b><span>Bağlamı paylaş.<small>Ne bekledin, ne oldu, neler denedin?</small></span></li><li><b>03</b><span>Çözümü işaretle.<small>İşe yarayan yanıtı sonraki Cube da bulsun.</small></span></li></ol></section>
-      <section className="hybrid-help-callout"><h3>Bir fikrin mi var?</h3><p>Bitmiş olması gerekmiyor. Proje günlüğünde ilk adımını paylaş.</p><button disabled={busy} onClick={() => go({ kategori: 'showcase' })}>Projeleri keşfet <ChevronRight size={14}/></button></section>
-    </aside></div>
+
+    <aside className="talk-side">
+      {community ? <section className="talk-card talk-about">
+        <div className="talk-about-banner" style={{ background: (communityStyle[community.id] || { color: '#14141c' }).color }}/>
+        <h2>{community.name}</h2>
+        <p className="talk-snippet">{community.description}</p>
+        <dl className="talk-stats"><div><dt>Topics</dt><dd>{community._count?.topics || 0}</dd></div><div><dt>Posting</dt><dd>{community.staff_only ? 'Staff' : 'Everyone'}</dd></div></dl>
+        {(!community.staff_only || staff) && <button className="talk-btn is-primary is-block" disabled={busy || loading} onClick={startTopic}>Create post</button>}
+      </section> : <section className="talk-card talk-about">
+        <div className="talk-about-banner"/>
+        <h2>Cube Community</h2>
+        <p className="talk-snippet">Ask questions, share what you are building and help other Cubes along the way.</p>
+        <dl className="talk-stats"><div><dt>Topics</dt><dd>{stats.topics}</dd></div><div><dt>Comments</dt><dd>{stats.replies}</dd></div><div><dt>Solved</dt><dd>{stats.solved}</dd></div></dl>
+      </section>}
+
+      <section className="talk-card">
+        <h2 className="talk-side-title">Most active · last 30 days</h2>
+        {stats.contributors.length ? <ol className="talk-people">{stats.contributors.map(({ author, topics, replies }) => <li key={author.id}><Avatar name={author.name} size={28}/><span>{author.name || 'Unknown Cube'}<RoleBadge role={author.role}/></span><small title={`${topics} topics, ${replies} comments`}>{topics + replies} posts</small></li>)}</ol> : <p className="talk-hint">No posts in the last 30 days.</p>}
+      </section>
+
+      <section className="talk-card">
+        <h2 className="talk-side-title">Waiting for a reply</h2>
+        {stats.unanswered.length ? <ul className="talk-side-topics">{stats.unanswered.map(topic => <li key={topic.id}><p className="talk-meta is-sub"><CommunityIcon id={topic.category_id} size={18}/>c/{topic.category_id} · {ago(topic.created_at)}</p><button disabled={busy} onClick={() => openTopic(topic.id)}>{topic.title}</button></li>)}</ul> : <p className="talk-hint">Every topic has a reply. 🎉</p>}
+      </section>
+    </aside>
   </div>;
 }

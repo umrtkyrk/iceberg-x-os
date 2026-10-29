@@ -212,4 +212,4 @@ Deploying this monorepo to Railway is straightforward:
 
 ## Cube Forum design preview (fork)
 
-The retained forum design is available behind `VITE_CUBE_FORUM_PREVIEW=true` on `/forum` under Community. See [local setup and scope](docs/forum-design-preview.md). This is a browser-only preview; the forum backend, moderation and notification delivery remain future work.
+The Cube Forum lives on `/forum` under Community. Turn it on with `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env`, then run `npx prisma migrate deploy`. All topics, comments, follows, reports and statistics come from the `/api/forum` endpoints; there is no demo data. The forum starts empty: no seeded or sample topics.

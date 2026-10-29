@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../src/services/prisma';
 import router from '../src/routes/forum.routes';
 import { assertForumAuthor, assertForumCategory, forumPage, forumText } from '../src/services/forumPolicy';
-import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic } from '../src/services/forum.service';
+import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic, forumStats } from '../src/services/forum.service';
 import { HttpError } from '../src/utils/http';
 
 const cube = { id: 'cube-a', role: 'CUBE' as const };
@@ -105,6 +105,23 @@ test('search excludes deleted topics and replies; bookmarks are scoped to reques
 test('moderation rejects Cubes before opening a transaction', async () => {
   await assert.rejects(moderateForumTopic(cube, 'topic', { locked: true, pinned: false }), isStatus(403));
   await assert.rejects(moderateForumTopic(staff, 'topic', { locked: 'false', pinned: false }), isStatus(400));
+});
+
+test('stats rank contributors by topics plus replies and skip deleted accounts', async () => {
+  const t = prisma.forumTopic as any, r = prisma.forumReply as any, u = prisma.user as any;
+  const original = { tCount: t.count, tGroup: t.groupBy, tFind: t.findMany, rCount: r.count, rGroup: r.groupBy, uFind: u.findMany };
+  let unansweredWhere: any;
+  t.count = async () => 3; r.count = async () => 7;
+  t.groupBy = async () => [{ author_id: 'a', _count: { _all: 1 } }, { author_id: 'b', _count: { _all: 2 } }];
+  r.groupBy = async () => [{ author_id: 'a', _count: { _all: 4 } }, { author_id: 'gone', _count: { _all: 9 } }];
+  t.findMany = async (args: any) => { unansweredWhere = args.where; return []; };
+  u.findMany = async () => [{ id: 'a', name: 'A', role: 'CUBE' }, { id: 'b', name: 'B', role: 'MENTOR' }];
+  try {
+    const stats = await forumStats();
+    assert.equal(stats.topics, 3); assert.equal(stats.replies, 7);
+    assert.deepEqual(stats.contributors.map(c => [c.author.id, c.topics, c.replies]), [['a', 1, 4], ['b', 2, 0]]);
+    assert.equal(unansweredWhere.deleted_at, null); assert.equal(unansweredWhere.locked, false);
+  } finally { t.count = original.tCount; t.groupBy = original.tGroup; t.findMany = original.tFind; r.count = original.rCount; r.groupBy = original.rGroup; u.findMany = original.uFind; }
 });
 
 test('HTTP endpoints require authentication, sanitize server errors and reject invalid bodies', async () => {
