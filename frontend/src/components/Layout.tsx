@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { FORUM_PREVIEW_ENABLED } from '../config/features';
 import { useAuth } from '../context/AuthContext';
 import {
   Menu,
@@ -26,6 +27,7 @@ import {
   TrendingUp,
   UserRound,
   Camera,
+  MessagesSquare,
   type LucideIcon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
@@ -90,6 +92,7 @@ const COMMUNITY: NavGroup = {
   sections: [
     {
       items: [
+        ...(FORUM_PREVIEW_ENABLED ? [{ path: '/forum', label: 'Forum', hint: 'Cube community discussions', icon: MessagesSquare }] : []),
         { path: '/directory', label: 'Directory', hint: 'Everyone in the programme', icon: Users },
         { path: '/mvcubes', label: 'MVCubes', hint: 'The most valued each month', icon: Crown },
         { path: '/hall-of-fame', label: 'Hall of Fame', hint: 'The path to the summit', icon: Mountain }
@@ -431,7 +434,7 @@ export const Layout: React.FC = () => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="workspace-content flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`workspace-content flex-1 ${pathname === '/forum' ? 'max-w-[1500px]' : 'max-w-7xl'} w-full mx-auto px-4 sm:px-6 lg:px-8 py-8`}>
         <Outlet />
       </main>
 

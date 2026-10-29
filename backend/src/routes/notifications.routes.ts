@@ -5,6 +5,8 @@ import { Router } from 'express';
 import prisma from '../services/prisma';
 import { requireAuth, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { sendError } from '../utils/http';
+import { FORUM_ENABLED } from '../config/env';
+import { forumNotificationLinks } from '../services/forumNotifications.service';
 import { Role } from '@prisma/client';
 import { markNotificationsRead } from '../services/notificationRead.service';
 
@@ -18,7 +20,13 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res)
       where: { user_id: req.user.id },
       orderBy: { created_at: 'desc' }
     });
-    return res.json(notifications);
+    const targets = FORUM_ENABLED ? await forumNotificationLinks(notifications.map(n => n.id)) : [];
+    return res.json(notifications.map(n => {
+      const target = targets.find(t => t.notification_id === n.id);
+      const link = target && !target.topic.deleted_at && !target.reply?.deleted_at
+        ? '/forum?' + new URLSearchParams({ konu: target.topic_id, ...(target.reply_id ? { yanit: target.reply_id } : {}) }).toString() : null;
+      return { ...n, link };
+    }));
   } catch (error: any) {
     return sendError(res, error);
   }

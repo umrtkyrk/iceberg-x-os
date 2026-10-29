@@ -149,7 +149,7 @@ export function NotificationBell() {
                     />
                     <div className="min-w-0 flex-1">
                       <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-700">
-                        {item.message}
+                        {item.link?.startsWith('/forum?') ? <Link to={item.link} onClick={() => { void markRead([item.id]); setIsOpen(false); }} className="underline decoration-magenta/30 underline-offset-4 hover:text-magenta">{item.message}</Link> : item.message}
                       </p>
                       <time
                         dateTime={item.created_at}

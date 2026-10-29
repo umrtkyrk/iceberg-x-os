@@ -209,3 +209,7 @@ Deploying this monorepo to Railway is straightforward:
      - `APP_URL`: (the domain URL of your frontend service)
      - `NODE_ENV`: `production`
      - `PORT`: `5001`
+
+## Cube Forum UI V3 (fork)
+
+Cube Forum UI V3 keeps the real-api conversation design and adds portal identity, persistent badge showcases/signatures, quest/mission context, linked mention notifications and category/moderation tools. Enable `FORUM_ENABLED=true` and `VITE_CUBE_FORUM_ENABLED=true` locally. See [UI V3 setup, migrations and moderation guide](docs/forum-ui-v3.md). Work stays on the fork’s `ui-v3` branch; upstream is untouched.

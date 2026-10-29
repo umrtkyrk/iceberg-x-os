@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Check, CheckCheck, RefreshCw, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
@@ -104,7 +105,7 @@ export function NotificationHistory() {
               />
               <div className="min-w-0 flex-1">
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700">
-                  {item.message}
+                  {item.link?.startsWith('/forum?') ? <Link to={item.link} onClick={() => { void markRead([item.id]);  }} className="underline decoration-magenta/30 underline-offset-4 hover:text-magenta">{item.message}</Link> : item.message}
                 </p>
                 <time
                   dateTime={item.created_at}

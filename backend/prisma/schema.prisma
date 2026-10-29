@@ -89,6 +89,12 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
+  forum_topics ForumTopic[]
+  forum_replies ForumReply[]
+  forum_states ForumTopicState[]
+  forum_reports ForumReport[]
+  forum_profile ForumProfile?
+
   // Relations
   cube_profile         CubeProfile?          @relation("UserToCubeProfile")
   assigned_cubes       CubeProfile[]         @relation("MentorToCube")
@@ -167,6 +173,7 @@ model CubeProfile {
 }
 
 model Mission {
+  forum_contexts ForumTopicContext[]
   id                 String                @id @default(uuid())
   title              String
   description        String
@@ -509,6 +516,7 @@ model PrivateNote {
 }
 
 model Notification {
+  forum_target ForumNotificationTarget?
   id         String   @id @default(uuid())
   user_id    String
   user       User     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
@@ -556,6 +564,7 @@ model Testimonial {
 }
 
 model Quest {
+  forum_contexts ForumTopicContext[]
   id                  String      @id @default(uuid())
   title               String
   description         String      @db.Text
@@ -808,4 +817,118 @@ model PeerReviewerStat {
   dismissed   Int      @default(0)
   confirmed   Int      @default(0)
   updated_at  DateTime @updatedAt
+}
+
+model ForumCategory {
+  id String @id
+  name String
+  description String
+  position Int
+  staff_only Boolean @default(false)
+  topics ForumTopic[]
+}
+
+model ForumTopic {
+  context ForumTopicContext?
+  notification_targets ForumNotificationTarget[]
+  id String @id @default(uuid())
+  category_id String
+  category ForumCategory @relation(fields: [category_id], references: [id])
+  author_id String?
+  author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  title String @db.VarChar(160)
+  body String @db.Text
+  pinned Boolean @default(false)
+  locked Boolean @default(false)
+  accepted_reply_id String? @unique
+  accepted_reply ForumReply? @relation("AcceptedForumReply", fields: [accepted_reply_id], references: [id], onDelete: SetNull)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  last_activity_at DateTime @default(now())
+  deleted_at DateTime?
+  deleted_by_id String?
+  replies ForumReply[]
+  states ForumTopicState[]
+  reports ForumReport[]
+  @@index([category_id, deleted_at, last_activity_at])
+  @@index([author_id])
+  @@index([deleted_at, pinned, last_activity_at])
+}
+
+model ForumReply {
+  notification_targets ForumNotificationTarget[]
+  id String @id @default(uuid())
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id])
+  author_id String?
+  author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  body String @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  deleted_at DateTime?
+  deleted_by_id String?
+  reports ForumReport[]
+  accepted_in ForumTopic? @relation("AcceptedForumReply")
+  @@index([topic_id, deleted_at, created_at])
+  @@index([author_id])
+}
+
+model ForumTopicState {
+  user_id String
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  saved Boolean @default(false)
+  following Boolean @default(false)
+  read_at DateTime?
+  @@id([user_id, topic_id])
+  @@index([topic_id])
+}
+
+model ForumReport {
+  id String @id @default(uuid())
+  reporter_id String?
+  reporter User? @relation(fields: [reporter_id], references: [id], onDelete: SetNull)
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id])
+  reply_id String?
+  reply ForumReply? @relation(fields: [reply_id], references: [id])
+  reason String @db.VarChar(1000)
+  created_at DateTime @default(now())
+  resolved_at DateTime?
+  resolved_by_id String?
+  @@index([topic_id])
+  @@index([reply_id])
+  @@index([reporter_id])
+  @@index([resolved_at, created_at])
+}
+
+// New tables only: existing portal data stays untouched.
+model ForumProfile {
+  user_id String @id
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  signature String @default("") @db.VarChar(140)
+  badge_ids String[] @default([])
+  updated_at DateTime @updatedAt
+}
+model ForumTopicContext {
+  edited_at DateTime?
+  topic_id String @id
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  quest_id String?
+  quest Quest? @relation(fields: [quest_id], references: [id], onDelete: SetNull)
+  mission_id String?
+  mission Mission? @relation(fields: [mission_id], references: [id], onDelete: SetNull)
+  @@index([quest_id])
+  @@index([mission_id])
+}
+model ForumNotificationTarget {
+  notification_id String @id
+  notification Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  reply_id String?
+  reply ForumReply? @relation(fields: [reply_id], references: [id], onDelete: SetNull)
+  @@index([topic_id])
+  @@index([reply_id])
 }
