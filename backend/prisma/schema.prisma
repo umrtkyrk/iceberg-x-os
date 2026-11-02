@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-  url       = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -94,6 +94,7 @@ model User {
   forum_replies ForumReply[]
   forum_states ForumTopicState[]
   forum_reports ForumReport[]
+  forum_profile ForumProfile?
 
   // Relations
   cube_profile         CubeProfile?          @relation("UserToCubeProfile")
@@ -173,6 +174,7 @@ model CubeProfile {
 }
 
 model Mission {
+  forum_contexts ForumTopicContext[]
   id                 String                @id @default(uuid())
   title              String
   description        String
@@ -515,6 +517,7 @@ model PrivateNote {
 }
 
 model Notification {
+  forum_target ForumNotificationTarget?
   id         String   @id @default(uuid())
   user_id    String
   user       User     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
@@ -562,6 +565,7 @@ model Testimonial {
 }
 
 model Quest {
+  forum_contexts ForumTopicContext[]
   id                  String      @id @default(uuid())
   title               String
   description         String      @db.Text
@@ -826,6 +830,8 @@ model ForumCategory {
 }
 
 model ForumTopic {
+  context ForumTopicContext?
+  notification_targets ForumNotificationTarget[]
   id String @id @default(uuid())
   category_id String
   category ForumCategory @relation(fields: [category_id], references: [id])
@@ -851,6 +857,7 @@ model ForumTopic {
 }
 
 model ForumReply {
+  notification_targets ForumNotificationTarget[]
   id String @id @default(uuid())
   topic_id String
   topic ForumTopic @relation(fields: [topic_id], references: [id])
@@ -895,4 +902,34 @@ model ForumReport {
   @@index([reply_id])
   @@index([reporter_id])
   @@index([resolved_at, created_at])
+}
+
+// New tables only: existing portal data stays untouched.
+model ForumProfile {
+  user_id String @id
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  signature String @default("") @db.VarChar(140)
+  badge_ids String[] @default([])
+  updated_at DateTime @updatedAt
+}
+model ForumTopicContext {
+  edited_at DateTime?
+  topic_id String @id
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  quest_id String?
+  quest Quest? @relation(fields: [quest_id], references: [id], onDelete: SetNull)
+  mission_id String?
+  mission Mission? @relation(fields: [mission_id], references: [id], onDelete: SetNull)
+  @@index([quest_id])
+  @@index([mission_id])
+}
+model ForumNotificationTarget {
+  notification_id String @id
+  notification Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  reply_id String?
+  reply ForumReply? @relation(fields: [reply_id], references: [id], onDelete: SetNull)
+  @@index([topic_id])
+  @@index([reply_id])
 }

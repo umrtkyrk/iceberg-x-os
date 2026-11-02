@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 export interface NotificationItem {
   id: string;
   message: string;
+  link?: string | null;
   created_at: string;
   read_at?: string | null;
 }

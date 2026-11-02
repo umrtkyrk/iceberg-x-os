@@ -36,7 +36,7 @@ GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Bu göre
 
 Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Beğeni/reaksiyon, görsel yükleme, e-posta özeti ve Radar/MVCubes puanlaması MVP dışındadır.
 
-Mevcut `mock-forum` ayrı bir tasarım referansıdır. Henüz portal uygulamasına taşınmış değildir. Feature flag ve forum API'si de henüz uygulanmamıştır.
+Mevcut `mock-forum` tarihsel tasarım referansıdır. Bu tasarım dalındaki gerçek API, feature flag ve portal entegrasyonunun güncel durumu için [UI V4 notlarına](forum-ui-v4.md) bakın.
 
 ## Kontroller
 

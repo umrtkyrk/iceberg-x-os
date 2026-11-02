@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../src/services/prisma';
 import router from '../src/routes/forum.routes';
 import { assertForumAuthor, assertForumCategory, forumPage, forumText } from '../src/services/forumPolicy';
-import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic, forumStats } from '../src/services/forum.service';
+import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic } from '../src/services/forum.service';
 import { HttpError } from '../src/utils/http';
 
 const cube = { id: 'cube-a', role: 'CUBE' as const };
@@ -57,19 +57,21 @@ test('locked and deleted topics reject replies before any insert or notification
 
 test('reply and activity update share a transaction; notifications exclude self and exited Cubes', async () => {
   const original = prisma.$transaction;
-  let followerQuery: any, notification: any, activity: any;
+  let recipientQuery: any, notification: any, activity: any;
   const created = new Date();
   const tx = { $queryRaw: async () => [], forumTopic: { findFirst: async () => ({ title: 'Topic', locked: false }), update: async (args: any) => { activity = args; } },
     forumReply: { create: async () => ({ id: 'reply', created_at: created }) },
-    forumTopicState: { findMany: async (args: any) => { followerQuery = args; return [{ user_id: 'other' }]; } },
-    notification: { createMany: async (args: any) => { notification = args; } } };
+    forumTopicState: { findMany: async () => [{ user_id: 'other' }] },
+    user: { findMany: async (args: any) => { recipientQuery = args; return [{ id: 'other' }]; } },
+    notification: { create: async (args: any) => { notification = args; } } };
   prisma.$transaction = (async (fn: any) => fn(tx)) as typeof original;
   try {
     await createForumReply(cube, 'topic', { body: 'Helpful reply' });
     assert.equal(activity.data.last_activity_at, created);
-    assert.equal(followerQuery.where.user_id.not, cube.id);
-    assert.deepEqual(followerQuery.where.user.OR[1].cube_profile.is.current_level.notIn, ['Alumni', 'Former_Cube']);
-    assert.equal(notification.data[0].user_id, 'other');
+    assert.equal(recipientQuery.where.AND[1].id.not, cube.id);
+    assert.deepEqual(recipientQuery.where.AND[0].OR[1].cube_profile.is.current_level.notIn, ['Alumni', 'Former_Cube']);
+    assert.equal(notification.data.user_id, 'other');
+    assert.equal(notification.data.forum_target.create.reply_id, 'reply');
   } finally { prisma.$transaction = original; }
 });
 
@@ -107,23 +109,6 @@ test('moderation rejects Cubes before opening a transaction', async () => {
   await assert.rejects(moderateForumTopic(staff, 'topic', { locked: 'false', pinned: false }), isStatus(400));
 });
 
-test('stats rank contributors by topics plus replies and skip deleted accounts', async () => {
-  const t = prisma.forumTopic as any, r = prisma.forumReply as any, u = prisma.user as any;
-  const original = { tCount: t.count, tGroup: t.groupBy, tFind: t.findMany, rCount: r.count, rGroup: r.groupBy, uFind: u.findMany };
-  let unansweredWhere: any;
-  t.count = async () => 3; r.count = async () => 7;
-  t.groupBy = async () => [{ author_id: 'a', _count: { _all: 1 } }, { author_id: 'b', _count: { _all: 2 } }];
-  r.groupBy = async () => [{ author_id: 'a', _count: { _all: 4 } }, { author_id: 'gone', _count: { _all: 9 } }];
-  t.findMany = async (args: any) => { unansweredWhere = args.where; return []; };
-  u.findMany = async () => [{ id: 'a', name: 'A', role: 'CUBE' }, { id: 'b', name: 'B', role: 'MENTOR' }];
-  try {
-    const stats = await forumStats();
-    assert.equal(stats.topics, 3); assert.equal(stats.replies, 7);
-    assert.deepEqual(stats.contributors.map(c => [c.author.id, c.topics, c.replies]), [['a', 1, 4], ['b', 2, 0]]);
-    assert.equal(unansweredWhere.deleted_at, null); assert.equal(unansweredWhere.locked, false);
-  } finally { t.count = original.tCount; t.groupBy = original.tGroup; t.findMany = original.tFind; r.count = original.rCount; r.groupBy = original.rGroup; u.findMany = original.uFind; }
-});
-
 test('HTTP endpoints require authentication, sanitize server errors and reject invalid bodies', async () => {
   const originalUser = prisma.user.findUnique, originalCategory = prisma.forumCategory.findMany;
   prisma.user.findUnique = (async () => ({ ...cube, email: 'test@example.invalid', cube_profile: null })) as any;
@@ -140,6 +125,10 @@ test('HTTP endpoints require authentication, sanitize server errors and reject i
     assert.equal((await fetch(`${base}/topics`, { method: 'POST', headers, body: '[]' })).status, 400);
     assert.equal((await fetch(`${base}/topics?page=-2`, { headers })).status, 400);
     assert.equal((await fetch(`${base}/reports`, { headers })).status, 403);
+    let limited;
+    for (let i = 0; i < 21; i++) limited = await fetch(base + '/topics', { method: 'POST', headers, body: '[]' });
+    assert.equal(limited!.status, 429);
+    assert.ok(Number(limited!.headers.get('Retry-After')) > 0);
     const oldError = console.error; console.error = () => {};
     try { const response = await fetch(`${base}/categories`, { headers }); assert.equal(response.status, 500); assert.doesNotMatch(await response.text(), /sensitive|SQL/); }
     finally { console.error = oldError; }
