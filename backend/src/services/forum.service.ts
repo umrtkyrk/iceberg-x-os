@@ -37,7 +37,7 @@ export async function forumStats() {
   const [topics, replies, solved, topicAuthors, replyAuthors, unanswered] = await Promise.all([
     prisma.forumTopic.count({ where: liveTopic }),
     prisma.forumReply.count({ where: liveReply }),
-    prisma.forumTopic.count({ where: { ...liveTopic, accepted_reply_id: { not: null } } }),
+    prisma.forumTopic.count({ where: { ...liveTopic, category_id: 'help', accepted_reply_id: { not: null } } }),
     prisma.forumTopic.groupBy({ by: ['author_id'], where: { ...liveTopic, author_id: { not: null }, created_at: { gte: since } }, _count: { _all: true } }),
     prisma.forumReply.groupBy({ by: ['author_id'], where: { ...liveReply, author_id: { not: null }, created_at: { gte: since } }, _count: { _all: true } }),
     prisma.forumTopic.findMany({ where: { ...liveTopic, locked: false, accepted_reply_id: null, replies: { none: { deleted_at: null } } }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 4,
@@ -64,7 +64,11 @@ export async function listForumTopics(actor: ForumActor, options: { category?: s
   ];
   if (options.view === 'saved' || options.view === 'following') where.states = { some: { user_id: actor.id, [options.view]: true } };
   if (options.view === 'unanswered') { where.locked = false; where.accepted_reply_id = null; where.replies = { none: { deleted_at: null } }; }
-  if (options.view === 'solved') { where.category_id = 'help'; where.accepted_reply_id = { not: null }; }
+  if (options.view === 'solved') {
+    // Intersect with the requested community instead of silently replacing it.
+    where.AND = [{ category_id: 'help' }];
+    where.accepted_reply_id = { not: null };
+  }
   const [total, topics] = await prisma.$transaction([
     prisma.forumTopic.count({ where }),
     prisma.forumTopic.findMany({ where, skip: (options.page - 1) * pageSize, take: pageSize,
@@ -95,6 +99,8 @@ export async function readForumTopic(actor: ForumActor, id: string, page: number
       }
     }
     const total = await tx.forumReply.count({ where: { topic_id: id, deleted_at: null } });
+    // Moderation may have removed the last reply on the requested page.
+    page = Math.max(1, Math.min(page, Math.ceil(total / pageSize)));
     const replies = await tx.forumReply.findMany({ where: { topic_id: id, deleted_at: null },
       orderBy: [{ created_at: 'asc' }, { id: 'asc' }], skip: (page - 1) * pageSize, take: pageSize, include: { author: { select: author } } });
     await tx.forumTopicState.upsert({ where: { user_id_topic_id: { user_id: actor.id, topic_id: id } },
@@ -147,7 +153,11 @@ export async function moderateForumTopic(actor: ForumActor, id: string, input: R
     const categoryId = input.category_id === undefined ? undefined : forumText(input.category_id, 'Category', 1, 80);
     if (categoryId) await tx.$queryRaw`SELECT id FROM "ForumCategory" WHERE id = ${categoryId} FOR UPDATE`;
     if (categoryId && !await tx.forumCategory.findUnique({ where: { id: categoryId }, select: { id: true } })) throw badRequest('Category not found.');
-    return tx.forumTopic.update({ where: { id }, data: { locked, pinned, ...(categoryId ? { category_id: categoryId } : {}) } });
+    return tx.forumTopic.update({ where: { id }, data: { locked, pinned, ...(categoryId ? {
+      category_id: categoryId,
+      // Accepted answers belong to Tech Support; the replies themselves are preserved.
+      ...(categoryId !== 'help' ? { accepted_reply_id: null } : {}),
+    } : {}) } });
   });
 }
 

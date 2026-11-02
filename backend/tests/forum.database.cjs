@@ -91,8 +91,22 @@ async function main() {
     const lastReply = await db.forumReply.findFirst({ where: { topic_id: topic.id }, orderBy: { created_at: 'desc' } });
     assert.equal((await forum.readForumTopic(staff, topic.id, 1, lastReply.id)).page, 2);
     await db.forumReply.deleteMany({ where: { topic_id: topic.id, body: { startsWith: 'Page test ' } } });
+    const remainingPage = await forum.readForumTopic(staff, topic.id, 2);
+    assert.equal(remainingPage.page, 1);
+    assert.equal(remainingPage.replies[0].id, reply.id);
+    await forum.acceptForumAnswer(cube, topic.id, { reply_id: reply.id });
+    assert.equal((await forum.forumStats()).solved, 1);
+    assert.equal((await forum.listForumTopics(cube, { view: 'solved', category: 'help', page: 1 })).topics[0].id, topic.id);
+    assert.equal((await forum.listForumTopics(cube, { view: 'solved', category: 'showcase', page: 1 })).total, 0);
+    await forum.moderateForumTopic(staff, topic.id, { pinned: true, locked: false, category_id: 'help' });
+    assert.equal((await forum.readForumTopic(cube, topic.id, 1)).topic.accepted_reply_id, reply.id);
     await forum.moderateForumTopic(staff, topic.id, { pinned: false, locked: false, category_id: 'ideas' });
-    assert.equal((await forum.readForumTopic(cube, topic.id, 1)).topic.category_id, 'ideas');
+    const moved = await forum.readForumTopic(cube, topic.id, 1);
+    assert.equal(moved.topic.category_id, 'ideas');
+    assert.equal(moved.topic.accepted_reply_id, null);
+    assert.equal(moved.replies[0].id, reply.id);
+    assert.equal((await forum.forumStats()).solved, 0);
+    assert.equal((await forum.listForumTopics(cube, { view: 'solved', page: 1 })).total, 0);
     // A fresh connection sees the same content: this is not browser-local state.
     const second = new PrismaClient();
     try { assert.equal((await second.forumTopic.findUnique({ where: { id: topic.id } })).body, 'A sufficiently long original post.'); }
@@ -108,6 +122,7 @@ async function main() {
     await forum.resolveForumReport(staff, report.id);
     await forum.changeForumReply(staff, topic.id, reply.id, {}, true);
     assert.equal((await forum.readForumTopic(cube, topic.id, 1)).total, 0);
+    assert.equal((await forum.readForumTopic(cube, topic.id, 2)).page, 1);
     assert.ok((await db.forumReply.findUnique({ where: { id: reply.id } })).deleted_at);
     await forum.changeForumTopic(staff, topic.id, {}, true);
     assert.equal((await forum.listForumTopics(staff, { view: 'saved', page: 1 })).total, 0);
@@ -131,7 +146,7 @@ async function main() {
     // Forum history must not break the portal's existing account-deletion flow.
     await db.user.delete({ where: { id: other.id } });
     assert.equal((await db.forumReply.findUnique({ where: { id: reply.id } })).author_id, null);
-    console.log('PASS: profile persistence, badge ownership, quest validation, no reward side effects, deduplicated mentions, reply targets, categories, topic movement, stats privacy and unanswered consistency; additive SQL migrations, permissions, reports, soft deletion and account deletion.');
+    console.log('PASS: profile persistence, badge ownership, quest validation, no reward side effects, deduplicated mentions, reply targets, categories, topic movement, solved-filter intersection, answer cleanup, reply-page clamping, stats privacy and unanswered consistency; additive SQL migrations, permissions, reports, soft deletion and account deletion.');
   } finally {
     if (db) await db.$disconnect();
     if (createdSchema) await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

@@ -52,7 +52,8 @@ export function ForumPreferences({ viewer, onSave, busy, onCancel }: { viewer: V
   const [signature, setSignature] = useState(viewer.author?.signature || '');
   const move = (index: number, delta: number) => setSelected(ids => { const next = [...ids]; [next[index], next[index + delta]] = [next[index + delta], next[index]]; return next; });
   return <form className="talk-card talk-form forum-preferences" onSubmit={e => { e.preventDefault(); onSave({ badge_ids: selected, signature }); }}>
-    <h3>Your forum profile</h3><p className="talk-hint">Your identity and progression come from the portal. Choose up to three earned badges and arrange their display order.</p>
+    <h2>Your forum profile</h2><p className="talk-hint">Choose up to three earned badges and arrange their display order. Your name and progression stay connected to the portal.</p>
+    {viewer.author && <div className="forum-profile-preview"><span className="talk-eyebrow">How you appear in discussions</span><AuthorIdentity author={{ ...viewer.author, badges: selected.flatMap(id => { const badge = viewer.earned_badges.find(b => b.id === id); return badge ? [badge] : []; }) }}/><p className="forum-signature">{signature || 'Your signature will appear here.'}</p></div>}
     <fieldset disabled={busy}><div className="forum-badge-picker">{viewer.earned_badges.map(b => <button type="button" key={b.id} aria-pressed={selected.includes(b.id)} disabled={!selected.includes(b.id) && selected.length === 3} onClick={() => setSelected(ids => ids.includes(b.id) ? ids.filter(id => id !== b.id) : [...ids, b.id])}><BadgeDisc icon={b.icon} rarity={b.rarity} size="sm"/><span>{b.name}<RarityPill rarity={b.rarity}/></span><b>{selected.includes(b.id) ? selected.indexOf(b.id) + 1 : '+'}</b></button>)}</div>
     {!viewer.earned_badges.length && <p className="talk-hint">No earned badges yet. <Link to="/badges">Explore portal badges</Link>.</p>}
     <ol className="forum-badge-order">{selected.map((id, index) => <li key={id}><span>{index + 1}. {viewer.earned_badges.find(b => b.id === id)?.name}</span><button type="button" aria-label="Move badge earlier" disabled={!index} onClick={() => move(index, -1)}>↑</button><button type="button" aria-label="Move badge later" disabled={index === selected.length - 1} onClick={() => move(index, 1)}>↓</button></li>)}</ol>
@@ -70,15 +71,19 @@ export function MentionPicker({ onPick }: { onPick: (token: string) => void }) {
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<{ id: string; name: string; handle: string }[]>([]);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
   useEffect(() => {
     let current = true;
+    setPeople([]); setError(false); setSearched(false);
+    setLoading(query.trim().length >= 2);
     const timer = setTimeout(() => {
-      if (query.trim().length < 2) { setPeople([]); return; }
-      void api.get<typeof people>(`/forum/mentions?q=${encodeURIComponent(query.trim())}`).then(rows => { if (current) { setPeople(rows); setError(false); } }).catch(() => { if (current) setError(true); });
+      if (query.trim().length < 2) return;
+      void api.get<typeof people>(`/forum/mentions?q=${encodeURIComponent(query.trim())}`).then(rows => { if (current) { setPeople(rows); setSearched(true); } }).catch(() => { if (current) setError(true); }).finally(() => { if (current) setLoading(false); });
     }, 250);
     return () => { current = false; clearTimeout(timer); };
   }, [query]);
-  return <details className="forum-mentions"><summary>@ Mention a Cube or team member</summary><label>Find a person<input value={query} onChange={e => setQuery(e.target.value)} maxLength={80} placeholder="Type at least two letters"/></label>{error && <p role="status">People could not be loaded.</p>}<div>{people.map(person => <button type="button" key={person.id} onClick={() => { onPick(`@${person.handle} `); setQuery(''); }}>{person.name} <small>@{person.handle}</small></button>)}</div><small>Up to 10 distinct people are notified per post. Mentions in code and quotations do not send notifications.</small></details>;
+  return <details className="forum-mentions"><summary>@ Mention someone</summary><label>Find a person<input autoComplete="off" value={query} onChange={e => setQuery(e.target.value)} maxLength={80} placeholder="Search by name"/></label><p className="talk-hint" role="status">{loading ? 'Searching…' : error ? 'People could not be loaded. Try searching again.' : searched && !people.length ? 'No matching Cubes or team members.' : query.trim().length < 2 ? 'Type at least two letters.' : ''}</p><div>{people.map(person => <button type="button" key={person.id} onClick={() => { onPick(`@${person.handle} `); setQuery(''); }}>{person.name}<small>{person.handle.startsWith('cube-') ? `Cube #${person.handle.slice(5)}` : 'Team member'} · Insert mention</small></button>)}</div><small>They will receive a portal notification. Mentions in code and quotations do not notify.</small></details>;
 }
 
 export function CategoryManager({ categories, busy, onSave, onRemove }: { categories: Category[]; busy: boolean; onSave: (category: Omit<Category, '_count' | 'topics'>, existing: boolean) => void; onRemove: (id: string) => void }) {

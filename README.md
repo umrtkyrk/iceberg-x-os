@@ -215,3 +215,5 @@ Deploying this monorepo to Railway is straightforward:
 The Cube Forum lives on `/forum` under Community. Turn it on with `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env`, then run `npx prisma migrate deploy`. All topics, comments, follows, reports and statistics come from the `/api/forum` endpoints; there is no demo data. The forum starts empty: no seeded or sample topics.
 
 The updated real-api design now includes portal identity/progression, persistent ordered earned-badge showcases and signatures, quest/mission context, exact-reply notifications, community management and topic movement. Set `DIRECT_URL` as well as `DATABASE_URL` for Prisma migrations. See [UI V4 setup, permissions, migrations and validation](docs/forum-ui-v4.md). All development stays on the fork; no upstream push or deployment is part of this branch.
+
+[UI V5](docs/forum-ui-v5.md) improves mobile navigation, readable community/card layouts, contextual search, removable filters, profile previews and keyboard access. It also fixes solved-category filtering and reply pagination after moderation. Setup and schema remain unchanged.
