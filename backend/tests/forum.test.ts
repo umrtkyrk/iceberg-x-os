@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../src/services/prisma';
 import router from '../src/routes/forum.routes';
 import { assertForumAuthor, assertForumCategory, forumPage, forumText } from '../src/services/forumPolicy';
-import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic } from '../src/services/forum.service';
+import { changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic, readForumTopic } from '../src/services/forum.service';
 import { HttpError } from '../src/utils/http';
 
 const cube = { id: 'cube-a', role: 'CUBE' as const };
@@ -102,6 +102,23 @@ test('search excludes deleted topics and replies; bookmarks are scoped to reques
     assert.deepEqual(query.where.states.some, { user_id: cube.id, saved: true });
     assert.equal(query.take, 20); assert.equal(query.skip, 20);
   } finally { prisma.$transaction = original.transaction; prisma.forumTopic.findMany = original.find; prisma.forumTopic.count = original.count; }
+});
+
+test('reading a topic never takes the row lock that writers wait on', async () => {
+  const original = prisma.$transaction;
+  let locks = 0;
+  const tx = {
+    $queryRaw: async () => { locks++; return []; },
+    forumTopic: { findFirst: async () => ({ id: 'topic', accepted_reply_id: null, last_activity_at: new Date(), author: null, context: null }) },
+    forumReply: { count: async () => 0, findMany: async () => [], findFirst: async () => null },
+    forumTopicState: { upsert: async () => ({}) },
+  };
+  prisma.$transaction = (async (fn: any) => fn(tx)) as typeof original;
+  try {
+    const result = await readForumTopic(cube, 'topic', 1);
+    assert.equal(result.page, 1);
+    assert.equal(locks, 0);
+  } finally { prisma.$transaction = original; }
 });
 
 test('moderation rejects Cubes before opening a transaction', async () => {

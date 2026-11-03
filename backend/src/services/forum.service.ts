@@ -82,8 +82,9 @@ export async function listForumTopics(actor: ForumActor, options: { category?: s
 }
 
 export async function readForumTopic(actor: ForumActor, id: string, page: number, replyId?: string) {
+  // Reading must not take the topic row lock: GETs are not rate limited, so a lock here would let any
+  // signed-in user stall replies and moderation on a topic just by reloading it.
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT id FROM "ForumTopic" WHERE id = ${id} FOR UPDATE`;
     const topic = await tx.forumTopic.findFirst({ where: { id, deleted_at: null }, include: {
       author: { select: author }, category: true, context: { select: forumContextSelect },
       states: { where: { user_id: actor.id }, select: { saved: true, following: true } },
