@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Trophy, CheckCircle, Clock, Zap, Star, ShieldAlert, BookOpen, UserCheck, Calendar } from 'lucide-react';
 import { getBadgeIcon } from '../utils/badgeIcons';
 import { peerQuestLabel, peerQuestProgressText } from '../utils/peer';
+import { WEBINAR_RATE_CRITERIA, webinarQuestLabel, webinarQuestProgressText } from '../utils/webinars';
 
 export const Quests: React.FC = () => {
   const { user } = useAuth();
@@ -106,7 +107,15 @@ export const Quests: React.FC = () => {
       case 'custom':
         return `Admin Sign-off (Goal: ${value})`;
       default:
-        return peerQuestLabel(type, value, q.min_sample_size) ?? `Goal: ${value}`;
+        return (
+          peerQuestLabel(type, value, q.min_sample_size) ??
+          webinarQuestLabel(
+            type,
+            value,
+            WEBINAR_RATE_CRITERIA.includes(type) ? q.min_sample_size ?? DEFAULT_MIN_SAMPLE_SIZE[q.difficulty] ?? 3 : null
+          ) ??
+          `Goal: ${value}`
+        );
     }
   };
 
@@ -143,7 +152,7 @@ export const Quests: React.FC = () => {
       case 'weekly_update_streak':
         return `${current} / ${target} consecutive weeks`;
       default:
-        return peerQuestProgressText(type, current, target) ?? `${current} / ${target}`;
+        return peerQuestProgressText(type, current, target) ?? webinarQuestProgressText(type, current, target) ?? `${current} / ${target}`;
     }
   };
 

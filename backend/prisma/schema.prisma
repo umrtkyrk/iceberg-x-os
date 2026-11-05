@@ -149,6 +149,8 @@ model CubeProfile {
   cube_badges        CubeBadge[]
   meeting_attendance MeetingAttendance[]
   webinar_questions  WebinarQuestion[]
+  webinar_attendance WebinarAttendance[]
+  webinar_votes      WebinarQuestionVote[]
   offboarding_record OffboardingRecord?
   private_notes      PrivateNote[]
   testimonials       Testimonial[]
@@ -544,8 +546,9 @@ model MeetingAttendance {
 
 // ---------------------------------------------------------------------------
 // Webinars: career talks with guest speakers. Every invited Cube must send at
-// least one question before the deadline. Attendance and the per-webinar
-// engagement score are added in a later, separate migration.
+// least one question before the deadline. Staff take attendance on the day;
+// a Cube who missed it can recover part of the attendance points by watching
+// the recording and writing what they learned.
 // ---------------------------------------------------------------------------
 
 enum WebinarStatus {
@@ -592,11 +595,20 @@ model Webinar {
   summary            String?       @db.Text
   created_by_id      String?
   published_at       DateTime?
+  /// Set when staff save attendance and close the webinar.
+  completed_at       DateTime?
+  /// AI-suggested themes: [{ title, question_ids }]. Regenerated on demand.
+  question_groups    Json?
+  question_groups_at DateTime?
+  /// Claimed once by the reminder sweep so a reminder is never sent twice.
+  deadline_reminder_sent_at DateTime?
+  start_reminder_sent_at    DateTime?
   created_at         DateTime      @default(now())
   updated_at         DateTime      @updatedAt
 
-  speakers  WebinarSpeaker[]
-  questions WebinarQuestion[]
+  speakers   WebinarSpeaker[]
+  questions  WebinarQuestion[]
+  attendance WebinarAttendance[]
 
   @@index([status, date])
 }
@@ -628,7 +640,58 @@ model WebinarQuestion {
   created_at DateTime    @default(now())
   updated_at DateTime    @updatedAt
 
+  votes WebinarQuestionVote[]
+
   @@index([webinar_id])
+  @@index([cube_id])
+}
+
+/// One upvote from a Cube on another Cube's question. Anonymous to Cubes.
+model WebinarQuestionVote {
+  question_id String
+  question    WebinarQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  cube_id     String
+  cube        CubeProfile     @relation(fields: [cube_id], references: [id], onDelete: Cascade)
+  created_at  DateTime        @default(now())
+
+  @@id([question_id, cube_id])
+  @@index([cube_id])
+}
+
+enum WebinarAttendanceStatus {
+  Present
+  Late
+  Absent
+  Excused // left out of the attendance part of the score
+}
+
+enum WebinarRecoveryStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+model WebinarAttendance {
+  id                      String                  @id @default(uuid())
+  webinar_id              String
+  webinar                 Webinar                 @relation(fields: [webinar_id], references: [id], onDelete: Cascade)
+  cube_id                 String
+  cube                    CubeProfile             @relation(fields: [cube_id], references: [id], onDelete: Cascade)
+  status                  WebinarAttendanceStatus
+  /// Staff note, e.g. the reason for an excuse.
+  note                    String?                 @db.Text
+  recorded_by_id          String?
+  /// Recovery for an absent Cube: "what I learned" after watching the recording.
+  recovery_note           String?                 @db.Text
+  recovery_status         WebinarRecoveryStatus?
+  recovery_submitted_at   DateTime?
+  recovery_reviewed_at    DateTime?
+  recovery_reviewed_by_id String?
+  recovery_feedback       String?                 @db.Text
+  created_at              DateTime                @default(now())
+  updated_at              DateTime                @updatedAt
+
+  @@unique([webinar_id, cube_id])
   @@index([cube_id])
 }
 

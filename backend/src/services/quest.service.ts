@@ -3,6 +3,7 @@ import { BadgeRarity, MissionStatus } from '@prisma/client';
 import { StorageService } from './storage.service';
 import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 import { PEER_CRITERIA, PEER_QUESTS, isPeerCriteria } from './peerQuests.service';
+import { cubeEngagement, countStrongQuestions, countWebinarsWithOnTimeQuestion } from './webinarEngagement.service';
 import { recomputeCubePeerState } from './peerSignal.service';
 
 /**
@@ -511,6 +512,21 @@ export async function verifyQuestProgress(
       }
     });
     newValue = completedCount;
+  }
+  else if (quest.criteria_type === 'webinar_questions') {
+    newValue = await countWebinarsWithOnTimeQuestion(cubeProfileId);
+  }
+  else if (quest.criteria_type === 'webinar_strong_questions') {
+    newValue = await countStrongQuestions(cubeProfileId);
+  }
+  else if (quest.criteria_type === 'webinar_attendance' || quest.criteria_type === 'webinar_score') {
+    // Rates need a real sample, like meeting_attendance: one webinar is not a trend.
+    const { summary } = await cubeEngagement(cubeProfileId);
+    const sample = quest.criteria_type === 'webinar_attendance'
+      ? summary.scored - summary.excused
+      : summary.scored;
+    const value = quest.criteria_type === 'webinar_attendance' ? summary.attendance_rate : summary.average;
+    newValue = sample >= resolveMinSampleSize(quest) && value !== null ? value : 0;
   }
   else if (isPeerCriteria(quest.criteria_type)) {
     const profile = await prisma.cubeProfile.findUnique({
