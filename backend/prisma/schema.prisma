@@ -148,6 +148,7 @@ model CubeProfile {
   mission_contributions MissionContributor[]
   cube_badges        CubeBadge[]
   meeting_attendance MeetingAttendance[]
+  webinar_questions  WebinarQuestion[]
   offboarding_record OffboardingRecord?
   private_notes      PrivateNote[]
   testimonials       Testimonial[]
@@ -538,6 +539,96 @@ model MeetingAttendance {
   updated_at DateTime    @updatedAt
 
   @@unique([meeting_id, cube_id])
+  @@index([cube_id])
+}
+
+// ---------------------------------------------------------------------------
+// Webinars: career talks with guest speakers. Every invited Cube must send at
+// least one question before the deadline. Attendance and the per-webinar
+// engagement score are added in a later, separate migration.
+// ---------------------------------------------------------------------------
+
+enum WebinarStatus {
+  Draft      // visible to staff only
+  Published  // visible to invited Cubes, questions open until the webinar starts
+  Completed
+  Cancelled
+}
+
+/// A guest speaker. Kept apart from Webinar so a returning speaker is entered once.
+model Speaker {
+  id           String   @id @default(uuid())
+  name         String
+  headline     String?  /// Current role, e.g. "VP of Engineering"
+  company      String?
+  photo_url    String?
+  bio          String?  @db.Text /// Markdown
+  linkedin_url String?
+  website_url  String?
+  /// Career timeline: [{ title, company, period, description }]
+  career       Json?
+  expertise    String[]
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  webinars WebinarSpeaker[]
+}
+
+model Webinar {
+  id                 String        @id @default(uuid())
+  title              String
+  description        String?       @db.Text /// Markdown
+  date               DateTime
+  duration_minutes   Int           @default(60)
+  meeting_url        String?
+  /// After this moment new questions are still accepted until the webinar
+  /// starts, but are marked late.
+  questions_close_at DateTime
+  status             WebinarStatus @default(Draft)
+  /// Empty means every Cube in the programme is expected to take part.
+  invited_cube_ids   String[]
+  recording_url      String?
+  slides_url         String?
+  summary            String?       @db.Text
+  created_by_id      String?
+  published_at       DateTime?
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  speakers  WebinarSpeaker[]
+  questions WebinarQuestion[]
+
+  @@index([status, date])
+}
+
+model WebinarSpeaker {
+  webinar_id String
+  webinar    Webinar @relation(fields: [webinar_id], references: [id], onDelete: Cascade)
+  speaker_id String
+  speaker    Speaker @relation(fields: [speaker_id], references: [id], onDelete: Restrict)
+  position   Int     @default(0)
+
+  @@id([webinar_id, speaker_id])
+  @@index([speaker_id])
+}
+
+model WebinarQuestion {
+  id         String      @id @default(uuid())
+  webinar_id String
+  webinar    Webinar     @relation(fields: [webinar_id], references: [id], onDelete: Cascade)
+  cube_id    String
+  cube       CubeProfile @relation(fields: [cube_id], references: [id], onDelete: Cascade)
+  body       String      @db.Text
+  /// Sent after questions_close_at.
+  is_late    Boolean     @default(false)
+  /// Set by staff: the question was put to the speaker during the webinar.
+  asked_live Boolean     @default(false)
+  /// Set by staff: a particularly thoughtful question.
+  is_strong  Boolean     @default(false)
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+
+  @@index([webinar_id])
   @@index([cube_id])
 }
 

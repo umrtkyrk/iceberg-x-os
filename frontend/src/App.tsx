@@ -25,6 +25,10 @@ import { Recruitment } from './pages/Recruitment';
 import { CaseForm } from './pages/CaseForm';
 import { ChangePassword } from './pages/ChangePassword';
 import { Meetings } from './pages/Meetings';
+import { Webinars } from './pages/Webinars';
+import { WebinarDetail } from './pages/WebinarDetail';
+import { WebinarEdit } from './pages/WebinarEdit';
+import { WebinarSpeakers } from './pages/WebinarSpeakers';
 import { Offboarding } from './pages/Offboarding';
 import { Certificate } from './pages/Certificate';
 import { VerifyCertificate } from './pages/VerifyCertificate';
@@ -171,6 +175,34 @@ function App() {
 
             {/* Meetings Management */}
             <Route path="meetings" element={<Meetings />} />
+
+            {/* Webinars: everyone reads and asks; staff plan and manage */}
+            <Route path="webinars" element={<Webinars />} />
+            <Route path="webinars/:id" element={<WebinarDetail />} />
+            <Route
+              path="webinars/new"
+              element={
+                <RouteGuard allowedRoles={['ADMIN', 'MENTOR']}>
+                  <WebinarEdit />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="webinars/:id/edit"
+              element={
+                <RouteGuard allowedRoles={['ADMIN', 'MENTOR']}>
+                  <WebinarEdit />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="webinars/speakers"
+              element={
+                <RouteGuard allowedRoles={['ADMIN', 'MENTOR']}>
+                  <WebinarSpeakers />
+                </RouteGuard>
+              }
+            />
 
             {/* Notifications Broadcast (Admins & Mentors) */}
             <Route

@@ -27,6 +27,7 @@ import {
   UserRound,
   Camera,
   UserPlus,
+  Mic,
   type LucideIcon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
@@ -77,6 +78,7 @@ const GROWTH: NavGroup = {
     {
       items: [
         { path: '/fundamentals', label: 'Fundamentals', hint: 'Learn, then take the quiz', icon: BookOpen },
+        { path: '/webinars', label: 'Webinars', hint: 'Career talks and your questions', icon: Mic },
         { path: '/quests', label: 'Quests', hint: 'Goals and your progress', icon: Trophy },
         { path: '/badges', label: 'Badges', hint: 'Earn them, collect them', icon: Award }
       ]

@@ -26,6 +26,7 @@ import peerFeedbackRoutes from './peerFeedback.routes';
 import radarRoutes from './radar.routes';
 import mvcubesRoutes from './mvcubes.routes';
 import hallOfFameRoutes from './hallOfFame.routes';
+import webinarsRoutes from './webinars.routes';
 
 const router = Router();
 
@@ -64,5 +65,6 @@ router.use(peerFeedbackRoutes);
 router.use(radarRoutes);
 router.use(mvcubesRoutes);
 router.use(hallOfFameRoutes);
+router.use(webinarsRoutes);
 
 export default router;
