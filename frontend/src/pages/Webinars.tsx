@@ -1,18 +1,83 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Calendar, CheckCircle2, Mic, MessageSquare, Plus, UserRound } from 'lucide-react';
+import { AlertTriangle, BarChart3, Calendar, CheckCircle2, ClipboardCheck, Mic, MessageSquare, Plus, UserRound } from 'lucide-react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { UserAvatar } from '../components/UserAvatar';
+import { WebinarEngagementCard } from '../components/WebinarEngagementCard';
 import {
+  EngagementSummary,
   Webinar,
   formatWebinarDate,
   isUpcoming,
   speakerLine,
   statusStyle,
+  scoreTone,
   timeUntil
 } from '../utils/webinars';
+
+interface CubeEngagementRow {
+  cube_id: string;
+  cube_number: string;
+  name: string;
+  avatar_url?: string | null;
+  summary: EngagementSummary;
+}
+
+/** Staff overview: every Cube's webinar score, lowest first so support goes where it is needed. */
+const EngagementTable: React.FC = () => {
+  const [rows, setRows] = useState<CubeEngagementRow[] | null>(null);
+  useEffect(() => {
+    api.get<CubeEngagementRow[]>('/webinar-engagement').then(setRows).catch(() => setRows([]));
+  }, []);
+  const scored = (rows || []).filter(r => r.summary.scored > 0);
+  if (scored.length === 0) return null;
+  const sorted = [...scored].sort((a, b) => (a.summary.average ?? 0) - (b.summary.average ?? 0));
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <BarChart3 size={18} /> Cube webinar scores
+      </h2>
+      <p className="text-xs text-gray-500 -mt-2">Lowest first. Shown separately; not part of the overall performance score.</p>
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
+              <th className="text-left font-bold px-4 py-3">Cube</th>
+              <th className="text-center font-bold px-3 py-3">Score</th>
+              <th className="text-center font-bold px-3 py-3">Webinars</th>
+              <th className="text-center font-bold px-3 py-3">Attendance</th>
+              <th className="text-center font-bold px-3 py-3">No question</th>
+              <th className="text-center font-bold px-3 py-3">Strong</th>
+              <th className="text-center font-bold px-3 py-3">Recovered</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(r => (
+              <tr key={r.cube_id} className="border-b border-gray-50 last:border-0">
+                <td className="px-4 py-2.5">
+                  <Link to={`/cubes/${r.cube_id}`} className="flex items-center gap-2 font-semibold text-gray-800 hover:underline">
+                    <UserAvatar name={r.name || '?'} avatarUrl={r.avatar_url} size="sm" /> {r.name || 'Unknown'}
+                  </Link>
+                </td>
+                <td className="text-center px-3">
+                  <span className={`text-xs font-extrabold px-2 py-1 rounded-lg ${scoreTone(r.summary.average)}`}>{r.summary.average ?? '—'}</span>
+                </td>
+                <td className="text-center px-3 text-gray-700">{r.summary.scored}</td>
+                <td className="text-center px-3 text-gray-700">{r.summary.attendance_rate === null ? '—' : `${r.summary.attendance_rate}%`}</td>
+                <td className={`text-center px-3 font-bold ${r.summary.missed_questions > 0 ? 'text-red-600' : 'text-gray-400'}`}>{r.summary.missed_questions}</td>
+                <td className="text-center px-3 text-amber-600 font-bold">{r.summary.strong_questions || ''}</td>
+                <td className="text-center px-3 text-gray-700">{r.summary.recovered || ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+};
 
 const QuestionChip: React.FC<{ webinar: Webinar }> = ({ webinar }) => {
   const mine = webinar.my_question_count || 0;
@@ -53,6 +118,14 @@ const WebinarCard: React.FC<{ webinar: Webinar; isStaff: boolean }> = ({ webinar
           {webinar.status}
         </span>
         {!isStaff && <QuestionChip webinar={webinar} />}
+        {!isStaff && webinar.status === 'Completed' && typeof webinar.my_score === 'number' && (
+          <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${scoreTone(webinar.my_score)}`}>Score {webinar.my_score}</span>
+        )}
+        {isStaff && webinar.status === 'Published' && new Date(webinar.date).getTime() <= Date.now() && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#e6007e]/10 text-[#b0005f] px-2 py-1 rounded-lg">
+            <ClipboardCheck size={12} /> Attendance needed
+          </span>
+        )}
         {isStaff && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-gray-50 text-gray-600 px-2 py-1 rounded-lg">
             <MessageSquare size={12} /> {webinar.question_count || 0}
@@ -150,6 +223,10 @@ export const Webinars: React.FC = () => {
         </div>
       ) : (
         <>
+          {!isStaff && webinars.some(w => w.status === 'Completed') && (
+            <WebinarEngagementCard endpoint="/webinar-engagement/me" variant="full" />
+          )}
+
           <section className="flex flex-col gap-4">
             <h2 className="text-lg font-bold text-gray-800">Upcoming</h2>
             {upcoming.length === 0 ? (
@@ -176,6 +253,8 @@ export const Webinars: React.FC = () => {
               </div>
             </section>
           )}
+
+          {isStaff && <EngagementTable />}
         </>
       )}
     </div>

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, Bell, Briefcase, Calendar, Check, CheckCircle2, Clipboard, Clock,
-  Edit3, ExternalLink, Globe, Linkedin, Lock, Mic, PlayCircle, Presentation, Send, Star,
-  Trash2, Video, X, XCircle
+  AlertTriangle, ArrowLeft, Bell, BookOpen, Briefcase, Calendar, Check, CheckCircle2, ChevronUp,
+  Clipboard, ClipboardCheck, Clock, Edit3, ExternalLink, Globe, Layers, Linkedin, Lock, Mic,
+  PlayCircle, Presentation, RotateCcw, Send, Sparkles, Star, Trash2, Trophy, Video, X, XCircle
 } from 'lucide-react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -11,13 +11,22 @@ import { PageHeader } from '../components/PageHeader';
 import { UserAvatar } from '../components/UserAvatar';
 import { CustomMarkdown } from '../components/CustomMarkdown';
 import {
+  ATTENDANCE_STATUSES,
+  AttendanceStatus,
   MAX_QUESTIONS_PER_CUBE,
+  Participant,
   QUESTION_MAX_LENGTH,
   QUESTION_MIN_LENGTH,
+  RECOVERY_NOTE_MAX_LENGTH,
+  RECOVERY_NOTE_MIN_LENGTH,
   Speaker,
   Webinar,
   WebinarQuestion,
+  WebinarScore,
+  attendanceStyle,
   formatWebinarDate,
+  questionLevelLabel,
+  scoreTone,
   speakerLine,
   statusStyle,
   timeUntil
@@ -172,6 +181,16 @@ const CubeQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }>
   const canAdd = (win === 'open' || win === 'late') && mine.length < MAX_QUESTIONS_PER_CUBE;
   const canEdit = win === 'open';
   const deadline = timeUntil(webinar.questions_close_at);
+  const canVote = win === 'open' || win === 'late';
+
+  const vote = async (q: WebinarQuestion) => {
+    try {
+      await api.post(`/webinar-questions/${q.id}/vote`, {});
+      await reload();
+    } catch (err: any) {
+      alert(err.message || 'Could not save your vote');
+    }
+  };
 
   const remove = async (q: WebinarQuestion) => {
     if (!window.confirm('Delete this question?')) return;
@@ -225,6 +244,11 @@ const CubeQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }>
               <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1">{q.body}</p>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 {q.is_late && <span className="text-[10px] font-bold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">LATE</span>}
+                {(q.vote_count || 0) > 0 && (
+                  <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5" title="Upvotes from other Cubes">
+                    <ChevronUp size={11} /> {q.vote_count}
+                  </span>
+                )}
                 {canEdit && (
                   <div className="flex gap-1">
                     <button onClick={() => setEditingId(q.id)} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg" title="Edit">
@@ -260,22 +284,122 @@ const CubeQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }>
         ) : others.length === 0 ? (
           <p className="text-sm text-gray-400 italic">No other questions yet.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {others.map(q => (
-              <li key={q.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded-xl p-3 whitespace-pre-wrap">
-                {q.body}
-              </li>
-            ))}
-          </ul>
+          <>
+            <p className="text-xs text-gray-500 -mt-1">
+              Upvote the questions you also want answered. The most upvoted ones go to the top of the speaker's list.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {[...others]
+                .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+                .map(q => (
+                  <li key={q.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded-xl p-3 flex gap-3 items-start">
+                    <button
+                      onClick={() => vote(q)}
+                      disabled={!canVote}
+                      title={canVote ? (q.voted ? 'Remove your upvote' : 'Upvote') : 'Voting has closed'}
+                      className={`shrink-0 flex flex-col items-center min-w-[2.5rem] rounded-lg px-1.5 py-1 text-xs font-bold border transition ${
+                        q.voted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-indigo-300'
+                      } disabled:opacity-60 disabled:cursor-default`}
+                    >
+                      <ChevronUp size={14} />
+                      {q.vote_count || 0}
+                    </button>
+                    <p className="whitespace-pre-wrap flex-1 pt-0.5">{q.body}</p>
+                  </li>
+                ))}
+            </ul>
+          </>
         )}
       </div>
     </div>
   );
 };
 
+const QuestionThemes: React.FC<{ webinar: Webinar; reload: () => Promise<void> }> = ({ webinar, reload }) => {
+  const [busy, setBusy] = useState(false);
+  const questions = webinar.questions || [];
+  const groups = webinar.question_groups || [];
+  const byId = new Map(questions.map(q => [q.id, q]));
+
+  const generate = async () => {
+    setBusy(true);
+    try {
+      await api.post(`/webinars/${webinar.id}/question-groups`, {});
+      await reload();
+    } catch (err: any) {
+      alert(err.message || 'Could not group the questions');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clear = async () => {
+    if (!window.confirm('Remove the themes? The speaker list goes back to a single list.')) return;
+    try {
+      await api.delete(`/webinars/${webinar.id}/question-groups`);
+      await reload();
+    } catch (err: any) {
+      alert(err.message || 'Could not remove the themes');
+    }
+  };
+
+  if (questions.length < 4) return null;
+
+  return (
+    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+          <Layers size={13} /> Themes for the speaker
+        </h3>
+        <div className="flex gap-2">
+          {groups.length > 0 && (
+            <button onClick={clear} className="text-[11px] font-bold text-gray-500 px-2 py-1 rounded-lg hover:bg-white">
+              Remove
+            </button>
+          )}
+          <button
+            onClick={generate}
+            disabled={busy}
+            className="inline-flex items-center gap-1 text-[11px] font-bold bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+          >
+            <Sparkles size={12} /> {busy ? 'Grouping…' : groups.length > 0 ? 'Regroup with AI' : 'Group with AI'}
+          </button>
+        </div>
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-xs text-indigo-900/70">
+          Group similar questions into themes so the speaker can answer them one by one. Only the question text is sent to the AI, never names.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {groups.map(g => (
+            <div key={g.title} className="bg-white rounded-lg border border-indigo-100 p-3">
+              <p className="text-xs font-extrabold text-gray-900">
+                {g.title} <span className="text-gray-400 font-bold">· {g.question_ids.length}</span>
+              </p>
+              <ul className="mt-1.5 flex flex-col gap-1">
+                {g.question_ids.map(id => byId.get(id)).filter(Boolean).map(q => (
+                  <li key={q!.id} className="text-[11px] text-gray-600 line-clamp-2">• {q!.body}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      {groups.length > 0 && (
+        <p className="text-[11px] text-indigo-900/60">The copied speaker list follows these themes. Questions added later go under "Other questions".</p>
+      )}
+    </div>
+  );
+};
+
 const StaffQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }> = ({ webinar, reload }) => {
   const [copied, setCopied] = useState(false);
-  const questions = webinar.questions || [];
+  const [sort, setSort] = useState<'time' | 'votes'>('time');
+  const allQuestions = webinar.questions || [];
+  const questions = sort === 'votes'
+    ? [...allQuestions].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+    : allQuestions;
   const participation = webinar.participation || [];
   const answered = participation.filter(p => p.question_count > 0).length;
   const missing = participation.filter(p => p.question_count === 0);
@@ -353,8 +477,25 @@ const StaffQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }
         </div>
       )}
 
+      <QuestionThemes webinar={webinar} reload={reload} />
+
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">All questions</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">All questions</h3>
+          {questions.length > 1 && (
+            <div className="flex bg-gray-100 rounded-lg p-0.5 text-[11px] font-bold">
+              {(['time', 'votes'] as const).map(key => (
+                <button
+                  key={key}
+                  onClick={() => setSort(key)}
+                  className={`px-2 py-1 rounded-md ${sort === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                >
+                  {key === 'time' ? 'Oldest first' : 'Most upvoted'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {questions.length === 0 && <p className="text-sm text-gray-400 italic">No questions yet.</p>}
         {questions.map(q => (
           <div key={q.id} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
@@ -364,6 +505,11 @@ const StaffQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }
                 <p className="text-xs font-bold text-gray-700">
                   {q.cube?.user?.name || 'Unknown'}
                   {q.is_late && <span className="ml-2 text-[10px] font-bold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">LATE</span>}
+                  {(q.vote_count || 0) > 0 && (
+                    <span className="ml-2 text-[10px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                      <ChevronUp size={11} /> {q.vote_count}
+                    </span>
+                  )}
                 </p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{q.body}</p>
               </div>
@@ -386,6 +532,354 @@ const StaffQuestions: React.FC<{ webinar: Webinar; reload: () => Promise<void> }
         ))}
       </div>
     </div>
+  );
+};
+
+const ScoreBreakdown: React.FC<{ result: WebinarScore }> = ({ result }) => (
+  <div className="grid grid-cols-3 gap-2 text-center">
+    <div className={`rounded-xl p-3 ${scoreTone(result.score)}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Webinar score</p>
+      <p className="text-2xl font-extrabold">{result.score}</p>
+    </div>
+    <div className="rounded-xl p-3 bg-gray-50">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Questions</p>
+      <p className="text-lg font-extrabold text-gray-900">{result.question_points}</p>
+      <p className="text-[10px] text-gray-500">{questionLevelLabel[result.question_level]}</p>
+    </div>
+    <div className="rounded-xl p-3 bg-gray-50">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Attendance</p>
+      <p className="text-lg font-extrabold text-gray-900">{result.attendance_points ?? '—'}</p>
+      <p className="text-[10px] text-gray-500">
+        {result.recovered ? 'Recovered with the recording' : result.attendance_status === 'Excused' ? 'Excused, not counted' : result.attendance_status}
+      </p>
+    </div>
+  </div>
+);
+
+/** The Cube's own result after the webinar, and the recovery note for an absence. */
+const CubeResult: React.FC<{ webinar: Webinar; reload: () => Promise<void> }> = ({ webinar, reload }) => {
+  const attendance = webinar.my_attendance;
+  const result = webinar.my_result;
+  const [note, setNote] = useState(attendance?.recovery_note || '');
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const length = note.trim().length;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/webinars/${webinar.id}/recovery`, { note: note.trim() });
+      setEditing(false);
+      await reload();
+    } catch (err: any) {
+      setError(err.message || 'Could not send the note');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!attendance || !result) {
+    return (
+      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 text-sm text-gray-500">
+        Attendance was not recorded for you, so this webinar does not count towards your webinar score.
+      </section>
+    );
+  }
+
+  const status = attendance.recovery_status;
+  const showForm = webinar.can_recover && (status !== 'Pending' || editing);
+
+  return (
+    <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+      <h2 className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+        <Trophy size={18} className="text-amber-500" /> Your result
+      </h2>
+      <ScoreBreakdown result={result} />
+      <p className="text-xs text-gray-500">
+        Half of the score comes from your questions (strong 100, on time 70, late 40, none 0), half from attendance
+        (present 100, late 70, absent 0). The webinar score is shown separately and is not part of your overall score.
+      </p>
+
+      {attendance.status === 'Absent' && (
+        <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <BookOpen size={15} /> Recover with the recording
+          </h3>
+          {status === 'Approved' && (
+            <div className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm border border-emerald-100">
+              Your note was approved: you earned 50 attendance points back.
+              {attendance.recovery_feedback && <p className="text-xs mt-1">Feedback: {attendance.recovery_feedback}</p>}
+            </div>
+          )}
+          {status === 'Pending' && !editing && (
+            <div className="rounded-xl p-3 bg-indigo-50 text-indigo-800 text-sm border border-indigo-100 flex flex-col gap-2">
+              <p>Your note is waiting for review.</p>
+              {webinar.can_recover && (
+                <button onClick={() => setEditing(true)} className="w-fit text-xs font-bold underline">Edit the note</button>
+              )}
+            </div>
+          )}
+          {status === 'Rejected' && (
+            <div className="rounded-xl p-3 bg-red-50 text-red-700 text-sm border border-red-100">
+              Your note needs more work.{attendance.recovery_feedback ? ` Feedback: ${attendance.recovery_feedback}` : ''}
+            </div>
+          )}
+          {!status && !webinar.recording_url && (
+            <p className="text-sm text-gray-500">
+              The recording is not available yet. You will get a notification when it is, and then you can write what you learned to recover 50 attendance points.
+            </p>
+          )}
+          {!webinar.can_recover && status !== 'Approved' && webinar.recording_url && (
+            <p className="text-sm text-gray-500">The recovery window has closed.</p>
+          )}
+          {showForm && (
+            <form onSubmit={submit} className="flex flex-col gap-2">
+              <p className="text-sm text-gray-600">
+                Watch the recording, then write what you learned and how you will use it. An approved note brings back 50 attendance points.
+                {webinar.recovery_deadline && <> Deadline: <b>{formatWebinarDate(webinar.recovery_deadline)}</b>.</>}
+              </p>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                rows={7}
+                maxLength={RECOVERY_NOTE_MAX_LENGTH}
+                placeholder="The three ideas that stayed with me were… In my current mission I will…"
+                className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-gray-900 focus:outline-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-medium ${length < RECOVERY_NOTE_MIN_LENGTH ? 'text-amber-600' : 'text-gray-400'}`}>
+                  {length < RECOVERY_NOTE_MIN_LENGTH
+                    ? `${RECOVERY_NOTE_MIN_LENGTH - length} more characters needed`
+                    : `${length} / ${RECOVERY_NOTE_MAX_LENGTH}`}
+                </span>
+                <div className="flex gap-2">
+                  {editing && (
+                    <button type="button" onClick={() => setEditing(false)} className="text-xs font-bold text-gray-500 px-3 py-2 rounded-lg hover:bg-gray-100">
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={busy || length < RECOVERY_NOTE_MIN_LENGTH}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold bg-gray-900 text-white px-4 py-2 rounded-lg disabled:opacity-40"
+                  >
+                    <Send size={13} /> {busy ? 'Sending…' : 'Send for review'}
+                  </button>
+                </div>
+              </div>
+              {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
+            </form>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const RecoveryReview: React.FC<{ participant: Participant; reload: () => Promise<void> }> = ({ participant, reload }) => {
+  const att = participant.attendance;
+  const [open, setOpen] = useState(att?.recovery_status === 'Pending');
+  const [feedback, setFeedback] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!att?.recovery_note) return null;
+
+  const decide = async (decision: 'Approved' | 'Rejected') => {
+    setBusy(true);
+    try {
+      await api.patch(`/webinar-attendance/${att.id}/recovery`, { decision, feedback: feedback.trim() || null });
+      await reload();
+    } catch (err: any) {
+      alert(err.message || 'Could not save the review');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tone = att.recovery_status === 'Approved'
+    ? 'bg-emerald-50 text-emerald-700'
+    : att.recovery_status === 'Rejected'
+      ? 'bg-red-50 text-red-600'
+      : 'bg-indigo-50 text-indigo-700';
+
+  return (
+    <div className="col-span-full bg-gray-50 rounded-lg p-3 flex flex-col gap-2">
+      <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-xs font-bold text-gray-700 w-fit">
+        <BookOpen size={13} /> Recovery note
+        <span className={`text-[10px] px-1.5 py-0.5 rounded ${tone}`}>{att.recovery_status}</span>
+      </button>
+      {open && (
+        <>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white rounded-lg border border-gray-100 p-3">{att.recovery_note}</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              value={feedback}
+              onChange={e => setFeedback(e.target.value)}
+              placeholder="Feedback for the Cube (optional)"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs"
+            />
+            <button onClick={() => decide('Approved')} disabled={busy} className="text-xs font-bold bg-emerald-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
+              Approve
+            </button>
+            <button onClick={() => decide('Rejected')} disabled={busy} className="text-xs font-bold bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg disabled:opacity-50">
+              Needs more work
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/** Staff: take attendance after the start, then close the webinar to score it. */
+const StaffAttendance: React.FC<{ webinar: Webinar; reload: () => Promise<void> }> = ({ webinar, reload }) => {
+  const participants = webinar.participation || [];
+  const completed = webinar.status === 'Completed';
+  const initial = () =>
+    Object.fromEntries(participants.map(p => [p.cube_id, { status: p.attendance?.status || null, note: p.attendance?.note || '' }]));
+  const [rows, setRows] = useState<Record<string, { status: AttendanceStatus | null; note: string }>>(initial);
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) setRows(initial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webinar]);
+
+  const set = (cubeId: string, patch: Partial<{ status: AttendanceStatus | null; note: string }>) => {
+    setDirty(true);
+    setRows(r => ({ ...r, [cubeId]: { ...r[cubeId], ...patch } }));
+  };
+  const unmarked = participants.filter(p => !rows[p.cube_id]?.status).length;
+  const pendingReviews = participants.filter(p => p.attendance?.recovery_status === 'Pending').length;
+
+  const save = async (complete: boolean) => {
+    const attendance = participants
+      .filter(p => rows[p.cube_id]?.status)
+      .map(p => ({ cube_id: p.cube_id, status: rows[p.cube_id].status, note: rows[p.cube_id].note.trim() || null }));
+    if (attendance.length === 0) {
+      alert('Mark at least one Cube first.');
+      return;
+    }
+    if (complete && !window.confirm('Close the webinar? Scores become final and every Cube is told their result.')) return;
+    setBusy(true);
+    try {
+      await api.put(`/webinars/${webinar.id}/attendance`, { attendance, complete });
+      setDirty(false);
+      await reload();
+    } catch (err: any) {
+      alert(err.message || 'Could not save attendance');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const markAllPresent = () => {
+    setDirty(true);
+    setRows(r => Object.fromEntries(participants.map(p => [p.cube_id, { ...r[p.cube_id], status: r[p.cube_id]?.status || 'Present' }])));
+  };
+
+  return (
+    <section id="attendance" className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+          <ClipboardCheck size={18} /> Attendance {completed ? '& scores' : ''}
+        </h2>
+        {!completed && unmarked > 0 && (
+          <button onClick={markAllPresent} className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200">
+            Mark the rest present
+          </button>
+        )}
+      </div>
+
+      {completed && webinar.engagement && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className={`rounded-xl p-3 ${scoreTone(webinar.engagement.average)}`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Average score</p>
+            <p className="text-xl font-extrabold">{webinar.engagement.average ?? '—'}</p>
+          </div>
+          <div className="rounded-xl p-3 bg-gray-50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Attendance</p>
+            <p className="text-xl font-extrabold text-gray-900">{webinar.engagement.attendance_rate ?? '—'}%</p>
+          </div>
+          <div className="rounded-xl p-3 bg-gray-50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">No question</p>
+            <p className="text-xl font-extrabold text-gray-900">{webinar.engagement.missed_questions}</p>
+          </div>
+          <div className="rounded-xl p-3 bg-gray-50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Recovery to review</p>
+            <p className={`text-xl font-extrabold ${pendingReviews > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>{pendingReviews}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col divide-y divide-gray-50">
+        {participants.map(p => {
+          const row = rows[p.cube_id] || { status: null, note: '' };
+          return (
+            <div key={p.cube_id} className="py-3 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <UserAvatar name={p.name} avatarUrl={p.avatar_url} size="sm" className="shrink-0" />
+                <div className="min-w-0">
+                  <Link to={`/cubes/${p.cube_id}`} className="text-sm font-bold text-gray-900 hover:underline truncate block">{p.name}</Link>
+                  <p className={`text-[11px] font-semibold ${p.question_count > 0 ? 'text-gray-500' : 'text-red-600'}`}>
+                    {p.question_count > 0 ? `${p.question_count} question${p.question_count === 1 ? '' : 's'}` : 'No question'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {ATTENDANCE_STATUSES.map(status => (
+                  <button
+                    key={status}
+                    onClick={() => set(p.cube_id, { status })}
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border ${
+                      row.status === status ? attendanceStyle[status] : 'bg-white border-gray-200 text-gray-400 hover:text-gray-700'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 lg:justify-end">
+                {(row.status === 'Excused' || row.status === 'Late' || row.note) && (
+                  <input
+                    value={row.note}
+                    onChange={e => set(p.cube_id, { note: e.target.value })}
+                    placeholder={row.status === 'Excused' ? 'Reason' : 'Note'}
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-36"
+                  />
+                )}
+                {completed && p.score && (
+                  <span className={`text-xs font-extrabold px-2 py-1 rounded-lg ${scoreTone(p.score.score)}`} title={questionLevelLabel[p.score.question_level]}>
+                    {p.score.score}
+                  </span>
+                )}
+              </div>
+              <RecoveryReview participant={p} reload={reload} />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-100">
+        {!completed && unmarked > 0 && <span className="text-xs text-gray-500 mr-auto">{unmarked} Cube(s) not marked yet</span>}
+        <button onClick={() => save(false)} disabled={busy || !dirty} className="text-xs font-bold bg-gray-100 text-gray-800 px-4 py-2 rounded-lg disabled:opacity-40">
+          {completed ? 'Save changes' : 'Save attendance'}
+        </button>
+        {!completed && (
+          <button
+            onClick={() => save(true)}
+            disabled={busy || unmarked > 0}
+            title={unmarked > 0 ? 'Mark every Cube first' : undefined}
+            className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#e6007e] text-white px-4 py-2 rounded-lg disabled:opacity-40"
+          >
+            <CheckCircle2 size={14} /> Save & close webinar
+          </button>
+        )}
+      </div>
+    </section>
   );
 };
 
@@ -467,6 +961,8 @@ export const WebinarDetail: React.FC = () => {
   }
 
   const speakers = webinar.speakers || [];
+  const started = new Date(webinar.date).getTime() <= Date.now();
+  const showAttendance = isStaff && (webinar.status === 'Completed' || (webinar.status === 'Published' && started));
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -491,13 +987,24 @@ export const WebinarDetail: React.FC = () => {
             )}
             {webinar.status === 'Published' && (
               <>
-                <button onClick={() => setStatus('Completed', 'Mark this webinar as completed? New questions will be closed.')} disabled={busy} className="workspace-secondary-action">
-                  <CheckCircle2 size={16} /> Mark completed
-                </button>
+                {started && (
+                  <a href="#attendance" className="workspace-primary-action">
+                    <ClipboardCheck size={16} /> Take attendance
+                  </a>
+                )}
                 <button onClick={() => setStatus('Cancelled', 'Cancel this webinar?')} disabled={busy} className="workspace-secondary-action">
                   <X size={16} /> Cancel
                 </button>
               </>
+            )}
+            {webinar.status === 'Completed' && (
+              <button
+                onClick={() => setStatus('Published', 'Reopen this webinar? Its scores stop counting until you close it again.')}
+                disabled={busy}
+                className="workspace-secondary-action"
+              >
+                <RotateCcw size={16} /> Reopen
+              </button>
             )}
             {webinar.status === 'Cancelled' && (
               <button onClick={() => setStatus('Draft', 'Move this webinar back to draft?')} disabled={busy} className="workspace-secondary-action">
@@ -522,6 +1029,9 @@ export const WebinarDetail: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 flex flex-col gap-6">
+          {!isStaff && webinar.status === 'Completed' && <CubeResult webinar={webinar} reload={load} />}
+          {showAttendance && <StaffAttendance webinar={webinar} reload={load} />}
+
           {speakers.length === 0 ? (
             <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-gray-500 shadow-sm">
               <Mic size={32} className="mx-auto text-gray-300 mb-2" />
