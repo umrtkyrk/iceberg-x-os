@@ -1,4 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { AuthenticatedRequest, requireAuth } from '../middlewares/auth.middleware';
 import { FORUM_ENABLED } from '../config/env';
 import { badRequest, sendError } from '../utils/http';
@@ -8,6 +9,7 @@ import { forumContext } from '../services/forumContext.service';
 import { forumMentionPeople } from '../services/forumNotifications.service';
 import { manageForumCategory } from '../services/forumCategory.service';
 import * as forum from '../services/forum.service';
+import { StorageService } from '../services/storage.service';
 
 const router = Router();
 const buckets = new Map<string, { count: number; until: number }>();
@@ -31,6 +33,43 @@ function body(req: AuthenticatedRequest): Record<string, unknown> {
   return req.body;
 }
 const posting = (fn: Handler): Handler => async req => { body(req); await assertForumPosting(req.user!); return fn(req); };
+const FORUM_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const FORUM_IMAGES_PER_HOUR = 30;
+const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: FORUM_IMAGE_MAX_BYTES, files: 1 } });
+const imageBuckets = new Map<string, { count: number; until: number }>();
+const imageTimer = setInterval(() => { for (const [id, bucket] of imageBuckets) if (bucket.until <= Date.now()) imageBuckets.delete(id); }, 600000);
+imageTimer.unref();
+
+/** Detects the image type from the file's first bytes; the client's MIME type and name are not trusted. */
+export function forumImageType(buffer: Buffer): 'png' | 'jpg' | 'webp' | 'gif' | null {
+  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg';
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  if (buffer.length >= 6 && ['GIF87a', 'GIF89a'].includes(buffer.toString('ascii', 0, 6))) return 'gif';
+  return null;
+}
+
+router.post('/forum/images', (req: AuthenticatedRequest, res: Response) => {
+  imageUpload.single('image')(req, res, async error => {
+    try {
+      if (error instanceof multer.MulterError) throw badRequest(error.code === 'LIMIT_FILE_SIZE' ? 'Images can be up to 5 MB.' : 'Upload one image at a time.');
+      if (error) throw error;
+      await assertForumPosting(req.user!);
+      const now = Date.now(), old = imageBuckets.get(req.user!.id);
+      const bucket = old && old.until > now ? old : { count: 0, until: now + 3600000 };
+      if (bucket.count >= FORUM_IMAGES_PER_HOUR) { res.setHeader('Retry-After', Math.ceil((bucket.until - now) / 1000)); return res.status(429).json({ error: 'You have uploaded a lot of images. Please try again later.' }); }
+      const file = req.file;
+      if (!file) throw badRequest('Choose an image to upload.');
+      const type = forumImageType(file.buffer);
+      if (!type) throw badRequest('Only PNG, JPEG, WEBP and GIF images can be uploaded.');
+      bucket.count++; imageBuckets.set(req.user!.id, bucket);
+      const { relativeUrl } = await StorageService.saveForumImage(file.buffer, type);
+      return res.status(201).json({ url: relativeUrl });
+    } catch (caught) {
+      return sendError(res, caught);
+    }
+  });
+});
 router.get('/forum/me/profile', handle(req => forumViewer(req.user!)));
 router.put('/forum/me/profile', handle(req => saveForumProfile(req.user!, body(req))));
 router.get('/forum/context', handle(req => forumContext(req.user!)));

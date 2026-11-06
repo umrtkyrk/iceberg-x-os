@@ -112,7 +112,7 @@ export async function readForumTopic(actor: ForumActor, id: string, page: number
 }
 
 export async function createForumTopic(actor: ForumActor, input: Record<string, unknown>) {
-  const title = forumText(input.title, 'Title', 8, 160), body = forumText(input.body, 'Message', 15, 10000);
+  const title = forumText(input.title, 'Title', 1, 160), body = forumText(input.body, 'Message', 1, 10000);
   const categoryId = forumText(input.category_id, 'Category', 1, 80);
   const category = await prisma.forumCategory.findUnique({ where: { id: categoryId } });
   if (!category) throw badRequest('Category not found.');
@@ -141,7 +141,7 @@ export async function changeForumTopic(actor: ForumActor, id: string, input: Rec
     if (topic.locked) throw forbidden('A locked topic cannot be edited.');
     const context = 'quest_id' in input || 'mission_id' in input ? await topicContextInput(actor, input, tx) : {};
     const edit = { ...context, edited_at: new Date() };
-    return tx.forumTopic.update({ where: { id }, data: { title: forumText(input.title, 'Title', 8, 160), body: forumText(input.body, 'Message', 15, 10000), context: { upsert: { create: edit, update: edit } } } });
+    return tx.forumTopic.update({ where: { id }, data: { title: forumText(input.title, 'Title', 1, 160), body: forumText(input.body, 'Message', 1, 10000), context: { upsert: { create: edit, update: edit } } } });
   });
 }
 

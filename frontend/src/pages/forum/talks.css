@@ -67,13 +67,6 @@
 .cube-forum .forum-context-item { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; overflow-wrap: anywhere; }
 .cube-forum .forum-context-item small { margin-left: auto; color: var(--talk-muted); }
 .cube-forum .forum-context-item a:hover { color: var(--talk-accent); }
-.cube-forum .forum-mentions { margin: 10px 0; padding: 8px 10px; background: var(--talk-bg); border-radius: 10px; font-size: 12px; }
-.cube-forum .forum-mentions summary { cursor: pointer; font-weight: 700; }
-.cube-forum .forum-mentions label { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
-.cube-forum .forum-mentions input { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--talk-line); border-radius: 8px; background: #fff; }
-.cube-forum .forum-mentions button { display: block; padding: 8px; width: 100%; overflow-wrap: anywhere; }
-.cube-forum .forum-mentions button:hover { background: var(--talk-accent-soft); }
-.cube-forum .forum-mentions small { color: var(--talk-muted); }
 .cube-forum .forum-category-admin { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
 .cube-forum .forum-category-admin > div { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--talk-line); border-radius: 10px; }
 .cube-forum .forum-category-admin span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -274,8 +267,12 @@
 .cube-forum .forum-optional-context summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .cube-forum .forum-optional-context summary > span { margin-left: 6px; color: var(--talk-muted); font-size: 11px; font-weight: 500; }
 .cube-forum .forum-optional-context .forum-context-fields { margin-top: 12px; }
-.cube-forum .forum-mentions button { border-radius: 8px; font-weight: 700; }
-.cube-forum .forum-mentions button small { display: block; font-size: 11px; font-weight: 500; }
+/* Images uploaded to the forum. */
+.cube-forum .forum-image { display: inline-block; max-width: 100%; text-decoration: none; }
+.cube-forum .forum-image img { display: block; max-width: 100%; max-height: 480px; border: 1px solid var(--talk-line); border-radius: 12px; object-fit: contain; background: var(--talk-bg); }
+/* @mentions: pink names in posts and while writing. The editor's mark must not change text width. */
+.cube-forum .mention-tag { color: var(--talk-accent); font-weight: 800; }
+.cube-forum mark.mention-tag { padding: 0; border-radius: 3px; background: var(--talk-accent-soft); font-weight: inherit; }
 .cube-forum :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--talk-accent); outline-offset: 3px; }
 
 @media (max-width: 1280px) {

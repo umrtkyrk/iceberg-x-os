@@ -5,8 +5,10 @@ import { ArrowLeft, Bookmark, BookOpen, CheckCircle2, Clock, Coffee, Flame, Hand
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
-import { AuthorIdentity, CategoryManager, ContextFields, ForumPreferences, MentionPicker, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
+import { AuthorIdentity, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
 import { forumLocation, forumPageParams, forumReadStatus, forumListParams, forumSearchParams } from './forumModel';
+import { MentionAwareLink, mentionsToText } from '../../utils/mentions';
+import { ForumImage, stripImages, uploadForumImage } from '../../utils/forumImages';
 import './talks.css';
 
 interface Post { id: string; body: string; author: Author | null; created_at: string; updated_at: string }
@@ -27,7 +29,7 @@ function ago(value: string) {
   return unit ? relative.format(Math.round(seconds / unit[1]), unit[0]) : 'just now';
 }
 // A plain-text teaser for feed cards; formatting is shown only on the topic page.
-const preview = (text: string) => (text || '').replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~[\]()!-]/g, ' ').replace(/\s+/g, ' ').trim();
+const preview = (text: string) => mentionsToText(stripImages(text)).replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~[\]()!-]/g, ' ').replace(/\s+/g, ' ').trim();
 const emptyList: TopicList = { topics: [], total: 0, pageSize: 20 };
 const hints: Record<string, string> = {
   announcements: 'State the scope and date of the announcement and what Cubes are expected to do.',
@@ -52,7 +54,7 @@ function CommunityIcon({ id, size = 24 }: { id?: string; size?: number }) {
   const Icon = style.icon;
   return <span className="talk-community-icon" style={{ width: size, height: size, background: style.color }} aria-hidden="true"><Icon size={Math.round(size * 0.55)}/></span>;
 }
-function Markdown({ text }: { text: string }) { return <div className="markdown"><ReactMarkdown skipHtml components={{ img: () => null }}>{text || ''}</ReactMarkdown></div>; }
+function Markdown({ text }: { text: string }) { return <div className="markdown"><ReactMarkdown skipHtml components={{ img: ForumImage, a: MentionAwareLink }}>{text || ''}</ReactMarkdown></div>; }
 
 export default function Forum() {
   const { user } = useAuth();
@@ -195,12 +197,11 @@ export default function Forum() {
   }); };
   const editorForm = (current: Editor) => <form className="talk-card talk-form" onSubmit={submitEditor}>{current.kind === 'create' && <h2>Create a post</h2>}<fieldset disabled={busy || loading}>
     {current.kind === 'create' && <label>Community<select value={current.category} onChange={event => setEditor({ ...current, category: event.target.value })}>{categories.filter(c => !c.staff_only || staff).map(c => <option key={c.id} value={c.id}>c/{c.id} · {c.name}</option>)}</select></label>}
-    {current.kind !== 'reply' && <label>Title<input id="forum-topic-title" required minLength={8} maxLength={160} value={current.title} onChange={event => setEditor({ ...current, title: event.target.value })} placeholder="A title that clearly describes the topic"/></label>}
-    <label htmlFor="live-editor">Body</label><MarkdownEditor id="live-editor" required disabled={busy} value={current.body} onChange={body => setEditor({ ...current, body: body.slice(0, current.kind === 'reply' ? 5000 : 10000) })} placeholder={hints[current.category] || 'What would you like to share?'} rows={8}/>
+    {current.kind !== 'reply' && <label>Title<input id="forum-topic-title" required maxLength={160} value={current.title} onChange={event => setEditor({ ...current, title: event.target.value })} placeholder="A title that clearly describes the topic"/></label>}
+    <label htmlFor="live-editor">Body</label><MarkdownEditor id="live-editor" mentions onUploadImage={uploadForumImage} required disabled={busy} value={current.body} onChange={body => setEditor({ ...current, body: body.slice(0, current.kind === 'reply' ? 5000 : 10000) })} placeholder={hints[current.category] || 'What would you like to share?'} rows={8}/>
     {current.kind !== 'reply' && <details className="forum-optional-context" open={!!(current.quest || current.mission) || undefined}><summary>Link a quest or mission <span>Optional</span></summary><ContextFields context={context} quest={current.quest || ''} mission={current.mission || ''} onChange={(quest, mission) => setEditor({ ...current, quest, mission })}/></details>}
-    <MentionPicker onPick={token => setEditor({ ...current, body: (current.body + '\n' + token).slice(0, current.kind === 'reply' ? 5000 : 10000) })}/>
-    <p className="talk-hint">{current.kind === 'reply' ? 'Up to 5,000' : '15–10,000'} characters · Markdown supported · no image uploads</p>
-    <div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" onClick={() => setEditor(null)}>Cancel</button><button className="talk-btn is-primary" disabled={current.body.trim().length < (current.kind === 'reply' ? 1 : 15) || (current.kind !== 'reply' && current.title.trim().length < 8)}>{busy ? 'Saving…' : current.kind === 'create' ? 'Post' : 'Save'}</button></div>
+    <p className="talk-hint">Up to {current.kind === 'reply' ? '5,000' : '10,000'} characters · Markdown supported · images up to 5 MB (button or paste)</p>
+    <div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" onClick={() => setEditor(null)}>Cancel</button><button className="talk-btn is-primary" disabled={!current.body.trim() || (current.kind !== 'reply' && !current.title.trim())}>{busy ? 'Saving…' : current.kind === 'create' ? 'Post' : 'Save'}</button></div>
   </fieldset></form>;
   const reportForm = <form className="talk-card talk-form" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/reports`, { ...reportTarget, reason }); setReportTarget(null); setMessage('Thanks — the moderators will take a look.'); }); }}><label>Why are you reporting this?<textarea required minLength={10} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Briefly explain the problem."/></label><div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" disabled={busy} onClick={() => setReportTarget(null)}>Cancel</button><button className="talk-btn is-primary" disabled={busy || reason.trim().length < 10}>Report</button></div></form>;
   const deleteConfirm = (target: string) => deleteTarget === target && <div className="talk-card talk-danger" role="alert"><p>Remove this post from the discussion? Its history will be retained for moderation.</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="talk-btn is-danger" disabled={busy} onClick={() => void mutate(async () => { await api.delete(target); if (target === topicPath) setParams({}); setDeleteTarget(null); setMessage('The post has been deleted.'); })}>Delete</button></div></div>;
@@ -320,8 +321,7 @@ export default function Forum() {
         </article>
 
         {!canPost ? null : thread.topic.locked ? <p className="talk-notice"><LockKeyhole size={14}/>This topic is locked. New comments cannot be posted.</p> : <form className="talk-composer" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setParams({ topic: thread.topic.id, page: String(Math.ceil((thread.total + 1) / pageSize)) }); setMessage('Your comment has been posted.'); }); }}>
-          <label htmlFor="live-reply" className="talk-reply-label">Join the conversation</label><MarkdownEditor id="live-reply" required disabled={busy} value={reply} onChange={value => setReply(value.slice(0, 5000))} placeholder="Join the conversation"/>
-          <MentionPicker onPick={token => setReply(value => (value + '\n' + token).slice(0, 5000))}/>
+          <label htmlFor="live-reply" className="talk-reply-label">Join the conversation</label><MarkdownEditor id="live-reply" mentions onUploadImage={uploadForumImage} required disabled={busy} value={reply} onChange={value => setReply(value.slice(0, 5000))} placeholder="Join the conversation"/>
           <div className="talk-form-actions"><small>{reply.length}/5000</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
         </form>}
 

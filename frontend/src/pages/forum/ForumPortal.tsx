@@ -67,25 +67,6 @@ export function ContextFields({ context, quest, mission, onChange }: { context: 
   return <div className="forum-context-fields"><label>Related quest <select value={quest} onChange={e => onChange(e.target.value, mission)}><option value="">No link</option>{context.quests.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}</select></label><label>Related mission <select value={mission} onChange={e => onChange(quest, e.target.value)}><option value="">No link</option>{context.missions.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</select></label><p className="talk-hint">Links provide context; they do not advance quests or grant rewards.</p></div>;
 }
 
-export function MentionPicker({ onPick }: { onPick: (token: string) => void }) {
-  const [query, setQuery] = useState('');
-  const [people, setPeople] = useState<{ id: string; name: string; handle: string }[]>([]);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  useEffect(() => {
-    let current = true;
-    setPeople([]); setError(false); setSearched(false);
-    setLoading(query.trim().length >= 2);
-    const timer = setTimeout(() => {
-      if (query.trim().length < 2) return;
-      void api.get<typeof people>(`/forum/mentions?q=${encodeURIComponent(query.trim())}`).then(rows => { if (current) { setPeople(rows); setSearched(true); } }).catch(() => { if (current) setError(true); }).finally(() => { if (current) setLoading(false); });
-    }, 250);
-    return () => { current = false; clearTimeout(timer); };
-  }, [query]);
-  return <details className="forum-mentions"><summary>@ Mention someone</summary><label>Find a person<input autoComplete="off" value={query} onChange={e => setQuery(e.target.value)} maxLength={80} placeholder="Search by name"/></label><p className="talk-hint" role="status">{loading ? 'Searching…' : error ? 'People could not be loaded. Try searching again.' : searched && !people.length ? 'No matching Cubes or team members.' : query.trim().length < 2 ? 'Type at least two letters.' : ''}</p><div>{people.map(person => <button type="button" key={person.id} onClick={() => { onPick(`@${person.handle} `); setQuery(''); }}>{person.name}<small>{person.handle.startsWith('cube-') ? `Cube #${person.handle.slice(5)}` : 'Team member'} · Insert mention</small></button>)}</div><small>They will receive a portal notification. Mentions in code and quotations do not notify.</small></details>;
-}
-
 export function CategoryManager({ categories, busy, onSave, onRemove }: { categories: Category[]; busy: boolean; onSave: (category: Omit<Category, '_count' | 'topics'>, existing: boolean) => void; onRemove: (id: string) => void }) {
   const blank = { id: '', name: '', description: '', position: categories.length + 1, staff_only: false };
   const [draft, setDraft] = useState(blank);
