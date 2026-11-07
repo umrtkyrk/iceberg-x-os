@@ -1,2 +1,2 @@
-// Design preview only. The real forum API has not been introduced.
-export const FORUM_PREVIEW_ENABLED = import.meta.env.VITE_CUBE_FORUM_PREVIEW === 'true';
+// The Cube Forum uses the real /api/forum endpoints; the backend needs FORUM_ENABLED=true as well.
+export const FORUM_ENABLED = import.meta.env.VITE_CUBE_FORUM_ENABLED === 'true';

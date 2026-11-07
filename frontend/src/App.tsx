@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { FORUM_PREVIEW_ENABLED } from './config/features';
+import { FORUM_ENABLED } from './config/features';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
@@ -78,7 +78,7 @@ function App() {
           >
             {/* Dashboard Router */}
             <Route path="dashboard" element={<Dashboard />} />
-            {FORUM_PREVIEW_ENABLED && <Route path="forum" element={<Suspense fallback={<p role="status">Forum yükleniyor…</p>}><Forum /></Suspense>} />}
+            {FORUM_ENABLED && <Route path="forum" element={<Suspense fallback={<p role="status">Loading the forum…</p>}><Forum /></Suspense>} />}
             <Route path="change-password" element={<ChangePassword />} />
             <Route path="notification-history" element={<NotificationHistory />} />
 
