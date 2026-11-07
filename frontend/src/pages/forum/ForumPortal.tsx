@@ -71,7 +71,10 @@ export function CategoryManager({ categories, busy, onSave, onRemove }: { catego
   const [draft, setDraft] = useState(blank);
   const [existing, setExisting] = useState(false);
   const [remove, setRemove] = useState<string | null>(null);
-  useEffect(() => { setDraft({ id: '', name: '', description: '', position: categories.length + 1, staff_only: false }); setExisting(false); }, [categories]);
+  // Reset the form only when the saved communities actually change (e.g. after a successful save),
+  // not on every refetch, which hands us a new array with the same data and would wipe an unsaved edit.
+  const savedSignature = categories.map(c => [c.id, c.name, c.description, c.position, c.staff_only].join('\u0001')).join('\u0002');
+  useEffect(() => { setDraft({ id: '', name: '', description: '', position: categories.length + 1, staff_only: false }); setExisting(false); }, [savedSignature]); // eslint-disable-line react-hooks/exhaustive-deps
   return <section><h3>Manage communities</h3><p className="talk-hint">Community codes stay fixed. Edit names, descriptions, order and posting permissions. Communities with topic history cannot be deleted.</p>
     <div className="forum-category-admin">{categories.map(c => <div key={c.id}><span>{c.position}. {c.name}<small>{c._count?.topics || 0} topics · {c.staff_only ? 'Mentor/Admin' : 'All Cubes'}</small></span><button type="button" className="talk-pill" disabled={busy} onClick={() => { setDraft(c); setExisting(true); }}>Edit</button><button type="button" className="talk-pill" disabled={busy || c.id === 'announcements' || (c._count?.topics || 0) > 0} title={(c._count?.topics || 0) > 0 ? 'Move topics first before removing this community' : undefined} onClick={() => setRemove(c.id)}>Remove</button></div>)}</div>
     {remove && <div className="talk-card talk-danger" role="alert"><p>Remove this empty community?</p><div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" disabled={busy} onClick={() => setRemove(null)}>Cancel</button><button type="button" className="talk-btn is-danger" disabled={busy} onClick={() => { onRemove(remove); setRemove(null); }}>Remove</button></div></div>}

@@ -7,7 +7,7 @@ import { api } from '../../utils/api';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
 import { AuthorIdentity, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
 import { forumLocation, forumPageParams, forumReadStatus, forumListParams, forumSearchParams } from './forumModel';
-import { MentionAwareLink, mentionsToText } from '../../utils/mentions';
+import { MentionAwareLink, mentionOverhead, mentionsToText } from '../../utils/mentions';
 import { ForumImage, stripImages, uploadForumImage } from '../../utils/forumImages';
 import './talks.css';
 
@@ -207,10 +207,10 @@ export default function Forum() {
   };
 
   const submitEditor = (event: FormEvent) => { event.preventDefault(); if (!editor) return; void mutate(async () => {
-    setMessage('Your post has been saved.');
-    if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category, quest_id: editor.quest || null, mission_id: editor.mission || null }); setEditor(null); return navigateAfterMutate({ topic: created.id }); }
+    // The confirmation is set only after the request succeeds, so a failed save never reports success.
+    if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category, quest_id: editor.quest || null, mission_id: editor.mission || null }); setEditor(null); setMessage('Your post has been saved.'); return navigateAfterMutate({ topic: created.id }); }
     await api.patch(editor.kind === 'topic' ? topicPath : `${topicPath}/replies/${editor.id}`, { title: editor.title, body: editor.body, ...(editor.kind === 'topic' ? { quest_id: editor.quest || null, mission_id: editor.mission || null } : {}) });
-    setEditor(null);
+    setEditor(null); setMessage('Your post has been saved.');
   }); };
   const editorForm = (current: Editor) => <form className="talk-card talk-form" onSubmit={submitEditor}>{current.kind === 'create' && <h2>Create a post</h2>}<fieldset disabled={busy || loading}>
     {current.kind === 'create' && <label>Community<select value={current.category} onChange={event => setEditor({ ...current, category: event.target.value })}>{categories.filter(c => !c.staff_only || staff).map(c => <option key={c.id} value={c.id}>c/{c.id} · {c.name}</option>)}</select></label>}
@@ -339,7 +339,7 @@ export default function Forum() {
 
         {!canPost ? null : thread.topic.locked ? <p className="talk-notice"><LockKeyhole size={14}/>This topic is locked. New comments cannot be posted.</p> : <form className="talk-composer" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setMessage('Your comment has been posted.'); return navigateAfterMutate({ topic: thread.topic.id, page: String(Math.ceil((thread.total + 1) / pageSize)) }); }); }}>
           <label htmlFor="live-reply" className="talk-reply-label">Join the conversation</label><MarkdownEditor id="live-reply" mentions maxLength={5000} onUploadImage={uploadForumImage} required disabled={busy} value={reply} onChange={setReply} placeholder="Join the conversation"/>
-          <div className="talk-form-actions"><small>{mentionsToText(reply).length}/5000</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
+          <div className="talk-form-actions"><small>{mentionsToText(reply).length}/{5000 - mentionOverhead(reply)}</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
         </form>}
 
         {!thread.total && <p className="talk-empty">No comments yet. Be the first to share what you think.</p>}

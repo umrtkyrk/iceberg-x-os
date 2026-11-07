@@ -8,7 +8,7 @@ const { forumLocation, forumPageParams, forumListParams, forumSearchParams, foru
 const mentionsSource = 'const React = { createElement: () => null }; const Link = "a";\n' +
   readFileSync(new URL('../src/utils/mentions.tsx', import.meta.url), 'utf8').replace(/^import\s+.*$/gm, '');
 const mentionsJs = ts.transpileModule(mentionsSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React } }).outputText;
-const { encodeMentions, mentionsToText } = await import('data:text/javascript;base64,' + Buffer.from(mentionsJs).toString('base64'));
+const { encodeMentions, mentionOverhead, mentionsToText } = await import('data:text/javascript;base64,' + Buffer.from(mentionsJs).toString('base64'));
 
 test('current and legacy notification URLs resolve the topic and exact reply', () => {
   assert.deepEqual(forumLocation(new URLSearchParams('konu=t&yanit=r')), { topic: 't', reply: 'r', page: 1 });
@@ -95,6 +95,15 @@ test('encodeMentions skips inline code and fenced/indented code blocks and clamp
   assert.ok(clampedSafe.length <= 35);
   assert.ok(clampedSafe.startsWith('Hello [@Ali Veli](@cube-001)'));
   assert.equal(mentionsToText(encoded), raw);
+});
+
+test('mentionOverhead is the stored characters mention links add beyond the visible text', () => {
+  assert.equal(mentionOverhead('plain text'), 0);
+  assert.equal(mentionOverhead(''), 0);
+  const stored = 'Hi [@Ali Veli](@cube-001)!';
+  assert.equal(mentionsToText(stored), 'Hi @Ali Veli!');
+  // The visible limit (stored limit minus overhead) keeps the stored body within the server limit.
+  assert.equal(mentionsToText(stored).length + mentionOverhead(stored), stored.length);
 });
 
 test('forum CSS cannot style portal Markdown or controls outside the forum', () => {

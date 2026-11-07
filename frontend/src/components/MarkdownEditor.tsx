@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2 } from 'lucide-react';
 import { MentionTextarea } from './MentionTextarea';
-import { MentionAwareLink, decodeMentions, encodeMentions, type MentionMap } from '../utils/mentions';
+import { MentionAwareLink, decodeMentions, encodeMentions, mentionOverhead, type MentionMap } from '../utils/mentions';
 import { FORUM_IMAGE_TYPES, ForumImage } from '../utils/forumImages';
 
 interface MarkdownEditorProps {
@@ -37,6 +37,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // With mentions on, the textarea shows "@Name" while the stored body keeps "[@Name](@handle)".
   const known = useRef<MentionMap>(new Map());
   const value = mentions ? decodeMentions(storedValue, known.current) : storedValue;
+  // The textarea limits visible text; mention links take extra stored characters, so subtract them.
+  const visibleLimit = maxLength === undefined ? undefined : Math.max(0, maxLength - (mentions ? mentionOverhead(storedValue) : 0));
   const onChange = (text: string) => onStoredChange(mentions ? encodeMentions(text, known.current, maxLength) : (maxLength !== undefined ? text.slice(0, maxLength) : text));
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -222,7 +224,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
-            maxLength={maxLength}
+            maxLength={visibleLimit}
             placeholder={placeholder}
             value={value}
             onChange={onChange}
@@ -238,7 +240,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
-            maxLength={maxLength}
+            maxLength={visibleLimit}
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
