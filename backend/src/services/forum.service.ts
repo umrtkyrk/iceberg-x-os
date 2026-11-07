@@ -123,8 +123,10 @@ export async function createForumTopic(actor: ForumActor, input: Record<string, 
     if (!liveCategory) throw badRequest('Category not found.');
     assertForumCategory(actor, liveCategory.staff_only);
     const context = await topicContextInput(actor, input, tx);
+    const now = new Date();
     const topic = await tx.forumTopic.create({ data: { title, body, category_id: categoryId, author_id: actor.id,
-      context: { create: context }, states: { create: { user_id: actor.id, following: true } } } });
+      created_at: now, last_activity_at: now,
+      context: { create: context }, states: { create: { user_id: actor.id, following: true, read_at: now } } } });
     await notifyForumEvent(tx, actor, topic, body);
     return topic;
   });
@@ -135,7 +137,9 @@ export async function changeForumTopic(actor: ForumActor, id: string, input: Rec
     const topic = await lockedTopic(tx, id);
     if (remove) {
       if (!isForumStaff(actor)) assertForumAuthor(actor, topic.author_id);
-      return tx.forumTopic.update({ where: { id }, data: { deleted_at: new Date(), deleted_by_id: actor.id } });
+      const now = new Date();
+      await tx.forumReport?.updateMany({ where: { topic_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
+      return tx.forumTopic.update({ where: { id }, data: { deleted_at: now, deleted_by_id: actor.id } });
     }
     assertForumAuthor(actor, topic.author_id);
     if (topic.locked) throw forbidden('A locked topic cannot be edited.');
@@ -169,6 +173,8 @@ export async function createForumReply(actor: ForumActor, topicId: string, input
     if (topic.locked) throw forbidden('This topic is closed to new replies.');
     const reply = await tx.forumReply.create({ data: { body, topic_id: topicId, author_id: actor.id } });
     await tx.forumTopic.update({ where: { id: topicId }, data: { last_activity_at: reply.created_at } });
+    await tx.forumTopicState?.upsert?.({ where: { user_id_topic_id: { user_id: actor.id, topic_id: topicId } },
+      create: { user_id: actor.id, topic_id: topicId, read_at: reply.created_at }, update: { read_at: reply.created_at } });
     await notifyForumEvent(tx, actor, topic, body, reply.id);
     return reply;
   });
@@ -181,8 +187,15 @@ export async function changeForumReply(actor: ForumActor, topicId: string, id: s
     if (!reply) throw notFound('Reply not found.');
     if (remove) {
       if (!isForumStaff(actor)) assertForumAuthor(actor, reply.author_id);
-      if (topic.accepted_reply_id === id) await tx.forumTopic.update({ where: { id: topicId }, data: { accepted_reply_id: null } });
-      return tx.forumReply.update({ where: { id }, data: { deleted_at: new Date(), deleted_by_id: actor.id } });
+      const now = new Date();
+      const removed = await tx.forumReply.update({ where: { id }, data: { deleted_at: now, deleted_by_id: actor.id } });
+      await tx.forumReport?.updateMany({ where: { topic_id: topicId, reply_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
+      const latest = await tx.forumReply.findFirst({ where: { topic_id: topicId, deleted_at: null }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], select: { created_at: true } });
+      await tx.forumTopic.update({ where: { id: topicId }, data: {
+        last_activity_at: latest?.created_at || topic.created_at,
+        ...(topic.accepted_reply_id === id ? { accepted_reply_id: null } : {}),
+      } });
+      return removed;
     }
     assertForumAuthor(actor, reply.author_id);
     if (topic.locked) throw forbidden('Replies in a locked topic cannot be edited.');
@@ -222,8 +235,10 @@ export async function reportForumPost(actor: ForumActor, id: string, input: Reco
   const reason = forumText(input.reason, 'Report reason', 10, 1000);
   const replyId = input.reply_id === undefined ? undefined : forumText(input.reply_id, 'Reply', 1, 100);
   return prisma.$transaction(async tx => {
-    await lockedTopic(tx, id);
-    if (replyId && !await tx.forumReply.findFirst({ where: { id: replyId, topic_id: id, deleted_at: null } })) throw notFound('Reply not found.');
+    const topic = await lockedTopic(tx, id);
+    const reply = replyId ? await tx.forumReply.findFirst({ where: { id: replyId, topic_id: id, deleted_at: null } }) : null;
+    if (replyId && !reply) throw notFound('Reply not found.');
+    if ((reply ? reply.author_id : topic.author_id) === actor.id) throw badRequest('You cannot report your own post.');
     const existing = await tx.forumReport.findFirst({ where: { topic_id: id, reply_id: replyId || null, reporter_id: actor.id, resolved_at: null } });
     if (existing) return existing;
     return tx.forumReport.create({ data: { topic_id: id, reply_id: replyId, reporter_id: actor.id, reason } });

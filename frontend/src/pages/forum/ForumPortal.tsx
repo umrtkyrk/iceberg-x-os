@@ -1,7 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeDisc, RarityPill } from '../../components/BadgeMedal';
-import { api } from '../../utils/api';
 import { getAssetUrl } from '../../utils/assets';
 
 export interface ForumBadge { id: string; name: string; icon: string; rarity: string }
@@ -64,7 +63,7 @@ export function ForumPreferences({ viewer, onSave, busy, onCancel }: { viewer: V
 
 export function ContextFields({ context, quest, mission, onChange }: { context: ForumContext | null; quest: string; mission: string; onChange: (quest: string, mission: string) => void }) {
   if (!context) return <p className="talk-hint">Quest and mission options could not be loaded. You can still post without a link.</p>;
-  return <div className="forum-context-fields"><label>Related quest <select value={quest} onChange={e => onChange(e.target.value, mission)}><option value="">No link</option>{context.quests.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}</select></label><label>Related mission <select value={mission} onChange={e => onChange(quest, e.target.value)}><option value="">No link</option>{context.missions.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</select></label><p className="talk-hint">Links provide context; they do not advance quests or grant rewards.</p></div>;
+  return <div className="forum-context-fields"><label>Related quest <select value={quest} onChange={e => onChange(e.target.value, mission)}><option value="">No link</option>{quest && !context.quests.some(q => q.id === quest) && <option value={quest}>Linked quest</option>}{context.quests.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}</select></label><label>Related mission <select value={mission} onChange={e => onChange(quest, e.target.value)}><option value="">No link</option>{mission && !context.missions.some(m => m.id === mission) && <option value={mission}>Linked mission</option>}{context.missions.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</select></label><p className="talk-hint">Links provide context; they do not advance quests or grant rewards.</p></div>;
 }
 
 export function CategoryManager({ categories, busy, onSave, onRemove }: { categories: Category[]; busy: boolean; onSave: (category: Omit<Category, '_count' | 'topics'>, existing: boolean) => void; onRemove: (id: string) => void }) {
@@ -72,16 +71,17 @@ export function CategoryManager({ categories, busy, onSave, onRemove }: { catego
   const [draft, setDraft] = useState(blank);
   const [existing, setExisting] = useState(false);
   const [remove, setRemove] = useState<string | null>(null);
+  useEffect(() => { setDraft({ id: '', name: '', description: '', position: categories.length + 1, staff_only: false }); setExisting(false); }, [categories]);
   return <section><h3>Manage communities</h3><p className="talk-hint">Community codes stay fixed. Edit names, descriptions, order and posting permissions. Communities with topic history cannot be deleted.</p>
-    <div className="forum-category-admin">{categories.map(c => <div key={c.id}><span>{c.position}. {c.name}<small>{c._count?.topics || 0} topics · {c.staff_only ? 'Mentor/Admin' : 'All Cubes'}</small></span><button disabled={busy} onClick={() => { setDraft(c); setExisting(true); }}>Edit</button><button disabled={busy || c.id === 'announcements'} onClick={() => setRemove(c.id)}>Remove</button></div>)}</div>
-    {remove && <p className="talk-card talk-danger">Remove this empty community? <button disabled={busy} onClick={() => { onRemove(remove); setRemove(null); }}>Remove</button><button onClick={() => setRemove(null)}>Cancel</button></p>}
+    <div className="forum-category-admin">{categories.map(c => <div key={c.id}><span>{c.position}. {c.name}<small>{c._count?.topics || 0} topics · {c.staff_only ? 'Mentor/Admin' : 'All Cubes'}</small></span><button type="button" className="talk-pill" disabled={busy} onClick={() => { setDraft(c); setExisting(true); }}>Edit</button><button type="button" className="talk-pill" disabled={busy || c.id === 'announcements' || (c._count?.topics || 0) > 0} title={(c._count?.topics || 0) > 0 ? 'Move topics first before removing this community' : undefined} onClick={() => setRemove(c.id)}>Remove</button></div>)}</div>
+    {remove && <div className="talk-card talk-danger" role="alert"><p>Remove this empty community?</p><div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" disabled={busy} onClick={() => setRemove(null)}>Cancel</button><button type="button" className="talk-btn is-danger" disabled={busy} onClick={() => { onRemove(remove); setRemove(null); }}>Remove</button></div></div>}
     <form className="talk-card talk-form" onSubmit={e => { e.preventDefault(); onSave(draft, existing); }}><h3>{existing ? 'Edit community' : 'New community'}</h3><fieldset disabled={busy}>
       <label>Community code<input required pattern="[a-z][a-z0-9-]+" minLength={2} maxLength={60} disabled={existing} value={draft.id} onChange={e => setDraft({ ...draft, id: e.target.value })}/></label>
       <label>Name<input required minLength={2} maxLength={80} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label>
       <label>Description<textarea required maxLength={300} value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}/></label>
       <label>Position<input type="number" min={0} max={999} required value={draft.position} onChange={e => setDraft({ ...draft, position: Number(e.target.value) })}/></label>
       <label className="forum-check"><input type="checkbox" checked={draft.id === 'announcements' || draft.staff_only} disabled={draft.id === 'announcements'} onChange={e => setDraft({ ...draft, staff_only: e.target.checked })}/>Only Mentors/Admins can create topics</label>
-      <div className="talk-form-actions"><button className="talk-btn is-primary">Save</button><button type="button" onClick={() => { setDraft(blank); setExisting(false); }}>Create another community</button></div>
+      <div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" onClick={() => { setDraft(blank); setExisting(false); }}>Create another community</button><button className="talk-btn is-primary">{busy ? 'Saving…' : 'Save'}</button></div>
     </fieldset></form>
   </section>;
 }

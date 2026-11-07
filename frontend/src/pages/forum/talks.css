@@ -183,8 +183,8 @@
 .cube-forum .talk-form h2 { margin-bottom: 12px; font-size: 18px; font-weight: 800; }
 .cube-forum .talk-form fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .cube-forum .talk-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 800; color: var(--talk-muted); }
-.cube-forum .talk-form input, .cube-forum .talk-form select, .cube-forum .talk-form textarea { padding: 10px 14px; border: 1px solid var(--talk-line); border-radius: 12px; font: inherit; font-weight: 500; color: var(--talk-ink); background: #fafafb; }
-.cube-forum .talk-form textarea { min-height: 90px; resize: vertical; }
+.cube-forum .talk-form input, .cube-forum .talk-form select, .cube-forum .talk-form textarea:not(.markdown-editor textarea) { padding: 10px 14px; border: 1px solid var(--talk-line); border-radius: 12px; font: inherit; font-weight: 500; color: var(--talk-ink); background: #fafafb; }
+.cube-forum .talk-form textarea:not(.markdown-editor textarea) { min-height: 90px; resize: vertical; }
 .cube-forum .talk-form-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 10px; }
 .cube-forum .talk-form-actions small { margin-right: auto; color: var(--talk-soft); font-size: 12px; }
 .cube-forum .talk-quote { margin: 10px 0; padding: 10px 14px; border-radius: 12px; background: var(--talk-hover); }

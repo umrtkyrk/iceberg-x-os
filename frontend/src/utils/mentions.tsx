@@ -31,10 +31,33 @@ export function mentionPattern(names: Iterable<string>) {
   return list.length ? new RegExp(`(^|[\\s(])@(${list.map(escape).join('|')})(?![\\p{L}\\p{N}_])`, 'gu') : null;
 }
 
-/** Editor text → stored body. */
-export function encodeMentions(text: string, known: MentionMap) {
+/** Editor text → stored body, leaving fenced/indented code blocks and inline code untouched. */
+export function encodeMentions(text: string, known: MentionMap, maxLength?: number) {
+  let current = maxLength !== undefined ? text.slice(0, maxLength) : text;
   const pattern = mentionPattern(known.keys());
-  return pattern ? text.replace(pattern, (_, before: string, name: string) => `${before}[@${name}](@${known.get(name)})`) : text;
+  const encode = (input: string) => {
+    if (!pattern) return input;
+    let fence: { marker: string; length: number } | null = null;
+    return input.split(/(\r?\n)/).map(part => {
+      if (part === '\n' || part === '\r\n') return part;
+      const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(part);
+      if (fence) {
+        if (delimiter && delimiter[1][0] === fence.marker && delimiter[1].length >= fence.length && !delimiter[2].trim()) fence = null;
+        return part;
+      }
+      if (delimiter) { fence = { marker: delimiter[1][0], length: delimiter[1].length }; return part; }
+      if (/^(?: {4}|\t)/.test(part)) return part;
+      return part.split(/((?:`+)[\s\S]*?(?:`+)(?!`))/g).map((segment, i) =>
+        i % 2 === 1 ? segment : segment.replace(pattern, (_, before: string, name: string) => `${before}[@${name}](@${known.get(name)})`)
+      ).join('');
+    }).join('');
+  };
+  let encoded = encode(current);
+  while (maxLength !== undefined && encoded.length > maxLength && current.length > 0) {
+    current = current.slice(0, Math.max(0, current.length - Math.max(1, encoded.length - maxLength)));
+    encoded = encode(current);
+  }
+  return encoded;
 }
 
 /** ReactMarkdown `a` renderer that shows mention links as pink names. */

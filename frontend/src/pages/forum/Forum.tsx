@@ -12,7 +12,7 @@ import { ForumImage, stripImages, uploadForumImage } from '../../utils/forumImag
 import './talks.css';
 
 interface Post { id: string; body: string; author: Author | null; created_at: string; updated_at: string }
-interface Topic extends Post { edited?: boolean; context?: { quest: { id: string; title: string } | null; mission: { id: string; title: string } | null } | null; accepted_reply_id: string | null; title: string; category_id: string; category?: Category; locked: boolean; pinned: boolean; last_activity_at: string; states: { saved: boolean; following: boolean; read_at?: string }[]; _count?: { replies: number } }
+interface Topic extends Post { edited?: boolean; context?: { edited_at?: string | null; quest: { id: string; title: string } | null; mission: { id: string; title: string } | null } | null; accepted_reply_id: string | null; title: string; category_id: string; category?: Category; locked: boolean; pinned: boolean; last_activity_at: string; states: { saved: boolean; following: boolean; read_at?: string }[]; _count?: { replies: number } }
 interface TopicList { topics: Topic[]; total: number; pageSize: number }
 interface Thread { page: number; acceptedReply?: Post | null; topic: Topic; replies: Post[]; total: number; pageSize: number }
 interface Report { id: string; topic_id: string; reply_id: string | null; reason: string; reporter: Author | null; topic: { title: string; body: string; deleted_at: string | null }; reply?: { body: string; deleted_at: string | null } | null }
@@ -87,6 +87,8 @@ export default function Forum() {
   const busyRef = useRef(false);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
+  const keepMessage = useRef(false);
+  const scrolledReply = useRef('');
   const [reply, setReply] = useState('');
   const [editor, setEditor] = useState<Editor | null>(null);
   const [reportTarget, setReportTarget] = useState<{ reply_id?: string } | null>(null);
@@ -97,7 +99,11 @@ export default function Forum() {
   const locationKey = params.toString();
 
   useEffect(() => { setSearch(query); }, [query]);
-  useEffect(() => { setEditor(null); setReportTarget(null); setDeleteTarget(null); setReply(''); setMessage(''); setShareUrl(''); setPreferences(false); setCollapsed(new Set()); }, [locationKey]);
+  useEffect(() => {
+    setEditor(null); setReportTarget(null); setDeleteTarget(null); setReply(''); setShareUrl(''); setPreferences(false); setCollapsed(new Set());
+    if (keepMessage.current) keepMessage.current = false;
+    else setMessage('');
+  }, [locationKey]);
   useEffect(() => {
     let current = true;
     setLoading(true); setError(''); setThread(null); setList(emptyList); setReports({ reports: [], total: 0, pageSize: 20 });
@@ -143,22 +149,32 @@ export default function Forum() {
     return () => { current = false; };
   }, [user?.id, revision]);
   useEffect(() => {
-    if (!loading && thread && replyId) {
+    const key = topicId && replyId ? `${topicId}:${replyId}` : '';
+    if (!key) { scrolledReply.current = ''; return; }
+    if (!loading && thread && scrolledReply.current !== key) {
       const target = document.getElementById('reply-' + replyId);
-      target?.focus(); target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (target) {
+        scrolledReply.current = key;
+        target.focus(); target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
     }
-  }, [loading, thread, replyId]);
+  }, [loading, thread, topicId, replyId]);
 
   useEffect(() => {
     if (editor) document.getElementById(editor.kind === 'reply' ? 'live-editor' : 'forum-topic-title')?.focus();
   }, [editor?.kind, editor?.id]);
   const go = (values: Record<string, string> = {}) => { if (!busyRef.current) setParams(values); };
-  const openTopic = (id: string) => go({ topic: id });
+  const navigateAfterMutate = (values: Record<string, string> = {}) => {
+    const nextKey = new URLSearchParams(values).toString();
+    if (nextKey !== locationKey) { keepMessage.current = true; setParams(values); return true; }
+    return false;
+  };
+  const openTopic = (id: string, targetReply?: string | null) => go({ topic: id, ...(targetReply ? { reply: targetReply } : {}) });
   const changePage = (next: number) => go(forumPageParams(params, next));
-  async function mutate(action: () => Promise<void>) {
+  async function mutate(action: () => Promise<boolean | void>) {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true); setError(''); setMessage('');
-    try { await action(); setRevision(n => n + 1); }
+    try { const navigated = await action(); if (!navigated) setRevision(n => n + 1); }
     catch (err) { setError(err instanceof Error ? err.message : 'The action could not be completed. Your text has been kept.'); }
     finally { busyRef.current = false; setBusy(false); }
   }
@@ -191,25 +207,26 @@ export default function Forum() {
   };
 
   const submitEditor = (event: FormEvent) => { event.preventDefault(); if (!editor) return; void mutate(async () => {
-    if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category, quest_id: editor.quest || null, mission_id: editor.mission || null }); setParams({ topic: created.id }); }
-    else await api.patch(editor.kind === 'topic' ? topicPath : `${topicPath}/replies/${editor.id}`, { title: editor.title, body: editor.body, ...(editor.kind === 'topic' ? { quest_id: editor.quest || null, mission_id: editor.mission || null } : {}) });
-    setEditor(null); setMessage('Your post has been saved.');
+    setMessage('Your post has been saved.');
+    if (editor.kind === 'create') { const created = await api.post<{ id: string }>('/forum/topics', { title: editor.title, body: editor.body, category_id: editor.category, quest_id: editor.quest || null, mission_id: editor.mission || null }); setEditor(null); return navigateAfterMutate({ topic: created.id }); }
+    await api.patch(editor.kind === 'topic' ? topicPath : `${topicPath}/replies/${editor.id}`, { title: editor.title, body: editor.body, ...(editor.kind === 'topic' ? { quest_id: editor.quest || null, mission_id: editor.mission || null } : {}) });
+    setEditor(null);
   }); };
   const editorForm = (current: Editor) => <form className="talk-card talk-form" onSubmit={submitEditor}>{current.kind === 'create' && <h2>Create a post</h2>}<fieldset disabled={busy || loading}>
     {current.kind === 'create' && <label>Community<select value={current.category} onChange={event => setEditor({ ...current, category: event.target.value })}>{categories.filter(c => !c.staff_only || staff).map(c => <option key={c.id} value={c.id}>c/{c.id} · {c.name}</option>)}</select></label>}
     {current.kind !== 'reply' && <label>Title<input id="forum-topic-title" required maxLength={160} value={current.title} onChange={event => setEditor({ ...current, title: event.target.value })} placeholder="A title that clearly describes the topic"/></label>}
-    <label htmlFor="live-editor">Body</label><MarkdownEditor id="live-editor" mentions onUploadImage={uploadForumImage} required disabled={busy} value={current.body} onChange={body => setEditor({ ...current, body: body.slice(0, current.kind === 'reply' ? 5000 : 10000) })} placeholder={hints[current.category] || 'What would you like to share?'} rows={8}/>
+    <label htmlFor="live-editor">Body</label><MarkdownEditor id="live-editor" mentions maxLength={current.kind === 'reply' ? 5000 : 10000} onUploadImage={uploadForumImage} required disabled={busy} value={current.body} onChange={body => setEditor({ ...current, body })} placeholder={hints[current.category] || 'What would you like to share?'} rows={8}/>
     {current.kind !== 'reply' && <details className="forum-optional-context" open={!!(current.quest || current.mission) || undefined}><summary>Link a quest or mission <span>Optional</span></summary><ContextFields context={context} quest={current.quest || ''} mission={current.mission || ''} onChange={(quest, mission) => setEditor({ ...current, quest, mission })}/></details>}
     <p className="talk-hint">Up to {current.kind === 'reply' ? '5,000' : '10,000'} characters · Markdown supported · images up to 5 MB (button or paste)</p>
     <div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" onClick={() => setEditor(null)}>Cancel</button><button className="talk-btn is-primary" disabled={!current.body.trim() || (current.kind !== 'reply' && !current.title.trim())}>{busy ? 'Saving…' : current.kind === 'create' ? 'Post' : 'Save'}</button></div>
   </fieldset></form>;
   const reportForm = <form className="talk-card talk-form" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/reports`, { ...reportTarget, reason }); setReportTarget(null); setMessage('Thanks — the moderators will take a look.'); }); }}><label>Why are you reporting this?<textarea required minLength={10} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Briefly explain the problem."/></label><div className="talk-form-actions"><button type="button" className="talk-btn is-ghost" disabled={busy} onClick={() => setReportTarget(null)}>Cancel</button><button className="talk-btn is-primary" disabled={busy || reason.trim().length < 10}>Report</button></div></form>;
-  const deleteConfirm = (target: string) => deleteTarget === target && <div className="talk-card talk-danger" role="alert"><p>Remove this post from the discussion? Its history will be retained for moderation.</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="talk-btn is-danger" disabled={busy} onClick={() => void mutate(async () => { await api.delete(target); if (target === topicPath) setParams({}); setDeleteTarget(null); setMessage('The post has been deleted.'); })}>Delete</button></div></div>;
+  const deleteConfirm = (target: string) => deleteTarget === target && <div className="talk-card talk-danger" role="alert"><p>Remove this post from the discussion? Its history will be retained for moderation.</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="talk-btn is-danger" disabled={busy} onClick={() => void mutate(async () => { await api.delete(target); setDeleteTarget(null); setMessage('The post has been deleted.'); if (target === topicPath) return navigateAfterMutate({}); })}>Delete</button></div></div>;
   const quote = (post: Post) => { setReply(text => `${text}${text ? '\n\n' : ''}> ${(post.body || '').slice(0, 800).replace(/\n/g, '\n> ')}\n\n`); document.getElementById('live-reply')?.focus(); };
   const ownActions = (post: Post, first: boolean) => <>
     {canPost && post.author?.id === user?.id && !thread?.topic.locked && <button className="talk-pill" disabled={busy} onClick={() => { setEditor({ kind: first ? 'topic' : 'reply', id: post.id, title: thread?.topic.title || '', body: post.body, category: thread?.topic.category_id || '', quest: thread?.topic.context?.quest?.id, mission: thread?.topic.context?.mission?.id }); setReportTarget(null); }}><Pencil size={14}/>Edit</button>}
     {(post.author?.id === user?.id || staff) && <button className="talk-pill" disabled={busy} onClick={() => setDeleteTarget(first ? topicPath : `${topicPath}/replies/${post.id}`)}><Trash2 size={14}/>Delete</button>}
-    <button className="talk-pill" disabled={busy} onClick={() => { setReportTarget(first ? {} : { reply_id: post.id }); setReason(''); setEditor(null); }}><Flag size={14}/>Report</button>
+    {post.author?.id !== user?.id && <button className="talk-pill" disabled={busy} onClick={() => { setReportTarget(first ? {} : { reply_id: post.id }); setReason(''); setEditor(null); }}><Flag size={14}/>Report</button>}
   </>;
   const contextLinks = (topic: Topic) => <div className="forum-context-links">{topic.context?.quest && <Link to="/quests">Quest · {topic.context.quest.title}</Link>}{topic.context?.mission && <Link to={`/missions/${topic.context.mission.id}`}>Mission · {topic.context.mission.title}</Link>}</div>;
   const flairs = (topic: Topic) => <>
@@ -259,7 +276,7 @@ export default function Forum() {
   });
   return <div className="cube-forum talk-forum" aria-busy={loading || busy}>
     <nav className="talk-mobile-nav" aria-label="Mobile forum navigation">
-      <label>Browse<select aria-label="Browse forum" value={topicId ? '__topic' : activeFilters.length ? '__filtered' : view} disabled={busy} onChange={e => go(e.target.value === 'all' ? {} : { view: e.target.value })}>{topicId && <option value="__topic" disabled>Current discussion</option>}{!topicId && !!activeFilters.length && <option value="__filtered" disabled>Filtered discussions</option>}{feeds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      <label>Browse<select aria-label="Browse forum" value={topicId ? '__topic' : view === 'all' && activeFilters.length ? '__filtered' : view} disabled={busy} onChange={e => go(e.target.value === 'all' ? {} : { view: e.target.value })}>{topicId && <option value="__topic" disabled>Current discussion</option>}{!topicId && view === 'all' && !!activeFilters.length && <option value="__filtered" disabled>Filtered discussions</option>}{feeds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label>Community<select aria-label="Choose community" value={categoryId} disabled={busy || loading} onChange={e => go(forumListParams(params, { category: e.target.value, view: 'all' }))}><option value="">All communities</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
     </nav>
     <nav className="talk-nav" aria-label="Forum navigation">
@@ -302,7 +319,7 @@ export default function Forum() {
       {loading ? <div className="talk-loading" role="status"><span className="sr-only">Loading discussions…</span>{[0, 1, 2].map(n => <div className="talk-card talk-skeleton" aria-hidden="true" key={n}><i/><b/><span/><span/></div>)}</div> : thread ? <>
         <article className="talk-card talk-post">
           <p className="talk-meta"><CommunityIcon id={thread.topic.category_id} size={24}/><button disabled={busy} onClick={() => go({ category: thread.topic.category_id })}><strong>c/{thread.topic.category_id}</strong></button><span>·</span><time dateTime={thread.topic.created_at} title={date(thread.topic.created_at)}>{ago(thread.topic.created_at)}</time></p>
-          <div className="talk-meta is-sub"><AuthorIdentity author={thread.topic.author}/>{thread.topic.edited && <span title={date(thread.topic.updated_at)}>· edited</span>}</div>
+          <div className="talk-meta is-sub"><AuthorIdentity author={thread.topic.author}/>{thread.topic.edited && <span title={date(thread.topic.context?.edited_at || thread.topic.updated_at)}>· edited</span>}</div>
           <h2 className="talk-post-title">{thread.topic.title}</h2>
           <div className="talk-flairs">{flairs(thread.topic)}</div>{contextLinks(thread.topic)}
           {editor?.kind === 'topic' ? editorForm(editor) : <Markdown text={thread.topic.body}/>}
@@ -320,9 +337,9 @@ export default function Forum() {
           {deleteConfirm(topicPath)}
         </article>
 
-        {!canPost ? null : thread.topic.locked ? <p className="talk-notice"><LockKeyhole size={14}/>This topic is locked. New comments cannot be posted.</p> : <form className="talk-composer" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setParams({ topic: thread.topic.id, page: String(Math.ceil((thread.total + 1) / pageSize)) }); setMessage('Your comment has been posted.'); }); }}>
-          <label htmlFor="live-reply" className="talk-reply-label">Join the conversation</label><MarkdownEditor id="live-reply" mentions onUploadImage={uploadForumImage} required disabled={busy} value={reply} onChange={value => setReply(value.slice(0, 5000))} placeholder="Join the conversation"/>
-          <div className="talk-form-actions"><small>{reply.length}/5000</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
+        {!canPost ? null : thread.topic.locked ? <p className="talk-notice"><LockKeyhole size={14}/>This topic is locked. New comments cannot be posted.</p> : <form className="talk-composer" onSubmit={event => { event.preventDefault(); void mutate(async () => { await api.post(`${topicPath}/replies`, { body: reply }); setReply(''); setMessage('Your comment has been posted.'); return navigateAfterMutate({ topic: thread.topic.id, page: String(Math.ceil((thread.total + 1) / pageSize)) }); }); }}>
+          <label htmlFor="live-reply" className="talk-reply-label">Join the conversation</label><MarkdownEditor id="live-reply" mentions maxLength={5000} onUploadImage={uploadForumImage} required disabled={busy} value={reply} onChange={setReply} placeholder="Join the conversation"/>
+          <div className="talk-form-actions"><small>{mentionsToText(reply).length}/5000</small><button className="talk-btn is-primary" disabled={busy || !reply.trim()}>{busy ? 'Posting…' : 'Comment'}</button></div>
         </form>}
 
         {!thread.total && <p className="talk-empty">No comments yet. Be the first to share what you think.</p>}
@@ -331,7 +348,7 @@ export default function Forum() {
           {thread.replies.map(renderComment)}
         </ol>
       </> : topicId || ['profile', 'categories'].includes(view) ? null : view === 'reports' ? <section className="talk-feed">
-        {reports.reports.map(report => <article className="talk-card" key={report.id}><h3 className="talk-card-title">{report.topic?.title || 'Deleted topic'}</h3><p className="talk-hint">Reported by <b>{report.reporter?.name || 'Unknown Cube'}</b>: {report.reason}</p><blockquote className="talk-quote"><Markdown text={report.reply?.body || report.topic?.body || ''}/></blockquote><div className="talk-form-actions"><button className="talk-btn is-ghost" onClick={() => openTopic(report.topic_id)}>Open topic</button><button className="talk-btn is-primary" disabled={busy} onClick={() => void mutate(async () => { await api.patch(`/forum/reports/${report.id}`, {}); setMessage('The report has been closed.'); })}>Mark reviewed</button></div></article>)}
+        {reports.reports.map(report => <article className="talk-card" key={report.id}><h3 className="talk-card-title">{report.topic?.title || 'Deleted topic'}{report.topic?.deleted_at ? ' (Deleted topic)' : report.reply?.deleted_at ? ' (Deleted comment)' : ''}</h3><p className="talk-hint">Reported by <b>{report.reporter?.name || 'Unknown Cube'}</b>: {report.reason}</p><blockquote className="talk-quote"><Markdown text={report.reply?.body || report.topic?.body || ''}/></blockquote><div className="talk-form-actions">{!report.topic?.deleted_at && <button className="talk-btn is-ghost" onClick={() => openTopic(report.topic_id, report.reply?.deleted_at ? null : report.reply_id)}>{report.reply_id && !report.reply?.deleted_at ? 'Open comment' : 'Open topic'}</button>}<button className="talk-btn is-primary" disabled={busy} onClick={() => void mutate(async () => { await api.patch(`/forum/reports/${report.id}`, {}); setMessage('The report has been closed.'); })}>Mark reviewed</button></div></article>)}
         {!reports.total && <p className="talk-empty">There are no reports waiting for review.</p>}
       </section> : view === 'index' && !categoryId && !query ? <section className="talk-feed">
         {categories.map(category => <article className="talk-card talk-community-card" key={category.id}>

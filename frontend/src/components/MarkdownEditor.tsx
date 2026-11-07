@@ -13,6 +13,7 @@ interface MarkdownEditorProps {
   required?: boolean;
   disabled?: boolean;
   id?: string;
+  maxLength?: number;
   /** Typing "@" suggests people; mentioned names show in pink. */
   mentions?: boolean;
   /** Enables the image button and pasting images; returns the Markdown to insert. */
@@ -27,6 +28,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   required = false,
   disabled = false,
   id,
+  maxLength,
   mentions = false,
   onUploadImage
 }) => {
@@ -35,7 +37,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // With mentions on, the textarea shows "@Name" while the stored body keeps "[@Name](@handle)".
   const known = useRef<MentionMap>(new Map());
   const value = mentions ? decodeMentions(storedValue, known.current) : storedValue;
-  const onChange = (text: string) => onStoredChange(mentions ? encodeMentions(text, known.current) : text);
+  const onChange = (text: string) => onStoredChange(mentions ? encodeMentions(text, known.current, maxLength) : (maxLength !== undefined ? text.slice(0, maxLength) : text));
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -91,7 +93,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   };
 
   return (
-    <div className="w-full border border-gray-100 rounded-xl overflow-hidden bg-white shadow-subtle flex flex-col focus-within:border-magenta focus-within:ring-1 focus-within:ring-magenta/20 transition-all">
+    <div className="markdown-editor w-full border border-gray-100 rounded-xl overflow-hidden bg-white shadow-subtle flex flex-col focus-within:border-magenta focus-within:ring-1 focus-within:ring-magenta/20 transition-all">
       {/* Editor Toolbar Header */}
       <div className="bg-gray-50 border-b border-gray-100 px-3.5 py-1.5 flex items-center justify-between gap-4 flex-wrap">
         
@@ -220,6 +222,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
+            maxLength={maxLength}
             placeholder={placeholder}
             value={value}
             onChange={onChange}
@@ -235,6 +238,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
+            maxLength={maxLength}
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -245,8 +249,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         ) : (
           <div className="w-full h-full min-h-[140px] p-4 overflow-y-auto max-h-[400px] border-0 select-text">
             {value.trim() ? (
-              <div className="markdown-body text-xs font-semibold text-gray-800">
-                <ReactMarkdown components={{ ...(mentions ? { a: MentionAwareLink } : {}), ...(onUploadImage ? { img: ForumImage } : {}) }}>{storedValue}</ReactMarkdown>
+              <div className="markdown markdown-body text-xs font-semibold text-gray-800">
+                <ReactMarkdown skipHtml components={{ ...(mentions ? { a: MentionAwareLink } : {}), ...(onUploadImage ? { img: ForumImage } : {}) }}>{storedValue}</ReactMarkdown>
               </div>
             ) : (
               <p className="text-gray-400 text-xs italic">Nothing to preview. Start typing in the Write tab.</p>

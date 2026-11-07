@@ -14,13 +14,11 @@ interface MentionTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
 }
 
 /** Text in front of the caret that is being typed as a mention, e.g. "@Med". */
-function activeQuery(text: string, caret: number, known: string[]) {
+export function activeQuery(text: string, caret: number) {
   const match = /(?:^|[\s(])@([^\s@[\]()][^\n@[\]()]{0,39})?$/u.exec(text.slice(0, caret));
   if (!match) return null;
   const query = match[1] || '';
   if (query.split(' ').length > 3) return null;
-  // A finished mention ("@Medine Kaynak ") should not reopen the list.
-  if (known.some(name => query === name || query.startsWith(`${name} `))) return null;
   return { start: caret - query.length - 1, query };
 }
 
@@ -85,12 +83,17 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaPr
     return () => { current = false; clearTimeout(timer); };
   }, [term]);
 
-  const updateQuery = () => {
+  const updateQuery = (typing: boolean) => {
     const textarea = ref.current;
     if (!textarea) return;
-    const next = activeQuery(textarea.value, textarea.selectionStart, mentionNames);
-    setQuery(next);
-    if (!next) setDismissed(null);
+    const next = activeQuery(textarea.value, textarea.selectionStart);
+    if (typing) {
+      if (!next) setDismissed(null);
+      else if (dismissed !== null && next.start !== dismissed) setDismissed(null);
+      setQuery(next);
+    } else if (query && (!next || next.start !== query.start)) {
+      setQuery(null);
+    }
   };
 
   const pick = (person: Person) => {
@@ -101,6 +104,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaPr
     const inserted = `@${name} `;
     onMention(name, person.handle);
     onChange(value.slice(0, query.start) + inserted + value.slice(caret));
+    setDismissed(query.start);
     setQuery(null);
     const position = query.start + inserted.length;
     requestAnimationFrame(() => { textarea.focus(); textarea.setSelectionRange(position, position); });
@@ -157,8 +161,8 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaPr
       {...props}
       ref={ref}
       value={value}
-      onChange={event => { onChange(event.target.value); requestAnimationFrame(updateQuery); }}
-      onSelect={updateQuery}
+      onChange={event => { onChange(event.target.value); requestAnimationFrame(() => updateQuery(true)); }}
+      onSelect={() => updateQuery(false)}
       onKeyDown={handleKeyDown}
       onBlur={event => { setQuery(null); onBlur?.(event); }}
       onScroll={event => { if (overlay.current) overlay.current.scrollTop = event.currentTarget.scrollTop; onScroll?.(event); }}
@@ -172,7 +176,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaPr
     <div ref={overlay} aria-hidden="true" className="absolute pointer-events-none overflow-hidden whitespace-pre-wrap break-words m-0 border-solid border-transparent text-gray-800">
       {highlighted}{'​'}
     </div>
-    {showList && <div style={listPosition} className="absolute left-3 right-3 z-20 max-h-28 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg text-xs">
+    {showList && <div style={listPosition} onMouseDown={event => event.preventDefault()} className="absolute left-3 right-3 z-20 max-h-28 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg text-xs">
       {hint && <p className="px-3 py-2 text-gray-500" role="status">{hint}</p>}
       <ul id={listId} role="listbox" aria-label="People to mention">
         {people.map((person, index) => <li key={person.id} id={`${listId}-${person.id}`} role="option" aria-selected={index === active}

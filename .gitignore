@@ -34,3 +34,5 @@ lerna-debug.log*
 .env.*.local
 frontend/.env.local
 frontend/.env.*.local
+backend/uploads/
+backend/storage/

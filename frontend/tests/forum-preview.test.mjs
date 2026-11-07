@@ -5,6 +5,10 @@ import { readFileSync } from 'node:fs';
 import postcss from 'postcss';
 const model = ts.transpileModule(readFileSync(new URL('../src/pages/forum/forumModel.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
 const { forumLocation, forumPageParams, forumListParams, forumSearchParams, forumReadStatus } = await import('data:text/javascript;base64,' + Buffer.from(model).toString('base64'));
+const mentionsSource = 'const React = { createElement: () => null }; const Link = "a";\n' +
+  readFileSync(new URL('../src/utils/mentions.tsx', import.meta.url), 'utf8').replace(/^import\s+.*$/gm, '');
+const mentionsJs = ts.transpileModule(mentionsSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React } }).outputText;
+const { encodeMentions, mentionsToText } = await import('data:text/javascript;base64,' + Buffer.from(mentionsJs).toString('base64'));
 
 test('current and legacy notification URLs resolve the topic and exact reply', () => {
   assert.deepEqual(forumLocation(new URLSearchParams('konu=t&yanit=r')), { topic: 't', reply: 'r', page: 1 });
@@ -78,6 +82,21 @@ test('read markers distinguish unseen, newly active and already read topics', ()
   assert.equal(forumReadStatus('2026-11-02T10:00:00Z', '2026-11-02T09:00:00Z'), 'Unread');
   assert.equal(forumReadStatus('2026-11-02T10:00:00Z', '2026-11-02T10:00:00Z'), null);
 });
+
+test('encodeMentions skips inline code and fenced/indented code blocks and clamps maxLength cleanly', () => {
+  const known = new Map([['Ali Veli', 'cube-001'], ['Ali Veli Kaya', 'cube-002']]);
+  const raw = 'Hi @Ali Veli Kaya, check `@Ali Veli` and:\n```ts\n// @Ali Veli\n```\n    @Ali Veli\nDone @Ali Veli!';
+  const encoded = encodeMentions(raw, known);
+  assert.equal(encoded, 'Hi [@Ali Veli Kaya](@cube-002), check `@Ali Veli` and:\n```ts\n// @Ali Veli\n```\n    @Ali Veli\nDone [@Ali Veli](@cube-001)!');
+  const clamped = encodeMentions('Hello @Ali Veli world', known, 26);
+  assert.ok(clamped.length <= 26);
+  assert.doesNotMatch(clamped, /\[@/);
+  const clampedSafe = encodeMentions('Hello @Ali Veli world suffix that exceeds limit', known, 35);
+  assert.ok(clampedSafe.length <= 35);
+  assert.ok(clampedSafe.startsWith('Hello [@Ali Veli](@cube-001)'));
+  assert.equal(mentionsToText(encoded), raw);
+});
+
 test('forum CSS cannot style portal Markdown or controls outside the forum', () => {
   const css = postcss.parse(readFileSync(new URL('../src/pages/forum/talks.css', import.meta.url), 'utf8'));
   css.walkRules(rule => { for (const selector of rule.selectors) assert.ok(selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
