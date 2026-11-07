@@ -66,6 +66,12 @@ export function encodeMentions(text: string, known: MentionMap, maxLength?: numb
   return encoded;
 }
 
+/** Validate the complete proposed edit; never shorten a user's message to fit. */
+export function encodeMentionsWithinLimit(text: string, known: MentionMap, maxLength?: number) {
+  const encoded = encodeMentions(text, known);
+  return maxLength !== undefined && encoded.length > maxLength ? null : encoded;
+}
+
 /** ReactMarkdown `a` renderer that shows mention links as pink names. */
 export function MentionAwareLink({ node: _node, href, children, ...props }: ComponentPropsWithoutRef<'a'> & ExtraProps) {
   if (href?.startsWith('@')) return <span className="mention-tag" title={href.startsWith('@cube-') ? `Cube #${href.slice(6)}` : 'Team member'}>{children}</span>;
