@@ -138,7 +138,7 @@ export async function changeForumTopic(actor: ForumActor, id: string, input: Rec
     if (remove) {
       if (!isForumStaff(actor)) assertForumAuthor(actor, topic.author_id);
       const now = new Date();
-      await tx.forumReport?.updateMany({ where: { topic_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
+      await tx.forumReport.updateMany({ where: { topic_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
       return tx.forumTopic.update({ where: { id }, data: { deleted_at: now, deleted_by_id: actor.id } });
     }
     assertForumAuthor(actor, topic.author_id);
@@ -173,7 +173,7 @@ export async function createForumReply(actor: ForumActor, topicId: string, input
     if (topic.locked) throw forbidden('This topic is closed to new replies.');
     const reply = await tx.forumReply.create({ data: { body, topic_id: topicId, author_id: actor.id } });
     await tx.forumTopic.update({ where: { id: topicId }, data: { last_activity_at: reply.created_at } });
-    await tx.forumTopicState?.upsert?.({ where: { user_id_topic_id: { user_id: actor.id, topic_id: topicId } },
+    await tx.forumTopicState.upsert({ where: { user_id_topic_id: { user_id: actor.id, topic_id: topicId } },
       create: { user_id: actor.id, topic_id: topicId, read_at: reply.created_at }, update: { read_at: reply.created_at } });
     await notifyForumEvent(tx, actor, topic, body, reply.id);
     return reply;
@@ -189,7 +189,7 @@ export async function changeForumReply(actor: ForumActor, topicId: string, id: s
       if (!isForumStaff(actor)) assertForumAuthor(actor, reply.author_id);
       const now = new Date();
       const removed = await tx.forumReply.update({ where: { id }, data: { deleted_at: now, deleted_by_id: actor.id } });
-      await tx.forumReport?.updateMany({ where: { topic_id: topicId, reply_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
+      await tx.forumReport.updateMany({ where: { topic_id: topicId, reply_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
       const latest = await tx.forumReply.findFirst({ where: { topic_id: topicId, deleted_at: null }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], select: { created_at: true } });
       await tx.forumTopic.update({ where: { id: topicId }, data: {
         last_activity_at: latest?.created_at || topic.created_at,

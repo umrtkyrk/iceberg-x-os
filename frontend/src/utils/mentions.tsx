@@ -23,6 +23,12 @@ export function decodeMentions(stored: string, known: MentionMap) {
 /** Stored body → plain text with `@Name`, for feed previews. */
 export const mentionsToText = (stored: string) => (stored || '').replace(MENTION_LINK, '@$1');
 
+/**
+ * Extra characters the stored mention links add on top of the visible text. The server limits the
+ * stored body, so the editor's visible limit is the stored limit minus this overhead.
+ */
+export const mentionOverhead = (stored: string) => (stored || '').length - mentionsToText(stored).length;
+
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Matches `@Name` for any known name, longest first, not followed by a letter or digit. */
@@ -58,6 +64,12 @@ export function encodeMentions(text: string, known: MentionMap, maxLength?: numb
     encoded = encode(current);
   }
   return encoded;
+}
+
+/** Validate the complete proposed edit; never shorten a user's message to fit. */
+export function encodeMentionsWithinLimit(text: string, known: MentionMap, maxLength?: number) {
+  const encoded = encodeMentions(text, known);
+  return maxLength !== undefined && encoded.length > maxLength ? null : encoded;
 }
 
 /** ReactMarkdown `a` renderer that shows mention links as pink names. */
