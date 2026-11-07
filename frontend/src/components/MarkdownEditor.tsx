@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2 } from 'lucide-react';
 import { MentionTextarea } from './MentionTextarea';
-import { MentionAwareLink, decodeMentions, encodeMentions, mentionOverhead, type MentionMap } from '../utils/mentions';
+import { MentionAwareLink, decodeMentions, encodeMentionsWithinLimit, type MentionMap } from '../utils/mentions';
 import { FORUM_IMAGE_TYPES, ForumImage } from '../utils/forumImages';
 
 interface MarkdownEditorProps {
@@ -37,9 +37,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // With mentions on, the textarea shows "@Name" while the stored body keeps "[@Name](@handle)".
   const known = useRef<MentionMap>(new Map());
   const value = mentions ? decodeMentions(storedValue, known.current) : storedValue;
-  // The textarea limits visible text; mention links take extra stored characters, so subtract them.
-  const visibleLimit = maxLength === undefined ? undefined : Math.max(0, maxLength - (mentions ? mentionOverhead(storedValue) : 0));
-  const onChange = (text: string) => onStoredChange(mentions ? encodeMentions(text, known.current, maxLength) : (maxLength !== undefined ? text.slice(0, maxLength) : text));
+  const [lengthError, setLengthError] = useState('');
+  const onChange = (text: string) => {
+    const next = encodeMentionsWithinLimit(text, mentions ? known.current : new Map(), maxLength);
+    if (next === null) {
+      // A picker registers the proposed name before calling onChange. Roll it back too.
+      known.current = new Map();
+      if (mentions) decodeMentions(storedValue, known.current);
+      setLengthError(`This edit exceeds the ${maxLength?.toLocaleString('en-US')}-character limit including mention links. Your previous text is unchanged. Shorten the message before trying again.`);
+      return false;
+    }
+    setLengthError('');
+    onStoredChange(next);
+    return true;
+  };
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -55,7 +66,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       const at = textarea ? Math.min(textarea.selectionStart, text.length) : text.length;
       const before = text.slice(0, at), after = text.slice(at);
       const insert = `${before && !before.endsWith('\n') ? '\n' : ''}${markdown}\n`;
-      onChange(before + insert + after);
+      if (!onChange(before + insert + after)) return;
       setTimeout(() => { textarea?.focus(); textarea?.setSelectionRange(at + insert.length, at + insert.length); }, 0);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'The image could not be uploaded.');
@@ -82,7 +93,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const replacement = before + (selectedText || 'text') + after;
     const newValue = text.substring(0, start) + replacement + text.substring(end);
     
-    onChange(newValue);
+    if (!onChange(newValue)) return;
 
     // Keep focus and select inserted text
     setTimeout(() => {
@@ -215,6 +226,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       </div>
 
       {(uploading || uploadError) && <p role="status" className={`px-3.5 py-1.5 text-[11px] font-semibold border-b border-gray-100 ${uploadError ? 'text-red-600 bg-red-50' : 'text-gray-500 bg-gray-50'}`}>{uploadError || 'Uploading image…'}</p>}
+      {lengthError && <p role="alert" className="px-3.5 py-2 text-xs font-semibold text-red-700 bg-red-50">{lengthError}</p>}
 
       {/* Editor Body */}
       <div className="relative min-h-[140px] bg-white flex flex-col">
@@ -224,7 +236,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
-            maxLength={visibleLimit}
+            maxLength={maxLength}
             placeholder={placeholder}
             value={value}
             onChange={onChange}
@@ -240,7 +252,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id={id}
             required={required}
             rows={rows}
-            maxLength={visibleLimit}
+            maxLength={maxLength}
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}

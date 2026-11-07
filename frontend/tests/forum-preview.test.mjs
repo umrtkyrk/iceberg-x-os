@@ -8,7 +8,7 @@ const { forumLocation, forumPageParams, forumListParams, forumSearchParams, foru
 const mentionsSource = 'const React = { createElement: () => null }; const Link = "a";\n' +
   readFileSync(new URL('../src/utils/mentions.tsx', import.meta.url), 'utf8').replace(/^import\s+.*$/gm, '');
 const mentionsJs = ts.transpileModule(mentionsSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React } }).outputText;
-const { encodeMentions, mentionOverhead, mentionsToText } = await import('data:text/javascript;base64,' + Buffer.from(mentionsJs).toString('base64'));
+const { encodeMentions, encodeMentionsWithinLimit, mentionOverhead, mentionsToText } = await import('data:text/javascript;base64,' + Buffer.from(mentionsJs).toString('base64'));
 
 test('current and legacy notification URLs resolve the topic and exact reply', () => {
   assert.deepEqual(forumLocation(new URLSearchParams('konu=t&yanit=r')), { topic: 't', reply: 'r', page: 1 });
@@ -95,6 +95,39 @@ test('encodeMentions skips inline code and fenced/indented code blocks and clamp
   assert.ok(clampedSafe.length <= 35);
   assert.ok(clampedSafe.startsWith('Hello [@Ali Veli](@cube-001)'));
   assert.equal(mentionsToText(encoded), raw);
+});
+
+test('mention selection near the limit rejects the edit without losing the existing suffix', () => {
+  const known = new Map([['Ali Veli', 'cube-001']]);
+  const original = 'A'.repeat(4975) + ' @Al TAIL-KEEP';
+  const proposed = 'A'.repeat(4975) + ' @Ali Veli TAIL-KEEP';
+  assert.ok(proposed.length < 5000);
+  const encoded = encodeMentionsWithinLimit(proposed, known, 5000);
+  assert.equal(encoded, null);
+  // The editor commits only accepted edits, keeping the whole previous message on rejection.
+  assert.equal(encoded ?? original, original);
+  assert.ok((encoded ?? original).endsWith('TAIL-KEEP'));
+});
+
+test('accepted edits round-trip exactly at the stored limit for Cube and staff mentions', () => {
+  for (const handle of ['cube-001', 'user-12345678-1234-1234-1234-123456789abc']) {
+    const known = new Map([['Ali Veli', handle]]);
+    const prose = 'Hello @Ali Veli TAIL-KEEP';
+    const exactLength = encodeMentions(prose, known).length;
+    const accepted = encodeMentionsWithinLimit(prose, known, exactLength);
+    assert.equal(mentionsToText(accepted), prose);
+    assert.equal(encodeMentionsWithinLimit(prose, known, exactLength - 1), null);
+  }
+});
+
+test('replacing mentions releases their old budget and code remains literal', () => {
+  const known = new Map([['Ali Veli', 'cube-001']]);
+  const plainReplacement = 'x'.repeat(5000);
+  assert.equal(encodeMentionsWithinLimit(plainReplacement, known, 5000), plainReplacement);
+  assert.equal(encodeMentionsWithinLimit(plainReplacement + 'x', known, 5000), null);
+  const code = '`@Ali Veli`';
+  assert.equal(encodeMentionsWithinLimit(code, known, code.length), code);
+  assert.equal(mentionsToText(encodeMentionsWithinLimit('Hello @Ali Veli', known)), 'Hello @Ali Veli');
 });
 
 test('mentionOverhead is the stored characters mention links add beyond the visible text', () => {
