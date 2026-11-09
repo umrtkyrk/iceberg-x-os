@@ -13,7 +13,11 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "test:forum:flag": "node tests/forum.disabled.cjs",
-    "test:forum:db": "node tests/forum.database.cjs"
+    "test:forum:db": "node tests/forum.database.cjs",
+    "test:forum:migrations": "node tests/forum.migrations.cjs",
+    "db:forum:plan": "node scripts/forum-migrate.cjs --plan",
+    "db:forum:migrate": "node scripts/forum-migrate.cjs --apply",
+    "db:forum:init": "node scripts/forum-migrate.cjs --init-empty"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

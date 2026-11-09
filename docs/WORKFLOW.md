@@ -53,12 +53,13 @@ npm run install-all
 cp backend/.env.example backend/.env        # fill in; never commit
 echo "VITE_CUBE_FORUM_ENABLED=true" > frontend/.env.local   # plus FORUM_ENABLED=true in backend/.env
 docker-compose up postgres -d
-npm run db:migrate                           # see task 0.4 if this fails on an empty DB
+npm run db:forum:init --prefix backend       # only for an empty local schema
 npm run db:seed
 npm run dev                                  # backend :5001, frontend :5173 → /forum
 ```
 
 Each of us has a separate local database. Never point `.env` at a production database.
+For an existing migrated portal, replace initialization with `npm run db:forum:plan --prefix backend` and `npm run db:forum:migrate --prefix backend`. See [forum.md](forum.md) for the baseline procedure, preserved category labels and current features. Do not replay the historical chain on an empty database.
 
 ### 1.3 GitHub settings on the fork (Mesut, once)
 
@@ -79,8 +80,8 @@ An issue is **Ready** when it has a one-line goal, acceptance criteria, an area 
 
 ### 2.2 Splitting work
 
-- **Split by feature where possible:** one person owns a feature end to end. Where API and UI are split
-  (e.g. Phase 2), agree the request/response shape **in the issue** before either side starts.
+- **Split by feature where possible:** one person owns a feature end to end. Where API and UI are split,
+  agree the request/response shape **in the issue** before either side starts.
 - **At most 2 issues In Progress per person.**
 - **Assign yourself before you start.** Assigned = taken.
 
@@ -92,11 +93,11 @@ An issue is **Ready** when it has a one-line goal, acceptance criteria, an area 
 | `backend/src/routes/index.ts` | Router mounting |
 | `backend/src/config/env.ts` | Feature flags |
 | `frontend/src/App.tsx`, `components/Layout.tsx` | Routes and nav; a bad merge here has broken a build before |
-| `frontend/src/pages/forum/ForumPreview.jsx` | One large file both of us will touch |
-| `frontend/src/pages/forum/forum.css` | Shared scoped styles |
+| `frontend/src/pages/forum/Forum.tsx` + `ForumPortal.tsx` | Shared forum views and portal controls |
+| `frontend/src/pages/forum/talks.css` | Shared scoped styles |
 | `package.json` / `package-lock.json` | Dependency conflicts |
 
-Example message: "Editing `ForumPreview.jsx` topic list for #12, will push by 15:00."
+Example message: "Editing `Forum.tsx` topic list for #12, will push by 15:00."
 
 ---
 
@@ -108,7 +109,8 @@ Example message: "Editing `ForumPreview.jsx` topic list for #12, will push by 15
 git switch forum-mvp
 git pull --ff-only
 npm run install-all     # only if a package-lock changed
-npm run db:migrate      # only if new migrations arrived
+npm run db:forum:plan --prefix backend
+npm run db:forum:migrate --prefix backend  # reviewed forum migrations only
 ```
 
 Async stand-up in chat:
@@ -227,7 +229,7 @@ Aim for **under ~400 changed lines** (excluding lock files).
 **UI**
 - [ ] Optional chaining on relations; `(x || '').toLowerCase()` in search
 - [ ] Loading, empty and error states; works at phone width; modals keep keyboard focus
-- [ ] Markdown goes through the portal's safe renderer, with no images
+- [ ] Markdown skips raw HTML; forum images render only from validated portal upload URLs (see `forum.md`)
 - [ ] Styles stay under `.cube-forum`
 
 **Database:** SQL read line by line, new tables only, indexes on relation columns.
@@ -249,7 +251,7 @@ If two comments don't settle a disagreement, have a 10-minute call and write the
 - Announce before editing `schema.prisma`: "Starting migration for #5 (forum tables)". The other person waits
   for it to merge before creating a migration of their own.
 - **Additive only:** new tables or new nullable columns. No renames or drops of portal tables.
-- **Never edit upstream migration files,** including the known `Quest` ordering problem (task 0.4).
+- **Never edit upstream migration files,** including the known `Quest` ordering problem. Use the local baseline procedure in `forum.md`.
 - Never edit a migration after it's merged into `forum-mvp`. Fix forward with a new one.
 - Never use `prisma db push`.
 
@@ -268,7 +270,7 @@ npx prisma migrate dev --name add_forum_tables
 The forum is never deployed by us. "Done" means merged into the fork:
 
 1. **Feature done:** PR merged into `forum-mvp`.
-2. **MVP done:** every task in `forum-tasks.md` Phases 1–6 is merged and the full checks pass on `forum-mvp`.
+2. **MVP done:** the implementation/handover items in `forum-tasks.md` are merged, full checks pass on `forum-mvp`, and the required Demo Day evidence is delivered.
 3. **Fork release:** `forum-mvp` → the fork's `main` via a reviewed PR.
 4. **Upstream:** proposing the forum to the production portal is a separate decision for the project owners.
    It isn't part of this workflow.

@@ -36,10 +36,10 @@ GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Bu göre
 
 Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Beğeni/reaksiyon, görsel yükleme, e-posta özeti ve Radar/MVCubes puanlaması MVP dışındadır.
 
-Mevcut `mock-forum` tarihsel tasarım referansıdır. Güncel arayüz değişiklikleri için [UI V5 notlarına](forum-ui-v5.md), gerçek API, feature flag ve portal entegrasyonu kurulumu için [UI V4 notlarına](forum-ui-v4.md) bakın.
+Mevcut `mock-forum`, UI V4 ve UI V5 tarihsel tasarım referanslarıdır. Güncel API, feature flag, yetki, moderasyon ve güvenli yerel kurulum için [forum kılavuzuna](forum.md), 2–3 dakikalık sunum için [demo senaryosuna](forum-demo.md) bakın. İlk görevde kapsam dışı olan görsel yükleme/paste ve kabul edilen cevap, son real-api sürümünde ek özellik olarak mevcuttur; diğer kapsam dışı maddeler uygulanmamıştır.
 
 ## Kontroller
 
 Frontend değişikliklerinde `cd frontend && npm run build`; backend değişikliklerinde ilgili testler ve derleme çalıştırılır. `.env`, token, parola, yerel veritabanı ve yüklenen dosyalar commit edilmez. Lokal incelemede üretim veritabanı kullanılmaz.
 
-Temiz veritabanı kurulumunda upstream'in mevcut migration sırası `Quest` tablosunu oluşturmadan değiştirdiği için hata verebilir. Bu ayrı bir başlangıç sorunudur; orijinal repodaki migration dosyaları bu görev kapsamında değiştirilmez.
+Temiz veritabanında eski portal migration sırası `Quest` tablosunu oluşturmadan değiştirir. Tarihsel dosyalar yeniden yazılmaz: boş localhost şeması için `npm run db:forum:init --prefix backend` kullanılır. Mevcut migration geçmişi olan yerel portalda önce `db:forum:plan`, sonra `db:forum:migrate` çalıştırılır. Bu komutlar bekleyen kategori-adı UPDATE adımlarını uygulamadan geçmişe kaydeder ve var olan adları/açıklamaları korur. Doğrudan tarihsel SQL zincirini çalıştırmak bu korumayı atlar; tam yöntem ve testler forum kılavuzundadır.
