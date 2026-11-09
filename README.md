@@ -68,6 +68,8 @@ docker-compose up postgres -d
 ```
 
 ### 4. Run Migrations & Seed Data
+
+For this fork's forum work, use the guarded [local setup procedure](docs/forum.md#local-setup) instead of replaying the historical migration chain on an empty database. The commands below describe the original portal workflow.
 ```bash
 npm run db:migrate
 npm run db:seed
@@ -212,8 +214,8 @@ Deploying this monorepo to Railway is straightforward:
 
 ## Cube Forum (fork)
 
-The Cube Forum lives on `/forum` under Community. Turn it on with `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env`, then run `npx prisma migrate deploy`. All topics, comments, follows, reports and statistics come from the `/api/forum` endpoints; there is no demo data. The forum starts empty: no seeded or sample topics.
+The Cube Forum lives on `/forum` under Community. Enable `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env.local`. All topics, replies, follows, reports and statistics use the real `/api/forum` endpoints. No sample accounts or topics are created by the forum installer.
 
-The updated real-api design now includes portal identity/progression, persistent ordered earned-badge showcases and signatures, quest/mission context, exact-reply notifications, community management and topic movement. Set `DIRECT_URL` as well as `DATABASE_URL` for Prisma migrations. See [UI V4 setup, permissions, migrations and validation](docs/forum-ui-v4.md). All development stays on the fork; no upstream push or deployment is part of this branch.
+Use the [current forum guide](docs/forum.md) for setup, APIs, data model, permissions and moderation. For a new **empty local** schema run `npm run db:forum:init --prefix backend`; for an existing migrated local portal run `npm run db:forum:plan --prefix backend`, then `npm run db:forum:migrate --prefix backend`. Both connection URLs must point to the same localhost database/schema. These guarded commands preserve existing category labels and avoid replaying the portal's historical Quest ordering bug; do not substitute a raw migration replay for a fresh fork installation.
 
-[UI V5](docs/forum-ui-v5.md) improves mobile navigation, readable community/card layouts, contextual search, removable filters, profile previews and keyboard access. It also fixes solved-category filtering and reply pagination after moderation. Setup and schema remain unchanged.
+The forum includes portal progression, up to three ordered earned badges, signatures, quest/mission context, exact-reply notifications, community management, topic movement and mobile layouts. Image upload/paste (PNG/JPEG/WEBP/GIF, up to 5 MB) and accepted answers are implemented extras beyond the original MVP. See the [2:50 Demo Day runbook](docs/forum-demo.md); live presentation/recording remains a separate delivery step. [UI V4](docs/forum-ui-v4.md) and [UI V5](docs/forum-ui-v5.md) preserve design history. All work stays on `umrtkyrk/iceberg-x-os`; no upstream push or deployment is included.

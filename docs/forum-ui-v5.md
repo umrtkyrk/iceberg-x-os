@@ -1,5 +1,7 @@
 # Forum UI V5
 
+Historical design notes. The current merged features, safe local setup and handover are documented in [forum.md](forum.md).
+
 Incremental polish on `codex/ui-v4` (`fafa067`), saved only in the fork's `codex/ui-v5` branch. The real-api community feed and portal palette remain the foundation. No upstream operation or deployment is included.
 
 ## Reading and navigation
@@ -24,7 +26,7 @@ Incremental polish on `codex/ui-v4` (`fafa067`), saved only in the fork's `codex
 
 ## Validation and setup
 
-Setup, flags, permissions and migrations are unchanged from [UI V4](forum-ui-v4.md). This change adds no migration, dependency, production fixture or schema alteration.
+The UI V5 design itself added no migration, dependency, production fixture or schema alteration. For later real-api changes and the current local migration commands use [forum.md](forum.md), rather than replaying historical setup instructions.
 
 Verified: backend build, 14 forum unit/API tests, real PostgreSQL integration regressions, frontend build and 10 frontend regressions for URL/filter state and CSS isolation. Browser checks with synthetic local data cover contextual search and clear-search, live profile preview, composer focus, mention no-results, Markdown formatting and 390px/1440px layouts without page overflow. The inherited portal bundle-size warning remains.
 

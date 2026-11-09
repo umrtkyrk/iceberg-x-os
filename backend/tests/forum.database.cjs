@@ -40,6 +40,7 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261029120000_english_forum_categories/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261029120000_forum_portal_integration/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261106120000_english_ideas_category/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261109180000_forum_default_categories/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };

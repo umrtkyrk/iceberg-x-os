@@ -1,5 +1,7 @@
 # Forum UI V4 — updated real-api design with portal integration
 
+Historical design notes. For the current setup and merged feature set use [the forum handover guide](forum.md). Later real-api changes include image upload/paste, mention length guards and data-preserving local installation.
+
 This branch starts at `forum/real-api` commit `00473584f1e0f73b40911138404f99322d059dee`. It retains the English community feed, magenta palette, white cards, collapsible comments and whole-board statistics. The portal integration previously built in `ui-v3` is adapted to that layout. Work belongs only to `umrtkyrk/iceberg-x-os:codex/ui-v4`; no upstream change, merge or deployment is included.
 
 ## Completed gaps
@@ -24,14 +26,15 @@ npm ci --prefix backend
 npm ci --prefix frontend
 cd backend
 npx prisma generate
-npx prisma migrate deploy
+npm run db:forum:plan
+npm run db:forum:migrate
 ```
 
-Start the normal backend/frontend dev scripts and open `/forum`. Both feature flags default to off. The latest real-api behavior is preserved: there is no local-storage demo fallback, and no sample topics/accounts are seeded by application code.
+These commands are for an existing migrated local portal. For an empty local schema use `npm run db:forum:init` instead; see [the baseline and data-preservation procedure](forum.md#local-setup). Start the normal backend/frontend dev scripts and open `/forum`. Both feature flags default to off. There is no local-storage demo fallback, and the forum installer creates no sample topics/accounts.
 
-The additional migration `20261029120000_forum_portal_integration` is copied unchanged from `ui-v3`: three new tables (`ForumProfile`, `ForumTopicContext`, `ForumNotificationTarget`), their foreign keys/indexes and an insert-if-missing Ideas community. Existing category IDs, topic history and portal columns remain intact. Its historical Ideas label is retained; Admin can change it through community settings. It is safe to reuse this migration when moving between the two design branches against a migrated local database.
+The additional migration `20261029120000_forum_portal_integration` was copied unchanged from `ui-v3`: three new tables (`ForumProfile`, `ForumTopicContext`, `ForumNotificationTarget`), their foreign keys/indexes and an insert-if-missing Ideas community. A later inherited migration renamed Ideas to English. The current guarded installer skips pending label-only UPDATE migrations and preserves existing labels; Admin can rename communities deliberately. New empty installs receive English defaults without updating existing rows.
 
-The English category-name migration already belongs to `0047358`; it is inherited unchanged. No existing migration was rewritten. The pre-existing portal Quest migration ordering problem is also unchanged. The database test constructs a portal baseline in a random disposable schema, then applies the forum migrations in order; it does not claim to verify the historical full migration chain.
+The historical category-name and portal Quest migration files remain unchanged. The current local empty installer baselines the present schema instead of replaying the broken Quest order. The separate `test:forum:migrations` suite exercises empty initialization and preservation of existing records; the older service database test still applies forum SQL to a temporary portal baseline.
 
 ## Validation
 
@@ -45,11 +48,12 @@ npm run test:forum --prefix frontend
 npm run build --prefix frontend
 # DATABASE_URL must point to a disposable localhost database:
 npm run test:forum:db --prefix backend
+npm run test:forum:migrations --prefix backend
 ```
 
 Verified on 2 November 2026 with separate local PostgreSQL and synthetic Cube/Admin/Alumni accounts: badge order/signature persistence across reload, fourth-badge prevention, topic creation with quest/mission links and a searched mention, topic movement to an Admin-created community, notification-to-reply focus, manual pagination, Alumni read-only UI and 390px/1440px layouts without page overflow. Database tests cover additive SQL, ownership, read-only posting policy, badge validation, context access without reward side effects, recipient deduplication, reply page resolution, stats/report privacy, unanswered consistency and soft/account deletion. Feature-off tests hide all forum routes without a database.
 
-The inherited accepted-answer feature remains available even though it is outside the mission's minimum scope. No reactions, uploads, reputation, Radar/MVCubes score changes or email digests were added. The inherited write limiter remains in memory per process (20/minute); distributed limiting remains a separate concern. Frontend build retains the portal's existing large-bundle warning.
+The inherited accepted-answer feature and later image upload/paste remain available beyond the mission's minimum scope. Uploads accept PNG/JPEG/WEBP/GIF up to 5 MB and render only portal-hosted images. No reactions, reputation, Radar/MVCubes score changes or email digests were added. The write limiter remains in memory per process (20/minute), with an additional 30-image/hour/account limit. Frontend build retains the portal's existing large-bundle warning. See the current guide for upload storage/access behavior.
 
 ## Screenshots — synthetic local data
 
