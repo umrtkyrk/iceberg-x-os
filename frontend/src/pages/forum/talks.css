@@ -275,6 +275,10 @@
 .cube-forum mark.mention-tag { padding: 0; border-radius: 3px; background: var(--talk-accent-soft); font-weight: inherit; }
 .cube-forum :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--talk-accent); outline-offset: 3px; }
 
+.cube-forum .talk-credits { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; padding: 20px 12px 0; border-top: 1px solid var(--talk-line); color: var(--talk-muted); font-size: 12px; }
+.cube-forum .talk-credits a { display: inline-flex; align-items: center; min-height: 36px; padding: 4px 8px; border-radius: 8px; color: var(--talk-accent); font-weight: 800; text-decoration: underline; text-decoration-color: #f6b5d8; text-underline-offset: 4px; }
+.cube-forum .talk-credits a:hover { background: var(--talk-accent-soft); text-decoration-color: currentColor; }
+
 @media (max-width: 1280px) {
   .cube-forum { grid-template-columns: 220px minmax(0, 1fr); }
   .cube-forum .talk-side { grid-column: 2; position: static; }

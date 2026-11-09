@@ -407,5 +407,11 @@ export default function Forum() {
         {statsStatus !== 'ready' ? statsNotice : stats.unanswered.length ? <ul className="talk-side-topics">{stats.unanswered.map(topic => <li key={topic.id}><p className="talk-meta is-sub"><CommunityIcon id={topic.category_id} size={18}/>c/{topic.category_id} · {ago(topic.created_at)}</p><button disabled={busy} onClick={() => openTopic(topic.id)}>{topic.title}</button></li>)}</ul> : <p className="talk-hint">Every topic has a reply. 🎉</p>}
       </section>
     </aside>
+    <footer className="talk-credits" aria-label="Forum contributors">
+      <span>Built by</span>
+      <a href="https://x.iceberg-digital.co.uk/x/018" target="_blank" rel="noopener noreferrer" aria-label="Cube #018 — opens in a new tab">Cube #018</a>
+      <span aria-hidden="true">&amp;</span>
+      <a href="https://x.iceberg-digital.co.uk/x/013" target="_blank" rel="noopener noreferrer" aria-label="Cube #013 — opens in a new tab">Cube #013</a>
+    </footer>
   </div>;
 }
