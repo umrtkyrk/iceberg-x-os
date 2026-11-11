@@ -319,3 +319,8 @@
 .cube-forum .markdown-editor-attachments { padding: 10px 14px; list-style: none; }
 /* Line the post author's signature up with their name (author line indent + avatar + gap). */
 .cube-forum .talk-post > .forum-signature { margin-left: 60px; }
+/* Feed teasers: expanded text drops the line clamp; the toggle sits under it. */
+.cube-forum .talk-feed-card .talk-snippet.is-expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.cube-forum .talk-show-more { margin-top: 4px; color: var(--talk-accent); font-size: 13px; font-weight: 700; }
+.cube-forum .talk-show-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cube-forum .talk-feed-card .talk-snippet { white-space: pre-line; }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Bookmark, BookOpen, CheckCircle2, Clock, Coffee, Flame, Hand, Hash, LayoutGrid, LifeBuoy, Link2, LockKeyhole, Megaphone, MessageCircle, MessageCircleQuestion, Minus, Pencil, Pin, Plus, Rocket, Search, Shield, Trash2, Flag, Bell, BellOff, SlidersHorizontal, X, Lightbulb, Heart, type LucideIcon } from 'lucide-react';
@@ -28,8 +28,8 @@ function ago(value: string) {
   const unit = units.find(([, size]) => Math.abs(seconds) >= size);
   return unit ? relative.format(Math.round(seconds / unit[1]), unit[0]) : 'just now';
 }
-// A plain-text teaser for feed cards; formatting is shown only on the topic page.
-const preview = (text: string) => mentionsToText(stripImages(text)).replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~[\]()!-]/g, ' ').replace(/\s+/g, ' ').trim();
+// A plain-text teaser for feed cards that keeps line breaks; formatting is shown only on the topic page.
+const preview = (text: string) => mentionsToText(stripImages(text)).replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~[\]()!-]/g, ' ').replace(/[^\S\n]+/g, ' ').replace(/ *\n\s*/g, '\n').trim();
 const emptyList: TopicList = { topics: [], total: 0, pageSize: 20 };
 const hints: Record<string, string> = {
   announcements: 'State the scope and date of the announcement and what Cubes are expected to do.',
@@ -53,6 +53,26 @@ function CommunityIcon({ id, size = 24 }: { id?: string; size?: number }) {
   const style = communityStyle[id || ''] || { icon: Hash, color: '#6b7280' };
   const Icon = style.icon;
   return <span className="talk-community-icon" style={{ width: size, height: size, background: style.color }} aria-hidden="true"><Icon size={Math.round(size * 0.55)}/></span>;
+}
+/** A feed teaser clamped to a few lines, with "Show more" only when the text is actually cut off. */
+function FeedSnippet({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element || expanded) return;
+    const measure = () => setClamped(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [text, expanded]);
+  return <>
+    <p ref={ref} className={`talk-snippet ${expanded ? 'is-expanded' : ''}`}>{text}</p>
+    {(clamped || expanded) && <button type="button" className="talk-show-more" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show less' : 'Show more'}</button>}
+  </>;
 }
 function Markdown({ text }: { text: string }) { return <div className="markdown"><ReactMarkdown skipHtml components={{ img: ForumImage, a: MentionAwareLink }}>{text || ''}</ReactMarkdown></div>; }
 
@@ -396,7 +416,7 @@ export default function Forum() {
           <div className="talk-meta"><CommunityIcon id={topic.category_id} size={22}/><button onClick={() => go({ category: topic.category_id })}><strong>c/{topic.category_id}</strong></button><span>·</span><time dateTime={topic.created_at} title={date(topic.created_at)}>{ago(topic.created_at)}</time><span>·</span><AuthorIdentity author={topic.author} compact/></div>
           <h3><Link className="talk-card-title" to={`/forum?topic=${encodeURIComponent(topic.id)}`}>{topic.title}</Link></h3>
           <div className="talk-flairs">{flairs(topic)}{forumReadStatus(topic.last_activity_at, topic.states?.[0]?.read_at) && <span className="talk-flair is-unread">{forumReadStatus(topic.last_activity_at, topic.states?.[0]?.read_at)}</span>}</div>{contextLinks(topic)}
-          {preview(topic.body) && <p className="talk-snippet">{preview(topic.body)}</p>}
+          {preview(topic.body) && <FeedSnippet text={preview(topic.body)}/>}
           {(() => { const cover = firstForumImage(topic.body); return cover && <Link className="talk-feed-image" to={`/forum?topic=${encodeURIComponent(topic.id)}`} tabIndex={-1} aria-hidden="true"><img src={cover.src} alt="" loading="lazy"/></Link>; })()}
           <div className="talk-actions">
             {likeButton(topic, topic.id, false, topic.title)}
