@@ -98,3 +98,6 @@ export function resolvePublicOrigin(req?: Request): string {
 export const STORAGE_PATH = process.env.STORAGE_PATH
   ? path.resolve(process.env.STORAGE_PATH)
   : path.resolve(__dirname, '../../uploads');
+
+// Roll out the API independently from the frontend.
+export const FORUM_ENABLED = process.env.FORUM_ENABLED === 'true';

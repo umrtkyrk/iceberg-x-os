@@ -52,6 +52,11 @@ const avatarsStoragePath = path.join(STORAGE_PATH, 'avatars');
 const legacyAvatarsPath = path.resolve(__dirname, '../uploads/avatars');
 app.use('/uploads/avatars', express.static(avatarsStoragePath));
 app.use('/uploads/avatars', express.static(legacyAvatarsPath));
+// Forum post images: random names, contents verified as PNG/JPEG/WEBP/GIF on upload.
+// nosniff stops a browser from treating one as anything other than an image.
+app.use('/uploads/forum', express.static(path.join(STORAGE_PATH, 'forum'), {
+  setHeaders: res => { res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox"); },
+}));
 
 // Mount all API routes
 app.use('/api', router);

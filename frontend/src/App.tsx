@@ -1,4 +1,5 @@
-import React from 'react';
+import { lazy, Suspense } from 'react';
+import { FORUM_ENABLED } from './config/features';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
@@ -46,6 +47,9 @@ import { Radar } from './pages/Radar';
 import { MVCubes } from './pages/MVCubes';
 import { HallOfFame } from './pages/HallOfFame';
 
+
+const Forum = lazy(() => import('./pages/forum/Forum'));
+
 function App() {
   return (
     <AuthProvider>
@@ -81,6 +85,7 @@ function App() {
           >
             {/* Dashboard Router */}
             <Route path="dashboard" element={<Dashboard />} />
+            {FORUM_ENABLED && <Route path="forum" element={<Suspense fallback={<p role="status">Loading the forum…</p>}><Forum /></Suspense>} />}
             <Route path="change-password" element={<ChangePassword />} />
             <Route path="notification-history" element={<NotificationHistory />} />
 
