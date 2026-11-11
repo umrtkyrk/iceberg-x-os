@@ -46,6 +46,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onUploadImage
 }) => {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkError, setLinkError] = useState('');
+  const linkSelection = useRef({ start: 0, end: 0, text: '' });
+  const linkInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (linkOpen) linkInput.current?.focus(); }, [linkOpen]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiTrigger = useRef<HTMLButtonElement>(null);
   const emojiPanel = useRef<HTMLDivElement>(null);
@@ -115,6 +122,33 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     void addImage(file);
   };
 
+  const closeLink = () => { setLinkOpen(false); textareaRef.current?.focus(); };
+  const openLink = () => {
+    const field = textareaRef.current;
+    if (!field) return;
+    linkSelection.current = { start: field.selectionStart, end: field.selectionEnd, text: field.value };
+    setLinkText(field.value.slice(field.selectionStart, field.selectionEnd));
+    setLinkUrl(''); setLinkError(''); setEmojiOpen(false); setLinkOpen(true);
+  };
+  const applyLink = () => {
+    if (disabled) return;
+    const raw = linkUrl.trim();
+    let destination = raw;
+    try {
+      const parsed = new URL(/^(?:https?:)?\/\//i.test(raw) ? (raw.startsWith('//') ? 'https:' + raw : raw) : 'https://' + raw);
+      if (!raw || /\s/.test(raw) || !['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')) throw new Error();
+      destination = parsed.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
+    } catch { setLinkError('Paste a valid website URL, such as https://example.com.'); return; }
+    const selection = linkSelection.current;
+    const text = textareaRef.current?.value ?? value;
+    if (text !== selection.text) { setLinkError('Your text changed. Close this panel and select the text again.'); return; }
+    const label = (linkText.trim() || raw).replace(/([\\\[\]])/g, '\\$1');
+    const replacement = '[' + label + '](' + destination + ')';
+    if (!onChange(text.slice(0, selection.start) + replacement + text.slice(selection.end))) return;
+    setLinkOpen(false);
+    setTimeout(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(selection.start + replacement.length, selection.start + replacement.length); }, 0);
+  };
+
   const insertMarkdown = (before: string, after: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -143,6 +177,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     <div className="markdown-editor w-full border border-gray-100 rounded-xl overflow-hidden bg-white shadow-subtle flex flex-col focus-within:border-magenta focus-within:ring-1 focus-within:ring-magenta/20 transition-all"
       onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEmojiOpen(false); }}
       onKeyDown={event => { if (emojiOpen && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEmojiOpen(false); emojiTrigger.current?.focus(); } }}>
+      {linkOpen && <div role="group" aria-label="Insert link" className="p-3 bg-gray-50 border-b border-gray-100 flex flex-col gap-2"
+        onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeLink(); } else if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); applyLink(); } }}>
+        <label className="text-xs font-semibold">Link text<input aria-label="Link text" className="block w-full border rounded p-2" value={linkText} disabled={disabled} onChange={event => setLinkText(event.target.value)}/></label>
+        <label className="text-xs font-semibold">URL<input ref={linkInput} aria-label="Link URL" type="text" inputMode="url" placeholder="https://example.com" className="block w-full border rounded p-2" value={linkUrl} disabled={disabled} onChange={event => setLinkUrl(event.target.value)}/></label>
+        {linkError && <p role="alert" className="text-xs text-red-600">{linkError}</p>}
+        <div className="flex gap-2"><button type="button" aria-label="Insert link" disabled={disabled} className="text-sm font-bold text-magenta" onClick={applyLink}>Insert link</button><button type="button" aria-label="Cancel link" onClick={closeLink}>Cancel</button></div>
+      </div>}
       {/* Editor Toolbar Header */}
       <div className="bg-gray-50 border-b border-gray-100 px-3.5 py-1.5 flex items-center justify-between gap-4 flex-wrap">
         
@@ -202,10 +243,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
           <button
             type="button"
-            onClick={() => insertMarkdown('[', '](url)')}
+            onClick={openLink}
             disabled={disabled}
             className="p-1.5 hover:bg-gray-200/60 rounded text-gray-500 hover:text-gray-900 transition-colors"
-            title="Link ([text](url))"
+            title="Add link" aria-label="Add link" aria-expanded={linkOpen}
           >
             <LinkIcon className="w-3.5 h-3.5" />
           </button>
@@ -254,7 +295,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           
           <button
             type="button"
-            onClick={() => { setActiveTab('preview'); setEmojiOpen(false); }}
+            onClick={() => { setActiveTab('preview'); setEmojiOpen(false); setLinkOpen(false); }}
             className={`flex items-center gap-1 px-3 py-1 rounded-md transition-all ${
               activeTab === 'preview'
                 ? 'bg-white text-magenta shadow-sm'
