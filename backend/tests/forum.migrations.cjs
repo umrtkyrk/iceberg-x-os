@@ -10,6 +10,7 @@ const { PrismaClient } = require('@prisma/client');
 const backend = path.resolve(__dirname, '..');
 const cli = path.join(backend, 'scripts/forum-migrate.cjs');
 const defaults = '20261109180000_forum_default_categories';
+const likes = '20261111120000_forum_likes';
 const original = '20261028120000_add_forum';
 const integration = '20261029120000_forum_portal_integration';
 const labels = ['20261029120000_english_forum_categories', '20261106120000_english_ideas_category'];
@@ -71,7 +72,7 @@ async function main() {
     prisma(['db', 'execute', '--file', sql, '--schema', baseline], older.url);
     prisma(['db', 'execute', '--file', path.join(backend, 'prisma/migrations', original, 'migration.sql'), '--schema', baseline], older.url);
     await admin.$executeRawUnsafe(`CREATE TABLE "${names[1]}"."_prisma_migrations" (LIKE "${names[0]}"."_prisma_migrations" INCLUDING ALL)`);
-    const pending = [integration, ...labels, defaults];
+    const pending = [integration, ...labels, defaults, likes];
     await admin.$executeRawUnsafe(`INSERT INTO "${names[1]}"."_prisma_migrations" SELECT * FROM "${names[0]}"."_prisma_migrations" WHERE NOT (migration_name = ANY($1::text[]))`, pending);
     const user = await older.db.user.create({ data: { name: 'Local migration sentinel', email: `${randomUUID()}@example.invalid`, password_hash: 'unusable-test-only', role: 'ADMIN' } });
     await older.db.forumCategory.update({ where: { id: 'help' }, data: { name: 'Admin-owned title', description: 'Admin-owned description', position: 42 } });
@@ -88,6 +89,7 @@ async function main() {
     assert.equal(await older.db.forumProfile.count(), 0);
     assert.equal(await older.db.forumCategory.count(), categories.length + 1); // integration adds Ideas
     assert.equal(await older.db.forumCategory.findUnique({ where: { id: 'resources' } }), null);
+    assert.equal(await older.db.forumTopicLike.count(), 0);
     passed(invoke('--apply', older.url));
     console.log('PASS: older forum upgraded through real CLI without changing any existing category, user or topic; plan is read only.');
 

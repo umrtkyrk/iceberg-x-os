@@ -61,6 +61,7 @@ In **Forum profile**, select up to three of your earned badges, arrange their or
 
 - Create a topic with a title of up to 160 characters and Markdown body up to 10,000; replies allow 5,000. Quest/mission links use accessible portal records and do not advance progress or award points.
 - Replies are chronological, 20 per page. Authors can edit or soft-delete their own content; edits show a marker. Search matches title/body/reply text; category, quest, mission and feed filters work together. New/unread state persists per account.
+- Use **Add emoji** in the topic/reply editor to insert an emoji at the cursor or replace selected text. The picker also works when editing a post, supports keyboard navigation and Escape, and preserves mentions/attachments. Emoji use the existing message length limit; an oversized edit is rejected without shortening the draft.
 - Authors automatically follow their topics. Replies notify the owner/followers; `@` search inserts stable Cube/staff mention handles. Recipients are deduplicated, excluding self and exited Cubes. Code and quoted text do not send mentions. Up to ten distinct handles are processed; edits do not resend notifications.
 - The portal bell/history links to the exact topic/reply; the server resolves its current page. Manual pagination releases that notification target. Saved/following lists belong to the signed-in user.
 - Report another author's topic/reply with a reason. Mentor/Admin opens **Moderation**, follows the target, removes content if appropriate and marks the report reviewed. Deleting content resolves its open reports. Reports are not public.
@@ -74,7 +75,7 @@ The editor accepts PNG/JPEG/WEBP/GIF up to 5 MB, one file per upload. The server
 
 Uploaded files are publicly served at their random URLs, like portal avatars. Soft-deleting a post does not delete its image files; the feature flag hides the UI/API rather than revoking already-uploaded static URLs. Forum uploads are for discussion images, not confidential portal documents. Persistence/retention of the storage volume is part of any later deployment plan.
 
-Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. No reactions, email digests, reputation or score changes are implemented.
+Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. Topics and replies support likes with grouped author notifications; removing a like updates the unread summary. Reading a notification preserves its history, and a later like starts a new unread notification. Other emoji reactions, email digests, reputation and score changes are not implemented.
 
 ## API and data model
 

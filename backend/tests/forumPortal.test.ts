@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { forumStage, publicForumAuthor, validateForumPreferences, assertForumPosting } from '../src/services/forumIdentity.service';
-import { forumMentionHandles } from '../src/services/forumNotifications.service';
+import { forumMentionHandle, forumMentionHandles } from '../src/services/forumNotifications.service';
 import { manageForumCategory } from '../src/services/forumCategory.service';
 import prisma from '../src/services/prisma';
 import { HttpError } from '../src/utils/http';
@@ -33,6 +33,14 @@ test('mentions use stable handles and ignore code, quotations, unknown syntax an
   assert.deepEqual(forumMentionHandles('Hi @cube-018 @cube-018\n> @cube-019\n`@cube-020`\n```js\n@cube-021\n```\n@someone @cube-022extra'), ['cube-018']);
   assert.equal(forumMentionHandles(Array.from({ length: 15 }, (_, i) => `@cube-${i}`).join(' ')).length, 10);
   assert.deepEqual(forumMentionHandles('~~~js\n@cube-030\n~~~\n````\n```\n@cube-031\n````\n``@cube-032``\n    @cube-033\n@cube-034'), ['cube-034']);
+});
+
+test('non-numeric Cube numbers (e.g. staff "T-ADM") get a user-id handle the parser accepts', () => {
+  const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+  assert.equal(forumMentionHandle({ id, cube_profile: { cube_number: '018' } }), 'cube-018');
+  assert.equal(forumMentionHandle({ id, cube_profile: { cube_number: 'T-ADM' } }), `user-${id}`);
+  assert.equal(forumMentionHandle({ id, cube_profile: null }), `user-${id}`);
+  assert.deepEqual(forumMentionHandles(`Hi @${forumMentionHandle({ id, cube_profile: { cube_number: 'T-ADM' } })}`), [`user-${id}`]);
 });
 
 test('posting policy permits staff and Icebergers, but exited Cubes and missing profiles are read-only', async () => {

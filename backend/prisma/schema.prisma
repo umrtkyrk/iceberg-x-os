@@ -95,6 +95,8 @@ model User {
   forum_states ForumTopicState[]
   forum_reports ForumReport[]
   forum_profile ForumProfile?
+  forum_topic_likes ForumTopicLike[]
+  forum_reply_likes ForumReplyLike[]
 
   // Relations
   cube_profile         CubeProfile?          @relation("UserToCubeProfile")
@@ -851,6 +853,7 @@ model ForumTopic {
   replies ForumReply[]
   states ForumTopicState[]
   reports ForumReport[]
+  likes ForumTopicLike[]
   @@index([category_id, deleted_at, last_activity_at])
   @@index([author_id])
   @@index([deleted_at, pinned, last_activity_at])
@@ -869,6 +872,7 @@ model ForumReply {
   deleted_at DateTime?
   deleted_by_id String?
   reports ForumReport[]
+  likes ForumReplyLike[]
   accepted_in ForumTopic? @relation("AcceptedForumReply")
   @@index([topic_id, deleted_at, created_at])
   @@index([author_id])
@@ -931,5 +935,24 @@ model ForumNotificationTarget {
   reply_id String?
   reply ForumReply? @relation(fields: [reply_id], references: [id], onDelete: SetNull)
   @@index([topic_id])
+  @@index([reply_id])
+}
+// One like per person per post; removing the person or the post removes the like.
+model ForumTopicLike {
+  user_id String
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topic_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  @@id([user_id, topic_id])
+  @@index([topic_id])
+}
+model ForumReplyLike {
+  user_id String
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  reply_id String
+  reply ForumReply @relation(fields: [reply_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  @@id([user_id, reply_id])
   @@index([reply_id])
 }

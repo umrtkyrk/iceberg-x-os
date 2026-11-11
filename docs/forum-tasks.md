@@ -32,6 +32,6 @@ The October mock/preview task list has been replaced by this implementation stat
 - The repository organization change prepares a fork-local release into `main`; branch roles and historical design tags are documented in [repository-branches.md](repository-branches.md). Main promotion does not constitute deployment or Demo Day delivery.
 - Perform or record the 2–3 minute Demo Day presentation and attach its evidence through the normal mission submission. A runbook does not count as a completed presentation.
 
-The existing write limiter is process-local (20 non-GET requests/minute/account; images additionally 30/hour). Multi-instance rate limiting is a future infrastructure task. Images and accepted answers exceed the original mission minimum; reactions, email digests, reputation and Radar/MVCubes scoring remain absent.
+The existing write limiter is process-local (20 non-GET requests/minute/account; images additionally 30/hour). Multi-instance rate limiting is a future infrastructure task. Images, accepted answers and likes on topics/replies with grouped author notifications exceed the original mission minimum. Other emoji reactions, email digests, reputation and Radar/MVCubes scoring remain absent.
 
 Historical migration SQL is not rewritten, and already-applied category renames cannot be reversed without original values. The current local installer prevents pending label changes; production rollout is outside this fork task.

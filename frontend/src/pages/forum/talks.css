@@ -45,7 +45,8 @@
 .cube-forum .forum-founding { font-size: 10px; font-weight: 800; color: #a16207; }
 .cube-forum .forum-showcase { display: flex; align-items: center; gap: 5px; }
 .cube-forum .forum-author-card.is-compact .forum-avatar { display: none; }
-.cube-forum .forum-signature { margin-top: 14px; padding-top: 8px; border-top: 1px dashed var(--talk-line); color: var(--talk-muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+/* Shown directly under the author's name. */
+.cube-forum .forum-signature { margin-top: 2px; color: var(--talk-muted); font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; }
 .cube-forum .forum-viewer .talk-btn { margin-top: 12px; white-space: normal; }
 .cube-forum .forum-badge-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 12px 0; }
 .cube-forum .forum-badge-picker button { display: flex; align-items: center; gap: 8px; border: 1px solid var(--talk-line); padding: 10px; border-radius: 12px; min-width: 0; }
@@ -240,7 +241,12 @@
 .cube-forum .talk-filter-chips > .talk-clear-filters { color: var(--talk-muted); background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .cube-forum .talk-feed-card { padding: 20px; }
 .cube-forum .talk-card-title { margin-top: 10px; font-size: 18px; line-height: 1.4; letter-spacing: -.015em; text-decoration: none; }
-.cube-forum .talk-feed-card .talk-snippet { margin-top: 10px; line-height: 1.65; -webkit-line-clamp: 2; }
+.cube-forum .talk-feed-card .talk-snippet { margin-top: 10px; line-height: 1.65; -webkit-line-clamp: 4; }
+/* Feed images keep their proportions: never cropped or enlarged, only scaled down to a LinkedIn-like size. */
+.cube-forum .talk-feed-image { display: block; width: fit-content; max-width: min(100%, 560px); margin-top: 12px; border: 1px solid var(--talk-line); border-radius: 14px; overflow: hidden; background: var(--talk-bg); }
+.cube-forum .talk-feed-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 420px; object-fit: contain; }
+.cube-forum .talk-pill.talk-like.is-liked, .cube-forum .talk-comment .talk-pill.talk-like.is-liked { color: var(--talk-accent) !important; }
+.cube-forum .talk-pill.talk-like:disabled { cursor: default; opacity: .7; }
 .cube-forum .talk-feed-card .talk-actions { margin-top: 16px; }
 .cube-forum .talk-meta { row-gap: 8px; }
 .cube-forum .forum-stage { font-size: 11px; line-height: 1.5; }
@@ -310,3 +316,12 @@
   .cube-forum .talk-card-title { font-size: 17px; }
   .cube-forum .talk-pill { padding: 0 10px; }
 }
+/* The forum's list reset would otherwise remove the attachment tray's spacing. */
+.cube-forum .markdown-editor-attachments { padding: 10px 14px; list-style: none; }
+/* Line the post author's signature up with their name (author line indent + avatar + gap). */
+.cube-forum .talk-post > .forum-signature { margin-left: 60px; }
+/* Feed teasers: expanded text drops the line clamp; the toggle sits under it. */
+.cube-forum .talk-feed-card .talk-snippet.is-expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.cube-forum .talk-show-more { margin-top: 4px; color: var(--talk-accent); font-size: 13px; font-weight: 700; }
+.cube-forum .talk-show-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cube-forum .talk-feed-card .talk-snippet { white-space: pre-line; }
