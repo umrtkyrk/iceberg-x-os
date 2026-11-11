@@ -25,6 +25,7 @@ import {
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader } from '../components/PageHeader';
+import { ForumPulse } from '../components/dashboard/ForumPulse';
 
 interface Action {
   id: string;
@@ -594,6 +595,7 @@ export function AdminDashboard() {
           </section>
         </div>
         <aside className="flex min-w-0 flex-col gap-8">
+          <ForumPulse />
           <section>
             <SectionTitle icon={Calendar} title="Coming up" />
             <Rows>

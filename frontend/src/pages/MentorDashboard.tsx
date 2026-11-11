@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
+import { ForumPulse } from '../components/dashboard/ForumPulse';
 import { peerApi } from '../utils/peer';
 
 const MAX_CUBES = 8;
@@ -404,6 +405,10 @@ export const MentorDashboard: React.FC = () => {
               )}
             </div>
           )}
+
+          <div className="mt-4">
+            <ForumPulse />
+          </div>
         </aside>
       </div>
     </div>

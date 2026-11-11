@@ -17,6 +17,7 @@ import dashboardsRoutes from './dashboards.routes';
 import adminUsersRoutes from './adminUsers.routes';
 import applicationsRoutes from './applications.routes';
 import invitesRoutes from './invites.routes';
+import recruitmentRoutes from './recruitment.routes';
 import notificationsRoutes from './notifications.routes';
 import testimonialsRoutes from './testimonials.routes';
 import questsRoutes from './quests.routes';
@@ -26,6 +27,7 @@ import peerFeedbackRoutes from './peerFeedback.routes';
 import radarRoutes from './radar.routes';
 import mvcubesRoutes from './mvcubes.routes';
 import hallOfFameRoutes from './hallOfFame.routes';
+import webinarsRoutes from './webinars.routes';
 
 const router = Router();
 
@@ -55,6 +57,7 @@ router.use(dashboardsRoutes);
 router.use(adminUsersRoutes);
 router.use(applicationsRoutes);
 router.use(invitesRoutes);
+router.use(recruitmentRoutes);
 router.use(notificationsRoutes);
 router.use(testimonialsRoutes);
 router.use(questsRoutes);
@@ -64,5 +67,6 @@ router.use(peerFeedbackRoutes);
 router.use(radarRoutes);
 router.use(mvcubesRoutes);
 router.use(hallOfFameRoutes);
+router.use(webinarsRoutes);
 
 export default router;

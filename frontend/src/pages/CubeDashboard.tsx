@@ -28,6 +28,7 @@ import { GiveFeedbackButton } from '../components/peer/GiveFeedbackButton';
 import { QuestBoard } from '../components/dashboard/QuestBoard';
 import { peerApi } from '../utils/peer';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
+import { ForumPulse } from '../components/dashboard/ForumPulse';
 
 export const CubeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -528,6 +529,8 @@ export const CubeDashboard: React.FC = () => {
               )}
             </div>
           )}
+
+          <ForumPulse />
 
           {/* Kudos received: the reward for being useful to teammates */}
           <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">

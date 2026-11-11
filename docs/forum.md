@@ -1,10 +1,10 @@
 # Cube Forum
 
-Current setup and handover guide, 9 November 2026. The forum uses the real portal API and PostgreSQL, not a localStorage mock. Development and PRs belong only to `umrtkyrk/iceberg-x-os`, with `forum-mvp` as the integration branch. No upstream operation or deployment is included.
+Current setup and handover guide, 9 November 2026. The forum uses the real portal API and PostgreSQL, not a localStorage mock. Built by Cubes Mesut Umur Tokyürek and Medine Kaynak. Production is enabled with `FORUM_ENABLED=true` (backend) and `VITE_CUBE_FORUM_ENABLED=true` (frontend build).
 
 ## Local setup
 
-Install the backend/frontend dependencies. Set `DATABASE_URL` and `DIRECT_URL` to the same **local** PostgreSQL database and schema in `backend/.env`; set `JWT_SECRET` through the normal portal setup. Do not commit environment files. Generate the client:
+Install the backend/frontend dependencies. Set `DATABASE_URL` (and optionally `DIRECT_URL`, used only by the local forum scripts) to the same **local** PostgreSQL database and schema in `backend/.env`; set `JWT_SECRET` through the normal portal setup. Do not commit environment files. Generate the client:
 
 ```sh
 npm ci --prefix backend
@@ -75,7 +75,7 @@ The editor accepts PNG/JPEG/WEBP/GIF up to 5 MB, one file per upload. The server
 
 Uploaded files are publicly served at their random URLs, like portal avatars. Soft-deleting a post does not delete its image files; the feature flag hides the UI/API rather than revoking already-uploaded static URLs. Forum uploads are for discussion images, not confidential portal documents. Persistence/retention of the storage volume is part of any later deployment plan.
 
-Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. Topics and replies support likes with grouped author notifications; removing a like updates the unread summary. Reading a notification preserves its history, and a later like starts a new unread notification. Other emoji reactions, email digests, reputation and score changes are not implemented.
+Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. Topics and replies support likes with grouped author notifications; removing a like updates the unread summary. Reading a notification preserves its history, and a later like starts a new unread notification. Upstream forum quests now calculate progress from live posts, replies and accepted answers through the existing quest system. Other emoji reactions, email digests and separate forum reputation are not implemented.
 
 ## API and data model
 
@@ -115,4 +115,6 @@ npm run build --prefix frontend
 
 Both database suites require localhost and create/delete only random disposable schemas. The service suite verifies forum SQL/features; the migration suite additionally runs the real installer against an empty schema and an older forum, verifies no schema drift, preserves existing records, checks idempotency and refuses unsafe targets. It does not claim to replay the broken historical portal chain.
 
-The [Demo Day runbook](forum-demo.md) provides a 2:50 live demonstration and final acceptance checklist. A prepared runbook is not a recorded video or evidence that a live presentation has occurred. Footer [PR #6](https://github.com/umrtkyrk/iceberg-x-os/pull/6) and handover [PR #7](https://github.com/umrtkyrk/iceberg-x-os/pull/7) are merged into `forum-mvp`; the full checks passed on combined revision `2d07051` on 11 November 2026. Fork releases use a separate PR into the same repository's `main`. See [branch roles and design archives](repository-branches.md); no upstream deployment is authorized.
+## Upstream refresh (11 November 2026)
+
+This fork incorporates upstream main through `1c78ca1`, including recruitment, webinars, forum quest criteria, dashboard activity and signature frames. Fork-only likes, emoji composition, notification fixes, contributor links and workflow documents are retained. The empty-local-schema installer includes the reviewed recruitment/webinar schema; an existing local portal with pending non-forum migrations still requires a separate reviewed upgrade. This refresh does not run migrations or deploy either repository.

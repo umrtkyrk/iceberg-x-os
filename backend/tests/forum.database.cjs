@@ -74,6 +74,7 @@ async function main() {
     assert.equal((await forum.forumCategories()).length, 7);
     await assert.rejects(forum.createForumTopic(cube, { category_id: 'announcements', title: 'Test title', body: 'A sufficiently long test body.' }), e => e.status === 403);
     const topic = await forum.createForumTopic(cube, { category_id: 'help', title: 'A real persistence test', body: 'A sufficiently long original post.', quest_id: quest.id, mission_id: mission.id });
+    assert.equal(await require('../dist/services/forumQuests.service').forumQuestValue(cube.id, 'forum_topics'), 1);
     const projected = (await forum.readForumTopic(staff, topic.id, 1)).topic;
     assert.equal(projected.context.quest.id, quest.id);
     assert.equal(projected.context.mission.id, mission.id);

@@ -8,6 +8,11 @@ import { assertForumAuthor, assertForumCategory, forumPage, forumText } from '..
 import { changeForumReply, changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic, readForumTopic } from '../src/services/forum.service';
 import { HttpError } from '../src/utils/http';
 
+// Forum write unit tests isolate the post-commit quest refresh from a real database.
+const cubeQuestFindMany = prisma.cubeQuest.findMany;
+test.before(() => { prisma.cubeQuest.findMany = (async () => []) as any; });
+test.after(() => { prisma.cubeQuest.findMany = cubeQuestFindMany; });
+
 const cube = { id: 'cube-a', role: 'CUBE' as const };
 const staff = { id: 'mentor-a', role: 'MENTOR' as const };
 const isStatus = (status: number) => (error: unknown) => error instanceof HttpError && error.status === status;

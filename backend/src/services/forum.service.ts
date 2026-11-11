@@ -5,6 +5,7 @@ import { forumAuthorSelect, publicForumAuthor } from './forumIdentity.service';
 import { forumContextSelect, topicContextInput } from './forumContext.service';
 import { forgetForumReply, notifyForumEvent, syncForumLikeNotification } from './forumNotifications.service';
 import { assertForumAuthor, assertForumCategory, ForumActor, forumText, isForumStaff } from './forumPolicy';
+import { recalculateForumQuestsForUsers } from './quest.service';
 
 const author = forumAuthorSelect;
 const projectPost = <T extends { author: Parameters<typeof publicForumAuthor>[0] }>(post: T) => ({ ...post, author: publicForumAuthor(post.author) });
@@ -16,6 +17,11 @@ const projectLikes = <T extends { likes?: unknown[]; _count?: { likes?: number }
   return { ...rest, liked: !!likes?.length, like_count: post._count?.likes ?? 0 };
 };
 type Tx = Prisma.TransactionClient;
+
+// Forum quests are re-evaluated after the post is committed, off the request path.
+function refreshForumQuests(userIds: (string | null | undefined)[]) {
+  void recalculateForumQuestsForUsers(userIds).catch(error => console.error('Forum quest refresh failed:', error));
+}
 
 // Every topic mutation obtains the same row lock, including reply changes and moderation.
 async function lockedTopic(tx: Tx, id: string) {
@@ -55,6 +61,38 @@ export async function forumStats() {
   const users = top.length ? await prisma.user.findMany({ where: { id: { in: top.map(([id]) => id) } }, select: author }) : [];
   const contributors = top.flatMap(([id, count]) => { const user = users.find(u => u.id === id); return user ? [{ author: publicForumAuthor(user), ...count }] : []; });
   return { topics, replies, solved, contributors, unanswered: unanswered.map(projectPost) };
+}
+
+// The dashboard card: what moved on the board recently, plus the viewer's own pulse.
+export async function forumDashboard(actor: ForumActor) {
+  const weekAgo = new Date(Date.now() - 7 * 86400000);
+  const liveTopic = { deleted_at: null };
+  const liveReply = { deleted_at: null, topic: liveTopic };
+  const staff = isForumStaff(actor);
+  const [recent, unanswered, myTopics, myReplies, weekTopics, weekReplies, followed, openReports] = await Promise.all([
+    prisma.forumTopic.findMany({ where: liveTopic, orderBy: [{ last_activity_at: 'desc' }, { id: 'desc' }], take: 5,
+      select: { id: true, title: true, last_activity_at: true, accepted_reply_id: true, author: { select: author },
+        category: { select: { id: true, name: true } }, _count: { select: { replies: { where: { deleted_at: null } } } },
+        states: { where: { user_id: actor.id }, select: { read_at: true } } } }),
+    prisma.forumTopic.findMany({ where: { ...liveTopic, locked: false, accepted_reply_id: null, author_id: { not: actor.id }, replies: { none: { deleted_at: null } } },
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 3,
+      select: { id: true, title: true, created_at: true, author: { select: author }, category: { select: { id: true, name: true } } } }),
+    prisma.forumTopic.count({ where: { ...liveTopic, author_id: actor.id } }),
+    prisma.forumReply.count({ where: { ...liveReply, author_id: actor.id } }),
+    prisma.forumTopic.count({ where: { ...liveTopic, created_at: { gte: weekAgo } } }),
+    prisma.forumReply.count({ where: { ...liveReply, created_at: { gte: weekAgo } } }),
+    prisma.$queryRaw<Array<{ count: bigint }>>`SELECT count(*) AS count FROM "ForumTopicState" s JOIN "ForumTopic" t ON t.id = s.topic_id
+      WHERE s.user_id = ${actor.id} AND s.following AND t.deleted_at IS NULL AND (s.read_at IS NULL OR s.read_at < t.last_activity_at)`,
+    staff ? prisma.forumReport.count({ where: { resolved_at: null } }) : Promise.resolve(null),
+  ]);
+  return {
+    recent: recent.map(({ states, ...topic }) => ({ ...projectPost(topic), read_at: states[0]?.read_at ?? null })),
+    unanswered: unanswered.map(projectPost),
+    my_posts: myTopics + myReplies,
+    week_posts: weekTopics + weekReplies,
+    followed_unread: Number(followed[0]?.count ?? 0),
+    open_reports: openReports,
+  };
 }
 
 export async function listForumTopics(actor: ForumActor, options: { category?: string; query?: string; view?: string; sort?: string; quest?: string; mission?: string; page: number }) {
@@ -126,7 +164,7 @@ export async function createForumTopic(actor: ForumActor, input: Record<string, 
   const category = await prisma.forumCategory.findUnique({ where: { id: categoryId } });
   if (!category) throw badRequest('Category not found.');
   assertForumCategory(actor, category.staff_only);
-  return prisma.$transaction(async tx => {
+  const created = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "ForumCategory" WHERE id = ${categoryId} FOR UPDATE`;
     const liveCategory = await tx.forumCategory.findUnique({ where: { id: categoryId } });
     if (!liveCategory) throw badRequest('Category not found.');
@@ -139,6 +177,8 @@ export async function createForumTopic(actor: ForumActor, input: Record<string, 
     await notifyForumEvent(tx, actor, topic, body);
     return topic;
   });
+  refreshForumQuests([actor.id]);
+  return created;
 }
 
 export async function changeForumTopic(actor: ForumActor, id: string, input: Record<string, unknown>, remove = false) {
@@ -177,7 +217,7 @@ export async function moderateForumTopic(actor: ForumActor, id: string, input: R
 
 export async function createForumReply(actor: ForumActor, topicId: string, input: Record<string, unknown>) {
   const body = forumText(input.body, 'Reply', 1, 5000);
-  return prisma.$transaction(async tx => {
+  const created = await prisma.$transaction(async tx => {
     const topic = await lockedTopic(tx, topicId);
     if (topic.locked) throw forbidden('This topic is closed to new replies.');
     const reply = await tx.forumReply.create({ data: { body, topic_id: topicId, author_id: actor.id } });
@@ -187,6 +227,8 @@ export async function createForumReply(actor: ForumActor, topicId: string, input
     await notifyForumEvent(tx, actor, topic, body, reply.id);
     return reply;
   });
+  refreshForumQuests([actor.id]);
+  return created;
 }
 
 export async function changeForumReply(actor: ForumActor, topicId: string, id: string, input: Record<string, unknown>, remove = false) {
@@ -215,14 +257,19 @@ export async function changeForumReply(actor: ForumActor, topicId: string, id: s
 
 export async function acceptForumAnswer(actor: ForumActor, topicId: string, input: Record<string, unknown>) {
   const replyId = input.reply_id === null ? null : forumText(input.reply_id, 'Reply', 1, 100);
-  return prisma.$transaction(async tx => {
+  const result = await prisma.$transaction(async tx => {
     const topic = await lockedTopic(tx, topicId);
     assertForumAuthor(actor, topic.author_id);
     if (topic.category_id !== 'help') throw badRequest('Only Tech Support questions can have an accepted answer.');
     if (topic.locked) throw forbidden('The answer of a locked topic cannot be changed.');
-    if (replyId && !await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null } })) throw notFound('Reply not found.');
-    return tx.forumTopic.update({ where: { id: topicId }, data: { accepted_reply_id: replyId } });
+    const reply = replyId ? await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null }, select: { author_id: true } }) : null;
+    if (replyId && !reply) throw notFound('Reply not found.');
+    const updated = await tx.forumTopic.update({ where: { id: topicId }, data: { accepted_reply_id: replyId } });
+    return { updated, answerAuthorId: reply?.author_id };
   });
+  // The answer's author may complete "accepted answers"; the asker "questions solved".
+  if (result.answerAuthorId) refreshForumQuests([result.answerAuthorId, actor.id]);
+  return result.updated;
 }
 
 export async function setForumState(actor: ForumActor, id: string, input: Record<string, unknown>) {
