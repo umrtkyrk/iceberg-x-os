@@ -11,7 +11,12 @@ const backend = path.resolve(__dirname, '..');
 const schemaFile = path.join(backend, 'prisma/schema.prisma');
 const migrations = path.join(backend, 'prisma/migrations');
 const defaults = '20261109180000_forum_default_categories';
-const baselineLast = '20261106120000_english_ideas_category';
+const likes = '20261111120000_forum_likes';
+// Reviewed recruitment/webinar migrations are included in the current-schema empty baseline.
+const baselineLast = '20261106120000_webinar_attendance_votes';
+// Additive forum migrations newer than the baseline. A fresh install already gets their tables from
+// the current schema, so --init-empty records them as applied instead of running them.
+const additive = new Set([likes]);
 // These two historical files contain label-only UPDATEs, not schema changes.
 // Resolve them without executing them, but only if their reviewed contents match.
 const labelOnly = new Map([
@@ -20,7 +25,7 @@ const labelOnly = new Map([
 ]);
 const forumMigrations = new Set([
   '20261028120000_add_forum', '20261029120000_forum_portal_integration',
-  ...labelOnly.keys(), defaults,
+  ...labelOnly.keys(), defaults, ...additive,
 ]);
 const digest = source => createHash('sha256').update(source.replace(/\r\n/g, '\n')).digest('hex');
 
@@ -73,7 +78,7 @@ async function main() {
     const objects = await objectsIn(db, target.schema);
     if (mode === '--init-empty') {
       if (objects.length) throw new Error('Refusing to initialize a non-empty schema. Use --plan / --apply for an existing migrated portal.');
-      if (names.some(name => name > baselineLast && name !== defaults)) throw new Error('A newer migration needs review before updating the local baseline procedure.');
+      if (names.some(name => name > baselineLast && name !== defaults && !additive.has(name))) throw new Error('A newer migration needs review before updating the local baseline procedure.');
       temp = fs.mkdtempSync(path.join(os.tmpdir(), 'cube-forum-baseline-'));
       const sql = path.join(temp, 'baseline.sql');
       runPrisma(['migrate', 'diff', '--from-empty', '--to-schema-datamodel', schemaFile, '--script', '--output', sql]);

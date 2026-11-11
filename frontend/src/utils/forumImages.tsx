@@ -21,6 +21,38 @@ export async function uploadForumImage(file: File): Promise<string> {
   return `![${alt}](${url})`;
 }
 
+const IMAGE = String.raw`!\[[^\]\n]*\]\([^)\n]*\)`;
+// The attachment block that ends a body: images on their own lines, after a blank line (or a single
+// line break in posts written before attachments existed), or the whole body.
+const TRAILING_IMAGES = new RegExp(String.raw`(^|\n\n|\n(?!\n))(${IMAGE}(?:\n${IMAGE})*)\n*$`);
+
+/**
+ * Splits a stored body into the text people type and the images attached at its end, so the editor
+ * can show attachments as thumbnails instead of Markdown. Splitting `joinImages(text, images)` gives
+ * back exactly `text`, including trailing line breaks the person typed.
+ */
+export function splitImages(stored: string): { text: string; images: string[] } {
+  const body = stored || '';
+  const match = TRAILING_IMAGES.exec(body);
+  if (!match) return { text: body, images: [] };
+  return { text: body.slice(0, match.index), images: match[2].split('\n') };
+}
+export const joinImages = (text: string, images: string[]) => images.length ? `${text}${text ? '\n\n' : ''}${images.join('\n')}` : text;
+
+/** The source and description of one image Markdown snippet. */
+export function imageParts(markdown: string): { src: string; alt: string } | null {
+  const match = /^!\[([^\]\n]*)\]\(([^)\s]*)\)$/.exec(markdown);
+  return match ? { alt: match[1], src: match[2] } : null;
+}
+
+/** The first portal-uploaded image in a body, for feed cards. */
+export function firstForumImage(text: string): { src: string; alt: string } | null {
+  for (const match of (text || '').matchAll(/!\[([^\]\n]*)\]\(([^)\s]*)\)/g)) {
+    if (isForumImage(match[2])) return { src: getAssetUrl(match[2]) || match[2], alt: match[1] };
+  }
+  return null;
+}
+
 /** Removes image Markdown from text, for one-line previews. */
 export const stripImages = (text: string) => (text || '').replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, ' ');
 

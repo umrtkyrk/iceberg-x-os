@@ -66,15 +66,17 @@ In **Forum profile**, select up to three of your earned badges, arrange their or
 - Report another author's topic/reply with a reason. Mentor/Admin opens **Moderation**, follows the target, removes content if appropriate and marks the report reviewed. Deleting content resolves its open reports. Reports are not public.
 - In a thread, staff can pin/unpin, lock/unlock, move or remove content. Locked topics reject new replies and edits. Admins manage communities; Announcements remains staff-only and communities with topic history cannot be deleted.
 
+The forum editor includes an emoji picker for inserting Unicode emoji at the cursor or replacing selected text. It preserves mentions and attached images and uses the same stored-body length limit. Image-only drafts render in Preview.
+
 ## Images and other extras
 
 The merged real-api design includes **image upload/paste** and **accepted answers** beyond the original mission's minimum scope. They are existing features, not a requirement to earn Radar/MVCubes points.
 
-The editor accepts PNG/JPEG/WEBP/GIF up to 5 MB, one file per upload. The server checks file signatures, uses random filenames and adds `nosniff`/sandbox headers. Only portal-hosted `/uploads/forum/...` images render in forum Markdown; external images and raw HTML are not rendered. Only accounts with posting permission can upload. General writes are limited to 20/minute/account and uploads additionally to 30/hour/account, in process memory.
+Uploaded images appear as removable editor thumbnails; feed cards show the first image and expandable text. The editor accepts PNG/JPEG/WEBP/GIF up to 5 MB, one file per upload. The server checks file signatures, uses random filenames and adds `nosniff`/sandbox headers. Only portal-hosted `/uploads/forum/...` images render in forum Markdown; external images and raw HTML are not rendered. Only accounts with posting permission can upload. General writes are limited to 20/minute/account and uploads additionally to 30/hour/account, in process memory.
 
 Uploaded files are publicly served at their random URLs, like portal avatars. Soft-deleting a post does not delete its image files; the feature flag hides the UI/API rather than revoking already-uploaded static URLs. Forum uploads are for discussion images, not confidential portal documents. Persistence/retention of the storage volume is part of any later deployment plan.
 
-Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. No reactions, email digests, reputation or score changes are implemented.
+Topic authors can accept one answer in Tech Support. Moving the topic out of Tech Support clears the accepted marker and keeps the replies. Topics and replies support likes with grouped author notifications. A new like stays unread if the author concurrently marks the previous notification read; unlikes update only unread summaries and preserve read history. Forum quest criteria calculate progress through the existing quest system; other emoji reactions, email digests and separate forum reputation are not implemented.
 
 ## API and data model
 
@@ -83,6 +85,7 @@ Every `/api/forum` endpoint requires portal authentication and the backend flag.
 | API under `/api/forum` | Purpose |
 |---|---|
 | `GET /categories`, `GET /stats` | Community counts/activity and board statistics |
+| `PUT /topics/:id/like`, `PUT /topics/:id/replies/:replyId/like` | Set or remove the current user’s like |
 | `GET /topics`, `GET /topics/:id` | Filter/search/page topics; paginated replies and optional `reply` target |
 | `POST /topics`, `PATCH/DELETE /topics/:id` | Create, owner edit, soft-delete |
 | `POST /topics/:id/replies`, `PATCH/DELETE /topics/:id/replies/:replyId` | Replies and ownership checks |
@@ -96,7 +99,7 @@ Every `/api/forum` endpoint requires portal authentication and the backend flag.
 | `POST /images` | Authenticated multipart image upload |
 | `PUT /topics/:id/answer` | Owner accepts/clears an answer |
 
-Tables: `ForumCategory`, `ForumTopic`, `ForumReply`, `ForumTopicState` (read/follow/save), `ForumReport`, `ForumProfile` (signature/ordered badge IDs), `ForumTopicContext` (quest/mission/edit marker), and `ForumNotificationTarget` (existing notification to exact content). Existing portal tables supply identity, earned badges and notifications. Relations/activity columns are indexed. Account deletion preserves forum history with nullable authors.
+Tables: `ForumTopicLike`, `ForumReplyLike`, `ForumCategory`, `ForumTopic`, `ForumReply`, `ForumTopicState` (read/follow/save), `ForumReport`, `ForumProfile` (signature/ordered badge IDs), `ForumTopicContext` (quest/mission/edit marker), and `ForumNotificationTarget` (existing notification to exact content). Existing portal tables supply identity, earned badges and notifications. Relations/activity columns are indexed. Account deletion preserves forum history with nullable authors.
 
 ## Validation and delivery
 
@@ -114,3 +117,5 @@ npm run build --prefix frontend
 
 Both database suites require localhost and create/delete only random disposable schemas. The service suite verifies forum SQL/features; the migration suite additionally runs the real installer against an empty schema and an older forum, verifies no schema drift, preserves existing records, checks idempotency and refuses unsafe targets. It does not claim to replay the broken historical portal chain.
 
+
+The additive `20261111120000_forum_likes` migration creates the like tables without changing existing records. Apply it through the normal reviewed migration process before enabling these endpoints. The guarded localhost-only installer also includes it for local setup; it does not deploy to remote databases.

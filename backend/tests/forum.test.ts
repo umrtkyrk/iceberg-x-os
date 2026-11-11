@@ -8,6 +8,11 @@ import { assertForumAuthor, assertForumCategory, forumPage, forumText } from '..
 import { changeForumReply, changeForumTopic, createForumReply, reportForumPost, listForumTopics, moderateForumTopic, readForumTopic } from '../src/services/forum.service';
 import { HttpError } from '../src/utils/http';
 
+// Forum write unit tests isolate the post-commit quest refresh from a real database.
+const cubeQuestFindMany = prisma.cubeQuest.findMany;
+test.before(() => { prisma.cubeQuest.findMany = (async () => []) as any; });
+test.after(() => { prisma.cubeQuest.findMany = cubeQuestFindMany; });
+
 const cube = { id: 'cube-a', role: 'CUBE' as const };
 const staff = { id: 'mentor-a', role: 'MENTOR' as const };
 const isStatus = (status: number) => (error: unknown) => error instanceof HttpError && error.status === status;
@@ -56,9 +61,10 @@ test('soft-deleting a reply auto-resolves open reports and recomputes topic last
   const original = prisma.$transaction;
   const topicCreated = new Date('2026-11-01T10:00:00Z');
   const prevReplyCreated = new Date('2026-11-02T12:00:00Z');
-  let topicUpdate: any, reportUpdate: any;
+  let topicUpdate: any, reportUpdate: any, notificationDelete: any;
   const tx = {
     $queryRaw: async () => [],
+    notification: { deleteMany: async (args: any) => { notificationDelete = args; return { count: 1 }; } },
     forumReply: {
       findFirst: async (args: any) => args.where.id
         ? ({ id: 'reply-2', author_id: cube.id })
@@ -81,6 +87,7 @@ test('soft-deleting a reply auto-resolves open reports and recomputes topic last
     assert.equal(reportUpdate.data.resolved_by_id, cube.id);
     assert.equal(topicUpdate.data.accepted_reply_id, null);
     assert.equal(topicUpdate.data.last_activity_at, prevReplyCreated);
+    assert.deepEqual(notificationDelete.where, { forum_target: { is: { reply_id: 'reply-2' } } });
   } finally { prisma.$transaction = original; }
 });
 
