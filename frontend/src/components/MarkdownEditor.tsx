@@ -1,10 +1,19 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2, X } from 'lucide-react';
+import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2, X, Smile } from 'lucide-react';
 import { MentionTextarea } from './MentionTextarea';
 import { MentionAwareLink, decodeMentions, encodeMentions, type MentionMap } from '../utils/mentions';
 import { FORUM_IMAGE_TYPES, ForumImage, imageParts, isForumImage, joinImages, splitImages } from '../utils/forumImages';
 import { getAssetUrl } from '../utils/assets';
+
+const EMOJIS = [
+  ['😀', 'Grinning face'], ['😊', 'Smiling face'], ['😂', 'Laughing'], ['😍', 'Heart eyes'],
+  ['😎', 'Sunglasses'], ['🤔', 'Thinking'], ['😅', 'Nervous laugh'], ['🥳', 'Party face'],
+  ['👍', 'Thumbs up'], ['👏', 'Clapping'], ['🙌', 'Celebration hands'], ['🙏', 'Thanks'],
+  ['❤️', 'Heart'], ['🔥', 'Fire'], ['🎉', 'Party'], ['✨', 'Sparkles'],
+  ['🚀', 'Rocket'], ['💡', 'Idea'], ['💻', 'Laptop'], ['🛠️', 'Tools'],
+  ['✅', 'Check mark'], ['🐛', 'Bug'], ['🎯', 'Target'], ['💪', 'Strong'],
+];
 
 interface MarkdownEditorProps {
   value: string;
@@ -17,6 +26,8 @@ interface MarkdownEditorProps {
   maxLength?: number;
   /** Typing "@" suggests people; mentioned names show in pink. */
   mentions?: boolean;
+  /** Enables the forum's Unicode emoji picker. */
+  emojiPicker?: boolean;
   /** Enables the image button and pasting images; returns the Markdown to insert. */
   onUploadImage?: (file: File) => Promise<string>;
 }
@@ -31,9 +42,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   id,
   maxLength,
   mentions = false,
+  emojiPicker = false,
   onUploadImage
 }) => {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiTrigger = useRef<HTMLButtonElement>(null);
+  const emojiPanel = useRef<HTMLDivElement>(null);
+  const emojiSelection = useRef({ start: 0, end: 0 });
+  useEffect(() => { if (emojiOpen) emojiPanel.current?.querySelector<HTMLButtonElement>('[data-emoji]')?.focus(); }, [emojiOpen]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // With images on, attached images are kept at the end of the stored body and shown as thumbnails
   // under the text, so the textarea never contains their Markdown.
@@ -57,6 +74,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return true;
   };
   const onChange = (text: string) => commit(text, images);
+  const insertEmoji = (emoji: string) => {
+    const textarea = textareaRef.current;
+    const text = textarea?.value ?? value;
+    const start = Math.min(textarea?.selectionStart ?? emojiSelection.current.start, text.length);
+    const end = Math.min(textarea?.selectionEnd ?? emojiSelection.current.end, text.length);
+    if (!onChange(text.slice(0, start) + emoji + text.slice(end))) return;
+    setEmojiOpen(false);
+    setTimeout(() => { textarea?.focus(); textarea?.setSelectionRange(start + emoji.length, start + emoji.length); }, 0);
+  };
   const fileInput = useRef<HTMLInputElement>(null);
   // An upload that finishes later must see images attached or removed in the meantime.
   const latestImages = useRef(images);
@@ -114,7 +140,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   };
 
   return (
-    <div className="markdown-editor w-full border border-gray-100 rounded-xl overflow-hidden bg-white shadow-subtle flex flex-col focus-within:border-magenta focus-within:ring-1 focus-within:ring-magenta/20 transition-all">
+    <div className="markdown-editor w-full border border-gray-100 rounded-xl overflow-hidden bg-white shadow-subtle flex flex-col focus-within:border-magenta focus-within:ring-1 focus-within:ring-magenta/20 transition-all"
+      onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEmojiOpen(false); }}
+      onKeyDown={event => { if (emojiOpen && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEmojiOpen(false); emojiTrigger.current?.focus(); } }}>
       {/* Editor Toolbar Header */}
       <div className="bg-gray-50 border-b border-gray-100 px-3.5 py-1.5 flex items-center justify-between gap-4 flex-wrap">
         
@@ -182,6 +210,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <LinkIcon className="w-3.5 h-3.5" />
           </button>
 
+          {emojiPicker && <button ref={emojiTrigger} type="button" aria-label="Add emoji" aria-expanded={emojiOpen}
+            disabled={disabled || activeTab !== 'write'} title="Add emoji"
+            className="p-1.5 hover:bg-gray-200/60 rounded text-gray-500 hover:text-gray-900 transition-colors"
+            onClick={() => { const field = textareaRef.current; emojiSelection.current = { start: field?.selectionStart ?? value.length, end: field?.selectionEnd ?? value.length }; setEmojiOpen(open => !open); }}>
+            <Smile className="w-3.5 h-3.5"/>
+          </button>}
           {onUploadImage && <>
             <button
               type="button"
@@ -220,7 +254,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           
           <button
             type="button"
-            onClick={() => setActiveTab('preview')}
+            onClick={() => { setActiveTab('preview'); setEmojiOpen(false); }}
             className={`flex items-center gap-1 px-3 py-1 rounded-md transition-all ${
               activeTab === 'preview'
                 ? 'bg-white text-magenta shadow-sm'
@@ -237,6 +271,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       {lengthError && <p role="alert" className="px-3.5 py-2 text-xs font-semibold text-red-700 bg-red-50">{lengthError}</p>}
 
       {/* Editor Body */}
+      {emojiPicker && emojiOpen && <div ref={emojiPanel} role="group" aria-label="Emoji picker" className="border-b border-gray-100 bg-gray-50 px-3.5 py-2">
+        <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold text-gray-600">Add an emoji</span>
+          <button type="button" aria-label="Close emoji picker" className="p-1 rounded hover:bg-gray-200" onClick={() => { setEmojiOpen(false); emojiTrigger.current?.focus(); }}><X size={16}/></button></div>
+        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1">{EMOJIS.map(([emoji, name]) => <button key={name} data-emoji type="button"
+          disabled={disabled} aria-label={`Insert ${name} emoji`} title={name} onClick={() => insertEmoji(emoji)}
+          className="h-9 rounded-lg text-xl hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta">{emoji}</button>)}</div>
+      </div>}
       <div className="relative min-h-[140px] bg-white flex flex-col">
         {activeTab === 'write' && mentions ? (
           <MentionTextarea
@@ -270,7 +311,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           />
         ) : (
           <div className="w-full h-full min-h-[140px] p-4 overflow-y-auto max-h-[400px] border-0 select-text">
-            {value.trim() ? (
+            {storedValue.trim() ? (
               <div className="markdown markdown-body text-xs font-semibold text-gray-800">
                 <ReactMarkdown skipHtml components={{ ...(mentions ? { a: MentionAwareLink } : {}), ...(onUploadImage ? { img: ForumImage } : {}) }}>{storedValue}</ReactMarkdown>
               </div>

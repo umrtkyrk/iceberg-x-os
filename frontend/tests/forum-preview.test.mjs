@@ -3,6 +3,46 @@ import assert from 'node:assert/strict';
 import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 import postcss from 'postcss';
+import vm from 'node:vm';
+// Exercise the actual component's handlers and rendering with deterministic hooks.
+function editorHarness(initial, options = {}) {
+  let stored = initial, states = [], refs = [], si = 0, ri = 0, nodes = [];
+  const field = { value: '', selectionStart: 0, selectionEnd: 0, focus() {}, setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; } };
+  const react = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    useState: initial => { const i = si++; if (!(i in states)) states[i] = initial; return [states[i], next => { states[i] = typeof next === 'function' ? next(states[i]) : next; }]; },
+    useRef: initial => refs[ri++] ||= { current: initial }, useEffect() {}, };
+  const cache = new Map();
+  const load = relative => {
+    if (cache.has(relative)) return cache.get(relative);
+    const code = ts.transpileModule(readFileSync(new URL(relative, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
+    const mod = { exports: {} };
+    vm.runInNewContext(code, { module: mod, exports: mod.exports, Map, Set, setTimeout: callback => callback(), require: id => {
+      if (id === 'react') return react;
+      if (id === 'react-markdown') return 'Markdown';
+      if (id === 'lucide-react') return new Proxy({}, { get: (_, key) => key });
+      if (id === './MentionTextarea') return { MentionTextarea: 'MentionTextarea' };
+      if (id.endsWith('/mentions')) return load('../src/utils/mentions.tsx');
+      if (id.endsWith('/forumImages')) return load('../src/utils/forumImages.tsx');
+      if (id === 'react-router-dom') return { Link: 'a' };
+      if (id.endsWith('/assets') || id === './assets') return { getAssetUrl: value => value };
+      if (id === './api') return { api: {} };
+      throw new Error('Unexpected editor dependency ' + id);
+    } });
+    cache.set(relative, mod.exports); return mod.exports;
+  };
+  const { MarkdownEditor } = load('../src/components/MarkdownEditor.tsx');
+  const flatten = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(flatten) : [node, ...node.children.flatMap(flatten)];
+  const render = () => { si = ri = 0;
+    nodes = flatten(MarkdownEditor({ value: stored, onChange: next => { stored = next; }, mentions: true, emojiPicker: true, onUploadImage: async () => '', ...options }));
+    const input = nodes.find(n => n.type === 'MentionTextarea');
+    if (input) { field.value = input.props.value; input.props.ref.current = field; }
+  };
+  render();
+  return { get value() { return stored; }, field,
+    click(label) { const node = nodes.find(n => n.props['aria-label'] === label || n.type === 'button' && n.children.some(c => c?.type === 'span' && c.children.includes(label))); assert.ok(node, label); node.props.onClick(); render(); },
+    has(type) { return nodes.some(n => n.type === type); }, hasAlert() { return nodes.some(n => n.props.role === 'alert'); },
+  };
+}
 const model = ts.transpileModule(readFileSync(new URL('../src/pages/forum/forumModel.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
 const { forumLocation, forumPageParams, forumListParams, forumSearchParams, forumReadStatus } = await import('data:text/javascript;base64,' + Buffer.from(model).toString('base64'));
 const mentionsSource = 'const React = { createElement: () => null }; const Link = "a";\n' +
@@ -161,4 +201,23 @@ test('attached images stay out of the typed text and round-trip exactly', () => 
   assert.deepEqual(splitImages(`Before ${a} after`).images, []);
   assert.equal(firstForumImage(`x ![bad](https://tracker.example/p.png) ${b}`).src, 'https://cdn.example/uploads/forum/22222222-2222-2222-2222-222222222222.jpg');
   assert.equal(firstForumImage('no images'), null);
+});
+
+test('image-only drafts render the real Markdown preview', () => {
+  const editor = editorHarness('![shot](/uploads/forum/11111111-1111-1111-1111-111111111111.png)');
+  editor.click('Preview'); assert.equal(editor.has('Markdown'), true);
+});
+test('emoji picker replaces selection while preserving mentions and attachments', () => {
+  const image = '![shot](/uploads/forum/11111111-1111-1111-1111-111111111111.png)';
+  const editor = editorHarness(joinImages('Hi [@Ada Demo](@cube-951) world', [image]));
+  editor.field.selectionStart = editor.field.value.indexOf('world'); editor.field.selectionEnd = editor.field.value.length;
+  editor.click('Add emoji'); editor.click('Insert Rocket emoji');
+  assert.equal(editor.value, joinImages('Hi [@Ada Demo](@cube-951) 🚀', [image]));
+});
+test('an over-budget emoji preserves text, mentions and attachments', () => {
+  const body = joinImages('Hi [@Ada Demo](@cube-951)', ['![shot](/uploads/forum/11111111-1111-1111-1111-111111111111.png)']);
+  const editor = editorHarness(body, { maxLength: body.length + 1 });
+  editor.field.selectionStart = editor.field.selectionEnd = editor.field.value.length;
+  editor.click('Add emoji'); editor.click('Insert Rocket emoji');
+  assert.equal(editor.value, body); assert.equal(editor.hasAlert(), true);
 });
