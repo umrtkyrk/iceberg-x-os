@@ -268,7 +268,8 @@ export default function Forum() {
   const deleteConfirm = (target: string) => deleteTarget === target && <div className="talk-card talk-danger" role="alert"><p>Remove this post from the discussion? Its history will be retained for moderation.</p><div className="talk-form-actions"><button className="talk-btn is-ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="talk-btn is-danger" disabled={busy} onClick={() => void mutate(async () => { await api.delete(target); setDeleteTarget(null); setMessage('The post has been deleted.'); if (target === topicPath) return navigateAfterMutate({}); })}>Delete</button></div></div>;
   const quote = (post: Post) => {
     const quoted = stripImages(post.body || '').trim().slice(0, 800).replace(/\n/g, '\n> ');
-    setReply(stored => { const { text, images } = splitImages(stored); return joinImages(`${text}${text ? '\n\n' : ''}> ${quoted}\n\n`, images); });
+    // Clicking Reply again on the same post only focuses the composer; it must not stack the quote.
+    setReply(stored => { const { text, images } = splitImages(stored); return text.includes(`> ${quoted}`) ? stored : joinImages(`${text}${text ? '\n\n' : ''}> ${quoted}\n\n`, images); });
     document.getElementById('live-reply')?.focus();
   };
   const ownActions = (post: Post, first: boolean) => <>

@@ -22,10 +22,16 @@ const eligible: Prisma.UserWhereInput = { OR: [
   { role: 'CUBE', cube_profile: { is: { current_level: { notIn: ['Alumni', 'Former_Cube'] } } } },
 ] };
 
+/** `cube-018` for numeric Cube numbers; anything else (e.g. staff numbers like "T-ADM") uses the user id. */
+export function forumMentionHandle(user: { id: string; cube_profile?: { cube_number: string } | null }) {
+  const number = user.cube_profile?.cube_number;
+  return number && /^\d{1,6}$/.test(number) ? `cube-${number}` : `user-${user.id}`;
+}
+
 export async function forumMentionPeople(query: string) {
   const users = await prisma.user.findMany({ where: { AND: [eligible, { name: { contains: query, mode: 'insensitive' } }] },
     take: 10, orderBy: { name: 'asc' }, select: { id: true, name: true, cube_profile: { select: { cube_number: true } } } });
-  return users.map(user => ({ id: user.id, name: user.name, handle: user.cube_profile ? `cube-${user.cube_profile.cube_number}` : `user-${user.id}` }));
+  return users.map(user => ({ id: user.id, name: user.name, handle: forumMentionHandle(user) }));
 }
 
 export async function notifyForumEvent(tx: Prisma.TransactionClient, actor: ForumActor, topic: { id: string; title: string; author_id: string | null }, body: string, replyId?: string) {
