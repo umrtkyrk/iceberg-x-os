@@ -221,3 +221,31 @@ test('an over-budget emoji preserves text, mentions and attachments', () => {
   editor.click('Add emoji'); editor.click('Insert Rocket emoji');
   assert.equal(editor.value, body); assert.equal(editor.hasAlert(), true);
 });
+
+// Render actual Markdown through the production anchor component.
+const { createRequire } = await import('node:module');
+const realRequire = createRequire(import.meta.url);
+const { createElement } = await import('react');
+const { renderToStaticMarkup } = await import('react-dom/server');
+const { default: RealMarkdown } = await import('react-markdown');
+const linkModule = { exports: {} };
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/mentions.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX }
+}).outputText, { module: linkModule, exports: linkModule.exports, require: realRequire });
+const renderLink = body => renderToStaticMarkup(createElement(RealMarkdown, { components: { a: linkModule.exports.MentionAwareLink } }, body));
+test('posted and previewed web links resolve outside portal routes', () => {
+  for (const url of ['github.com/umrtkyrk', 'www.example.com/docs', 'https://example.com/docs', '//example.com/docs']) {
+    const html = renderLink('[Resource](' + url + ')');
+    const expected = url.startsWith('http') || url.startsWith('//') ? url : 'https://' + url;
+    assert.ok(html.includes('href="' + expected + '"'), html);
+    assert.match(html, /target="_blank"/);
+    assert.match(html, /rel="noopener noreferrer"/);
+    assert.equal(new URL(expected, 'https://portal.example/forum').hostname === 'portal.example', false);
+  }
+});
+test('portal links and mentions remain intact; unsafe destinations stay inactive', () => {
+  assert.match(renderLink('[Topic](/forum?topic=abc)'), /href="\/forum\?topic=abc"/);
+  assert.doesNotMatch(renderLink('[Topic](/forum?topic=abc)'), /target=/);
+  assert.match(renderLink('[@Ada](@cube-018)'), /class="mention-tag"/);
+  assert.doesNotMatch(renderLink('[Unsafe](javascript:alert)'), /href=/);
+});
