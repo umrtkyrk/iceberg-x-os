@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2 } from 'lucide-react';
+import { Bold, Italic, Heading3, List, Code, Link as LinkIcon, Eye, Edit3, ImagePlus, Loader2, X } from 'lucide-react';
 import { MentionTextarea } from './MentionTextarea';
-import { MentionAwareLink, decodeMentions, encodeMentionsWithinLimit, type MentionMap } from '../utils/mentions';
-import { FORUM_IMAGE_TYPES, ForumImage } from '../utils/forumImages';
+import { MentionAwareLink, decodeMentions, encodeMentions, type MentionMap } from '../utils/mentions';
+import { FORUM_IMAGE_TYPES, ForumImage, imageParts, isForumImage, joinImages, splitImages } from '../utils/forumImages';
+import { getAssetUrl } from '../utils/assets';
 
 interface MarkdownEditorProps {
   value: string;
@@ -34,24 +35,33 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // With images on, attached images are kept at the end of the stored body and shown as thumbnails
+  // under the text, so the textarea never contains their Markdown.
+  const { text: storedText, images } = onUploadImage ? splitImages(storedValue) : { text: storedValue, images: [] as string[] };
   // With mentions on, the textarea shows "@Name" while the stored body keeps "[@Name](@handle)".
   const known = useRef<MentionMap>(new Map());
-  const value = mentions ? decodeMentions(storedValue, known.current) : storedValue;
+  const value = mentions ? decodeMentions(storedText, known.current) : storedText;
   const [lengthError, setLengthError] = useState('');
-  const onChange = (text: string) => {
-    const next = encodeMentionsWithinLimit(text, mentions ? known.current : new Map(), maxLength);
-    if (next === null) {
+  // Validates the complete proposed body; a person's message is never shortened to fit.
+  const commit = (text: string, nextImages: string[]) => {
+    const next = joinImages(mentions ? encodeMentions(text, known.current) : text, nextImages);
+    if (maxLength !== undefined && next.length > maxLength) {
       // A picker registers the proposed name before calling onChange. Roll it back too.
       known.current = new Map();
-      if (mentions) decodeMentions(storedValue, known.current);
-      setLengthError(`This edit exceeds the ${maxLength?.toLocaleString('en-US')}-character limit including mention links. Your previous text is unchanged. Shorten the message before trying again.`);
+      if (mentions) decodeMentions(storedText, known.current);
+      setLengthError(`This edit exceeds the ${maxLength.toLocaleString('en-US')}-character limit including mention links and images. Your previous text is unchanged. Shorten the message before trying again.`);
       return false;
     }
     setLengthError('');
     onStoredChange(next);
     return true;
   };
+  const onChange = (text: string) => commit(text, images);
   const fileInput = useRef<HTMLInputElement>(null);
+  // An upload that finishes later must see images attached or removed in the meantime.
+  const latestImages = useRef(images);
+  latestImages.current = images;
+  const removeImage = (index: number) => { commit(value, images.filter((_, i) => i !== index)); textareaRef.current?.focus(); };
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -63,11 +73,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       const markdown = await onUploadImage(file);
       // Read the text again: the person may have kept typing during the upload.
       const text = textareaRef.current?.value ?? value;
-      const at = textarea ? Math.min(textarea.selectionStart, text.length) : text.length;
-      const before = text.slice(0, at), after = text.slice(at);
-      const insert = `${before && !before.endsWith('\n') ? '\n' : ''}${markdown}\n`;
-      if (!onChange(before + insert + after)) return;
-      setTimeout(() => { textarea?.focus(); textarea?.setSelectionRange(at + insert.length, at + insert.length); }, 0);
+      const caret = textarea ? [textarea.selectionStart, textarea.selectionEnd] as const : null;
+      if (!commit(text, [...latestImages.current, markdown])) return;
+      setTimeout(() => { if (!textarea || !caret) return; textarea.focus(); textarea.setSelectionRange(caret[0], caret[1]); }, 0);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'The image could not be uploaded.');
     } finally {
@@ -234,7 +242,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <MentionTextarea
             ref={textareaRef}
             id={id}
-            required={required}
+            required={required && !images.length}
             rows={rows}
             maxLength={maxLength}
             placeholder={placeholder}
@@ -250,7 +258,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <textarea
             ref={textareaRef}
             id={id}
-            required={required}
+            required={required && !images.length}
             rows={rows}
             maxLength={maxLength}
             placeholder={placeholder}
@@ -272,6 +280,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           </div>
         )}
       </div>
+      {(images.length > 0 || uploading) && <ul className="markdown-editor-attachments flex flex-wrap gap-2 px-3.5 py-2.5 border-t border-gray-100 bg-gray-50" aria-label="Attached images">
+        {images.map((markdown, index) => {
+          const image = imageParts(markdown);
+          const src = image && isForumImage(image.src) ? getAssetUrl(image.src) || image.src : '';
+          const label = image?.alt || `Image ${index + 1}`;
+          return <li key={`${index}-${markdown}`} className="relative">
+            {src ? <img src={src} alt={label} className="h-20 w-20 rounded-lg border border-gray-200 bg-white object-cover"/> : <span className="flex h-20 w-20 items-center justify-center rounded-lg border border-gray-200 bg-white p-1 text-center text-[10px] text-gray-500 break-all">{label}</span>}
+            <button type="button" onClick={() => removeImage(index)} disabled={disabled} aria-label={`Remove image: ${label}`} title="Remove image"
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white shadow hover:bg-magenta">
+              <X className="h-3 w-3"/>
+            </button>
+          </li>;
+        })}
+        {uploading && <li className="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white" aria-label="Uploading image"><Loader2 className="h-4 w-4 animate-spin text-gray-400"/></li>}
+      </ul>}
     </div>
   );
 };

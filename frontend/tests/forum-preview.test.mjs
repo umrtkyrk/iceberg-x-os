@@ -143,3 +143,22 @@ test('forum CSS cannot style portal Markdown or controls outside the forum', () 
   const css = postcss.parse(readFileSync(new URL('../src/pages/forum/talks.css', import.meta.url), 'utf8'));
   css.walkRules(rule => { for (const selector of rule.selectors) assert.ok(selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
 });
+
+const imagesSource = 'const api = {}; const getAssetUrl = value => "https://cdn.example" + value;\n' +
+  readFileSync(new URL('../src/utils/forumImages.tsx', import.meta.url), 'utf8').replace(/^import\s+.*$/gm, '');
+const imagesJs = ts.transpileModule(imagesSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React } }).outputText;
+const { splitImages, joinImages, firstForumImage } = await import('data:text/javascript;base64,' + Buffer.from('const React = { createElement: () => null };\n' + imagesJs).toString('base64'));
+
+test('attached images stay out of the typed text and round-trip exactly', () => {
+  const a = '![shot](/uploads/forum/11111111-1111-1111-1111-111111111111.png)';
+  const b = '![two](/uploads/forum/22222222-2222-2222-2222-222222222222.jpg)';
+  for (const text of ['', 'Hello', 'Hello\n', 'Hello\n\n', '\n', 'Line one\n\nLine two', 'Thanks [@Zelal Erpay](@cube-015) ']) {
+    for (const images of [[], [a], [a, b]]) assert.deepEqual(splitImages(joinImages(text, images)), { text, images });
+  }
+  // Posts written before attachments existed: an image on the line after the text.
+  assert.deepEqual(splitImages(`Look\n${a}\n`), { text: 'Look', images: [a] });
+  // An image in the middle of the text is part of the text.
+  assert.deepEqual(splitImages(`Before ${a} after`).images, []);
+  assert.equal(firstForumImage(`x ![bad](https://tracker.example/p.png) ${b}`).src, 'https://cdn.example/uploads/forum/22222222-2222-2222-2222-222222222222.jpg');
+  assert.equal(firstForumImage('no images'), null);
+});

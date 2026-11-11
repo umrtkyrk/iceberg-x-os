@@ -41,6 +41,7 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261029120000_forum_portal_integration/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261106120000_english_ideas_category/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261109180000_forum_default_categories/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261111120000_forum_likes/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };
@@ -84,9 +85,20 @@ async function main() {
     const reply = await forum.createForumReply(other, topic.id, { body: 'A helpful reply.' });
     assert.equal(await db.notification.count({ where: { user_id: staff.id } }), 1);
     assert.equal((await forum.readForumTopic(staff, topic.id, 1)).replies.length, 1);
+    assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: true }), { liked: true, like_count: 1 });
+    assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: true }), { liked: true, like_count: 1 }); // idempotent
+    await forum.likeForumPost(staff, topic.id, reply.id, { liked: true });
+    const liked = await forum.readForumTopic(other, topic.id, 1);
+    assert.equal(liked.topic.liked, true); assert.equal(liked.topic.like_count, 1);
+    assert.equal(liked.replies[0].liked, false); assert.equal(liked.replies[0].like_count, 1);
+    assert.equal((await forum.listForumTopics(other, { page: 1 })).topics.find(t => t.id === topic.id).like_count, 1);
+    assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: false }), { liked: false, like_count: 0 });
+    await assert.rejects(forum.likeForumPost(other, topic.id, undefined, { liked: 'yes' }), e => e.status === 400);
+    await assert.rejects(forum.likeForumPost(other, topic.id, 'missing-reply', { liked: true }), e => e.status === 404);
     const beforeMention = await db.notification.count();
     const mentioned = await forum.createForumReply(other, topic.id, { body: '@cube-101 and @user-' + staff.id + ' thanks!' });
-    assert.equal(await db.notification.count(), beforeMention + 2); // owner/follower/mention deduplicate
+    // Owner/follower/mention deduplicate; the owner's unread comment notification is updated, not duplicated.
+    assert.equal(await db.notification.count(), beforeMention + 1);
     assert.equal(await db.forumNotificationTarget.count({ where: { reply_id: mentioned.id } }), 2);
     await forum.changeForumReply(other, topic.id, mentioned.id, {}, true);
     for (let i = 0; i < 21; i++) await db.forumReply.create({ data: { topic_id: topic.id, author_id: other.id, body: 'Page test ' + i, created_at: new Date(Date.now() + 1000 + i) } });
@@ -143,6 +155,25 @@ async function main() {
     const reportProjection = (await forum.listForumReports(staff, 1)).reports.find(r => r.id === report2.id);
     assert.equal(reportProjection.reporter.stage, 'mentor');
     assert.doesNotMatch(JSON.stringify(reportProjection.reporter), /forum_profile|cube_profile|password_hash|nda_status|@example/);
+    // The post owner gets one notification naming everyone who commented since they last read it.
+    await db.user.update({ where: { id: staff.id }, data: { name: 'Mentor Ayla' } });
+    const ownerNotes = () => db.notification.findMany({ where: { user_id: cube.id, forum_target: { is: { topic_id: unanswered.id } } }, include: { forum_target: true }, orderBy: { created_at: 'asc' } });
+    await forum.createForumReply(other, unanswered.id, { body: 'First thought for [@Integration test](@cube-101) ![x](/uploads/forum/a.png)' });
+    let owner = await ownerNotes();
+    assert.equal(owner.length, 1);
+    assert.equal(owner[0].message, 'Integration test commented on your post “An unanswered project log”: “First thought for @Integration test”');
+    const latestReply = await forum.createForumReply(staff, unanswered.id, { body: 'Second **idea**' });
+    owner = await ownerNotes();
+    assert.equal(owner.length, 1);
+    assert.equal(owner[0].message, 'Mentor Ayla and Integration test commented on your post “An unanswered project log”: “Second idea”');
+    assert.equal(owner[0].forum_target.reply_id, latestReply.id);
+    // Once read, the next comment starts a new notification that counts only newer commenters.
+    await db.notification.update({ where: { id: owner[0].id }, data: { read_at: new Date() } });
+    await forum.readForumTopic(cube, unanswered.id, 1);
+    await forum.createForumReply(other, unanswered.id, { body: 'Third' });
+    owner = await ownerNotes();
+    assert.equal(owner.length, 2);
+    assert.equal(owner[1].message, 'Integration test commented on your post “An unanswered project log”: “Third”');
     await forum.changeForumTopic(staff, unanswered.id, {}, true);
     assert.equal((await forum.forumStats()).unanswered.length, 0);
     // Forum history must not break the portal's existing account-deletion flow.

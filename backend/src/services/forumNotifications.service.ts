@@ -39,10 +39,50 @@ export async function notifyForumEvent(tx: Prisma.TransactionClient, actor: Foru
     { id: { in: ids } }, { cube_profile: { is: { cube_number: { in: numbers } } } },
   ] }] }, select: { id: true } });
   // One row per recipient/event even when owner, follower and mention overlap.
-  for (const recipient of recipients) await tx.notification.create({ data: {
+  for (const recipient of recipients) {
+    if (replyId && recipient.id === topic.author_id) { await notifyTopicOwner(tx, recipient.id, topic, body, replyId); continue; }
+    await tx.notification.create({ data: {
     user_id: recipient.id, message: `${replyId ? 'New reply or mention' : 'You were mentioned'} in “${topic.title}”.`,
     forum_target: { create: { topic_id: topic.id, ...(replyId ? { reply_id: replyId } : {}) } },
-  } });
+    } });
+  }
+}
+
+const OWNER_REPLY = 'commented on your post';
+/** Plain one-line text of a comment for a notification: mentions as names, no images or formatting marks. */
+export function forumNotificationSnippet(body: string, max = 140) {
+  const text = body.replace(/\[@([^\]\n]{1,80})\]\(@[^)\s]+\)/g, '@$1').replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, ' ')
+    .replace(/^\s*>.*$/gm, ' ').replace(/[#*_`~]/g, '').replace(/\s+/g, ' ').trim();
+  return text.length > max ? text.slice(0, max - 1).trimEnd() + '…' : text;
+}
+/** "A", "A and B", "A, B and C", "A, B, C and 2 others". */
+export function forumPeopleList(names: string[]) {
+  if (names.length <= 1) return names[0] || 'Someone';
+  if (names.length <= 3) return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const others = names.length - 3;
+  return `${names.slice(0, 3).join(', ')} and ${others} ${others === 1 ? 'other' : 'others'}`;
+}
+
+/**
+ * The post owner gets one notification per topic that names everyone who commented since they last read
+ * it and quotes the newest comment. An unread one is updated and moved to the top instead of adding rows.
+ */
+async function notifyTopicOwner(tx: Prisma.TransactionClient, ownerId: string, topic: { id: string; title: string }, body: string, replyId: string) {
+  const state = await tx.forumTopicState.findUnique({ where: { user_id_topic_id: { user_id: ownerId, topic_id: topic.id } }, select: { read_at: true } });
+  const recent = await tx.forumReply.findMany({ where: { topic_id: topic.id, deleted_at: null, author_id: { not: ownerId },
+    ...(state?.read_at ? { created_at: { gt: state.read_at } } : {}) }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 50,
+    select: { author: { select: { name: true } } } });
+  const names = [...new Set(recent.map(reply => reply.author?.name?.trim() || 'A Cube'))];
+  const snippet = forumNotificationSnippet(body);
+  const message = `${forumPeopleList(names)} ${OWNER_REPLY} “${topic.title}”${snippet ? `: “${snippet}”` : '.'}`;
+  const existing = await tx.notification.findFirst({ where: { user_id: ownerId, read_at: null, message: { contains: OWNER_REPLY },
+    forum_target: { is: { topic_id: topic.id } } }, orderBy: { created_at: 'desc' }, select: { id: true } });
+  if (existing) {
+    await tx.notification.update({ where: { id: existing.id }, data: { message, created_at: new Date(),
+      forum_target: { update: { reply_id: replyId } } } });
+    return;
+  }
+  await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: { topic_id: topic.id, reply_id: replyId } } } });
 }
 
 export async function forumNotificationLinks(ids: string[]) {
