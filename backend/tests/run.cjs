@@ -8,3 +8,5 @@ require('ts-node').register({
 require('./adminOperations.test.ts');
 require('./directory.test.ts');
 require('./notificationRead.test.ts');
+require('./caseEvaluation.test.ts');
+require('./webinar.test.ts');

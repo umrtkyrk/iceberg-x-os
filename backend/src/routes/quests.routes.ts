@@ -13,6 +13,8 @@ import {
   isPeerCriteria
 } from '../services/peerQuests.service';
 import { BadgeRarity } from '@prisma/client';
+import { WEBINAR_COUNT_CRITERIA, WEBINAR_CRITERIA, WEBINAR_RATE_CRITERIA } from '../services/webinar';
+import { FORUM_CRITERIA } from '../services/forumQuests.service';
 import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 
 const router = Router();
@@ -51,6 +53,8 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       'avatar_upload',
       'quiz_score',
       'quiz_completed',
+      ...WEBINAR_CRITERIA,
+      ...FORUM_CRITERIA,
       ...PEER_CRITERIA
     ];
     if (!validCriteriaTypes.includes(criteria_type)) {
@@ -72,6 +76,26 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       const parsed = Number(criteria_value);
       if (!Number.isInteger(parsed) || parsed < 1) {
         throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a positive whole number of at least 1.`);
+      }
+    }
+
+    // Forum criteria are all counts (or a yes/no): whole numbers >= 1.
+    if (FORUM_CRITERIA.includes(criteria_type)) {
+      const parsed = Number(criteria_value);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole number of at least 1.`);
+      }
+    }
+
+    // Webinar criteria: counts are whole numbers >= 1; the rates (attendance
+    // %, average webinar score) are whole numbers from 1 to 100.
+    if (WEBINAR_CRITERIA.includes(criteria_type)) {
+      const parsed = Number(criteria_value);
+      if (WEBINAR_COUNT_CRITERIA.includes(criteria_type) && (!Number.isInteger(parsed) || parsed < 1)) {
+        throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole number of at least 1.`);
+      }
+      if (WEBINAR_RATE_CRITERIA.includes(criteria_type) && (!Number.isInteger(parsed) || parsed < 1 || parsed > 100)) {
+        throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole number from 1 to 100.`);
       }
     }
 
@@ -120,7 +144,7 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
     // Only meaningful for "rate" criteria — a count-based quest's target IS the
     // count, it has no separate sample size. Reject it elsewhere so a typo in
     // the admin form can't silently do nothing.
-    const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...PEER_RATE_CRITERIA];
+    const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...WEBINAR_RATE_CRITERIA, ...PEER_RATE_CRITERIA];
     let minSampleSize: number | null = null;
     if (min_sample_size !== undefined && min_sample_size !== null && min_sample_size !== '') {
       if (!RATE_CRITERIA_TYPES.includes(criteria_type)) {

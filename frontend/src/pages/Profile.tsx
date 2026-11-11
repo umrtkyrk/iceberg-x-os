@@ -12,6 +12,7 @@ import { CubeDocumentsManager } from '../components/CubeDocumentsManager';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
 import { PeerRecognition } from '../components/peer/PeerRecognition';
 import { CubeFeedbackPanel } from '../components/peer/StaffFeedback';
+import { WebinarEngagementCard } from '../components/WebinarEngagementCard';
 
 const formatExternalUrl = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -827,6 +828,10 @@ export const Profile: React.FC = () => {
               </div>
             )}
           </div>
+
+          {(isOwner || isMentorOrAdmin) && (
+            <WebinarEngagementCard endpoint={`/webinar-engagement/cubes/${profile.id}`} />
+          )}
         </div>
 
         {/* Performance Overview (visible ONLY to Mentors/Admins) */}

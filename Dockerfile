@@ -4,6 +4,10 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
+# Vite inlines feature flags at build time. Pass --build-arg VITE_CUBE_FORUM_ENABLED=true
+# together with FORUM_ENABLED=true on the backend to open the Cube Forum.
+ARG VITE_CUBE_FORUM_ENABLED=false
+ENV VITE_CUBE_FORUM_ENABLED=$VITE_CUBE_FORUM_ENABLED
 RUN npm run build
 
 # Stage 2: Build Backend

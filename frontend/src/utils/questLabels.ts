@@ -4,9 +4,11 @@
  * the same everywhere.
  */
 import { peerQuestLabel, peerQuestProgressText } from './peer';
+import { WEBINAR_RATE_CRITERIA, webinarQuestLabel, webinarQuestProgressText } from './webinars';
+import { FORUM_BINARY_CRITERIA, forumQuestLabel, forumQuestProgressText } from './forumQuests';
 
 /** Criteria whose value is a yes/no (progress is 0 or 1). */
-const BINARY = ['profile_completion', 'nda_signed', 'profile_picture', 'avatar_upload', 'quiz_completed'];
+const BINARY = ['profile_completion', 'nda_signed', 'profile_picture', 'avatar_upload', 'quiz_completed', ...FORUM_BINARY_CRITERIA];
 
 export function isBinaryQuest(type: string): boolean {
   return BINARY.includes(type);
@@ -52,7 +54,7 @@ export function questGoalLabel(q: {
     case 'custom':
       return 'Awarded by the programme team';
     default:
-      return peerQuestLabel(type, v, q.min_sample_size) ?? `Goal: ${v}`;
+      return peerQuestLabel(type, v, q.min_sample_size) ?? webinarQuestLabel(type, v, q.min_sample_size) ?? forumQuestLabel(type, v) ?? `Goal: ${v}`;
   }
 }
 
@@ -83,7 +85,7 @@ export function questValueText(
     case 'weekly_update_streak':
       return `${current} / ${target} wks`;
     default:
-      return peerQuestProgressText(type, current, target) ?? `${current} / ${target}`;
+      return peerQuestProgressText(type, current, target) ?? webinarQuestProgressText(type, current, target) ?? forumQuestProgressText(type, current, target) ?? `${current} / ${target}`;
   }
 }
 
@@ -105,7 +107,7 @@ export function questRemainingText(
   current: number
 ): string | null {
   if (isBinaryQuest(q.criteria_type) || q.criteria_type === 'custom') return null;
-  if (['average_score', 'meeting_attendance', 'quiz_score', 'peer_calibration'].includes(q.criteria_type)) {
+  if (['average_score', 'meeting_attendance', 'quiz_score', 'peer_calibration', ...WEBINAR_RATE_CRITERIA].includes(q.criteria_type)) {
     return null;
   }
   const left = Math.max(0, q.criteria_value - current);

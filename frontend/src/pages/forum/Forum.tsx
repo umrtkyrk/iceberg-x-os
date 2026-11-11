@@ -5,7 +5,7 @@ import { ArrowLeft, Bookmark, BookOpen, CheckCircle2, Clock, Coffee, Flame, Hand
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
-import { AuthorIdentity, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
+import { AuthorIdentity, ForumSignature, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
 import { forumLocation, forumPageParams, forumReadStatus, forumListParams, forumSearchParams } from './forumModel';
 import { MentionAwareLink, mentionOverhead, mentionsToText } from '../../utils/mentions';
 import { ForumImage, firstForumImage, joinImages, splitImages, stripImages, uploadForumImage } from '../../utils/forumImages';
@@ -297,7 +297,7 @@ export default function Forum() {
           <span>·</span><time dateTime={post.created_at} title={date(post.created_at)}>{ago(post.created_at)}</time>{post.updated_at !== post.created_at && <span title={date(post.updated_at)}>· edited</span>}
           {hidden && <button className="talk-expand" onClick={() => toggleCollapsed(post.id)}><Plus size={12}/></button>}
         </div>
-        {!hidden && post.author?.signature && <p className="forum-signature">{post.author.signature}</p>}
+        {!hidden && <ForumSignature author={post.author}/>}
         {!hidden && <>
           {accepted && <p className="talk-accepted"><CheckCircle2 size={14}/>Accepted answer</p>}
           {editor?.kind === 'reply' && editor.id === post.id ? editorForm(editor) : <Markdown text={post.body}/>}
@@ -370,7 +370,7 @@ export default function Forum() {
         <article className="talk-card talk-post">
           <p className="talk-meta"><CommunityIcon id={thread.topic.category_id} size={24}/><button disabled={busy} onClick={() => go({ category: thread.topic.category_id })}><strong>c/{thread.topic.category_id}</strong></button><span>·</span><time dateTime={thread.topic.created_at} title={date(thread.topic.created_at)}>{ago(thread.topic.created_at)}</time></p>
           <div className="talk-meta is-sub"><AuthorIdentity author={thread.topic.author}/>{thread.topic.edited && <span title={date(thread.topic.context?.edited_at || thread.topic.updated_at)}>· edited</span>}</div>
-          {thread.topic.author?.signature && <p className="forum-signature">{thread.topic.author.signature}</p>}
+          <ForumSignature author={thread.topic.author}/>
           <h2 className="talk-post-title">{thread.topic.title}</h2>
           <div className="talk-flairs">{flairs(thread.topic)}</div>{contextLinks(thread.topic)}
           {editor?.kind === 'topic' ? editorForm(editor) : <Markdown text={thread.topic.body}/>}
