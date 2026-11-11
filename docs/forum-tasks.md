@@ -1,6 +1,6 @@
 # Cube Forum MVP: delivery status
 
-Status: 9 November 2026. Team: Mesut Umur Tokyürek (`umrtkyrk`, Cube #018) and Medine Kaynak (`u230709007`, Cube #013).
+Status: 11 November 2026. Team: Mesut Umur Tokyürek (`umrtkyrk`, Cube #018) and Medine Kaynak (`u230709007`, Cube #013).
 Work stays in `umrtkyrk/iceberg-x-os`; PRs target `forum-mvp`. No upstream write or deployment is authorized.
 
 The October mock/preview task list has been replaced by this implementation status. See [forum.md](forum.md) for current setup, permissions, APIs and moderation; UI V4/V5 documents are historical design notes.
@@ -17,7 +17,7 @@ The October mock/preview task list has been replaced by this implementation stat
 | Frontend quality | TypeScript, scoped CSS, mobile/keyboard navigation, empty/loading/error states, guarded mention length |
 | Existing extras | Accepted answers in Tech Support and image upload/paste up to 5 MB; no score/reward side effects |
 
-## Changes in the handover PR
+## Integrated handover
 
 - Guarded localhost installation: baseline an empty schema without replaying the broken Quest migration order.
 - Existing-portal upgrade: preserve category labels by resolving the two reviewed label-only migrations without executing their UPDATEs.
@@ -25,11 +25,11 @@ The October mock/preview task list has been replaced by this implementation stat
 - Exercise both real CLI paths, unsafe-target rejection, idempotency, schema consistency and record preservation in disposable PostgreSQL schemas.
 - Consolidate current docs and provide the [2:50 Demo Day runbook](forum-demo.md).
 
-## Still required for delivery
+## Validation and remaining delivery
 
-- Review/merge the handover PR into the fork's `forum-mvp`.
-- Review/merge [contributor-credit PR #6](https://github.com/umrtkyrk/iceberg-x-os/pull/6) if still open. The handover PR is independent of it.
-- Run the full checks from `forum.md` on the final merged revision.
+- [Contributor-credit PR #6](https://github.com/umrtkyrk/iceberg-x-os/pull/6) and [handover PR #7](https://github.com/umrtkyrk/iceberg-x-os/pull/7) are merged into `forum-mvp`.
+- All 41 automated tests, both builds, feature-off checks, PostgreSQL service/setup suites and synthetic HTTP permission/image checks passed on merged revision `2d07051` on 11 November 2026.
+- The repository organization change prepares a fork-local release into `main`; branch roles and historical design tags are documented in [repository-branches.md](repository-branches.md). Main promotion does not constitute deployment or Demo Day delivery.
 - Perform or record the 2–3 minute Demo Day presentation and attach its evidence through the normal mission submission. A runbook does not count as a completed presentation.
 
 The existing write limiter is process-local (20 non-GET requests/minute/account; images additionally 30/hour). Multi-instance rate limiting is a future infrastructure task. Images and accepted answers exceed the original mission minimum; reactions, email digests, reputation and Radar/MVCubes scoring remain absent.

@@ -37,9 +37,9 @@ Cube B's reply can start with “One shared refresh promise can queue the waitin
 
 ## Acceptance before marking the mission delivered
 
-- [ ] Review/merge the implementation and handover PRs into the fork's `forum-mvp`.
-- [ ] Review/merge the separate contributor-credit PR #6 if still open.
-- [ ] Run the commands in `forum.md` on the final merged revision; confirm the local empty-install or existing-database path that applies to the reviewer.
+- [x] Implementation, handover PR #7 and contributor-credit PR #6 merged into the fork's `forum-mvp`.
+- [x] Full builds, 41 tests, feature-off, both PostgreSQL suites and synthetic HTTP permission/image checks passed on merged revision `2d07051` on 11 November 2026.
+- [ ] Confirm the local empty-install or existing-database path that applies to the presenter/reviewer.
 - [ ] Rehearse the sequence with Cube and staff profiles, including one denied action and a notification to an exact reply.
 - [ ] Present the 2–3 minute live demo, or record and share it through the team's chosen Demo Day channel. This document does not mark that action complete.
 - [ ] Attach the fork PRs and the final demo evidence to the mission's normal submission. No submission is performed by the setup scripts.

@@ -1,108 +1,78 @@
-# Iceberg X OS
+# Iceberg X OS — Cube Forum fork
 
-Iceberg X OS is the internal operating platform for the **Iceberg X** R&D internship and innovation programme. It serves as the lightweight management system of record for Cubes, missions, demo days, feedback, badges, progression, and programme history—replacing the separate use of Jira, Notion, and Google Sheets.
+This is the **[umrtkyrk/iceberg-x-os](https://github.com/umrtkyrk/iceberg-x-os)** fork, where the Cube Forum is developed inside the existing Iceberg X portal. Work, branches and pull requests stay in this fork. Never push, open PRs, merge, deploy or run repository synchronization against `yemrealtanay/iceberg-x-os` or `Iceberg-Digital-Team/iceberg-x-os`.
 
-Important: This app does **NOT** replace Slack (communication) or GitHub/GitLab (code and pull requests). It connects those layers into the program's operations.
+`forum-mvp` is the integration branch; the fork's `main` receives releases through a fork-local pull request. A release here is a source-code handover, not a production deployment. See [the team workflow](docs/WORKFLOW.md) and [the fork boundary](docs/forum-team-workflow.md).
 
----
+Iceberg X OS is the internal operating platform for the **Iceberg X** R&D programme. It connects Cubes, missions, Demo Days, feedback, badges, progression and programme history. Slack remains the communication layer and GitHub/GitLab the code and PR layer.
 
-## Tech Stack
+## Start here
 
-- **Backend**: Node.js with Express and TypeScript
-- **Frontend**: React + Vite + TypeScript
-- **Database**: PostgreSQL
-- **ORM**: Prisma
-- **Styling**: Tailwind CSS
-- **AI Support**: OpenAI API (graceful mock mode included for local testing)
+- [Forum setup, permissions, APIs and moderation](docs/forum.md)
+- [Implementation and delivery status](docs/forum-tasks.md)
+- [Branches, releases and archived designs](docs/repository-branches.md)
+- [2:50 Demo Day runbook](docs/forum-demo.md) — presentation/recording evidence is a separate delivery step
+- [UI V4](docs/archive/forum-ui-v4.md) and [UI V5](docs/archive/forum-ui-v5.md) — historical design notes
 
----
+## Local forum setup
 
-## ⚡ Quick Start: Run Everything in Docker (Recommended)
+Use a separate **localhost PostgreSQL** database for development. The guarded installation paths below are the tested forum setup; [the current guide](docs/forum.md#local-setup) explains their checks and recovery boundaries.
 
-This is the easiest way to launch the application. Both the frontend and backend are served from a single port (`5001`), completely bypassing any CORS preflight restrictions.
+1. Install dependencies from the repository root:
 
-### 1. Start the Containers
-Ensure Docker Desktop is running. In the project root, run:
-```bash
-docker-compose up --build -d
-```
-This will:
-- Spin up the PostgreSQL database container.
-- Build the React frontend and compile the Express backend.
-- Wait for the database to become online.
-- Apply database migrations and seed the initial data.
-- Start the server on port `5001`.
+   ```sh
+   npm ci
+   npm ci --prefix backend
+   npm ci --prefix frontend
+   ```
 
-### 2. Access the Application
-Open [http://localhost:5001](http://localhost:5001) in your browser.
+2. Create `backend/.env` from [the environment example](backend/.env.example), replacing the inherited sample values with your own local settings. Configure `DATABASE_URL` and `DIRECT_URL` to the same localhost database/schema, your own `JWT_SECRET`, `APP_URL=http://localhost:5173`, `NODE_ENV=development` and `PORT=5001`. Keep environment files and credentials out of Git.
 
----
+3. Enable `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env.local`. Both flags default to off.
 
-## 🛠️ Manual Setup (Alternative for Local Development)
+4. Start your local PostgreSQL instance. If you use the included Compose database service, start **only** that service with `docker-compose up postgres -d` and make the localhost connection settings match it.
 
-If you wish to run the frontend Vite dev server (with hot reloading) and the backend Express server separately:
+5. Generate the Prisma client:
 
-### 1. Configure Environment Variables
-Create a `.env` file in the `backend/` directory:
-```text
-DATABASE_URL="postgresql://iceberg:iceberg_password@localhost:5432/iceberg_x_db?schema=public"
-JWT_SECRET="super_secret_jwt_key_iceberg_x"
-OPENAI_API_KEY="your_openai_api_key_here"
-APP_URL="http://localhost:5173"
-NODE_ENV="development"
-PORT=5001
-SEED_STAFF_PASSWORD="set-a-secure-staff-seed-password"
-SEED_CUBE_PASSWORD="set-a-secure-cube-seed-password"
-DEFAULT_CUBE_PASSWORD="set-a-secure-default-cube-password"
-```
+   ```sh
+   npx --prefix backend prisma generate --schema backend/prisma/schema.prisma
+   ```
 
-### 2. Install Dependencies
-Run the command below in the workspace root:
-```bash
-npm run install-all
-```
+6. Choose the database path that applies, with local dev servers stopped:
 
-### 3. Start PostgreSQL Database
-```bash
-docker-compose up postgres -d
-```
+   | Target | Commands from the repository root |
+   |---|---|
+   | New, completely empty local schema | `npm run db:forum:init --prefix backend` |
+   | Existing portal with Prisma migration history | `npm run db:forum:plan --prefix backend`, then `npm run db:forum:migrate --prefix backend` |
 
-### 4. Run Migrations & Seed Data
+   These commands preserve existing category labels and avoid replaying the portal's historical Quest migration ordering bug. They reject production/non-local targets and never reset the database or run `db push`. Initialization creates default communities; it does not create accounts, badges, topics or replies. Read [the migration guide](docs/forum.md#migration-history-and-data-preservation) before upgrading an existing local database.
 
-For this fork's forum work, use the guarded [local setup procedure](docs/forum.md#local-setup) instead of replaying the historical migration chain on an empty database. The commands below describe the original portal workflow.
-```bash
-npm run db:migrate
-npm run db:seed
-```
+7. Start the development servers:
 
-### 5. Launch Development Servers
-```bash
-npm run dev
-```
-Open the Vite dev server at [http://localhost:5173](http://localhost:5173). The API client will automatically proxy requests to port `5001`.
+   ```sh
+   npm run dev
+   ```
 
----
+   Open [http://localhost:5173/forum](http://localhost:5173/forum). The frontend uses the backend on port `5001`. Restart the appropriate server after changing a feature flag; the frontend flag is applied at build time.
 
-## Seeded Users
+## Local accounts and onboarding
 
-Seeded Admin users:
-- `yunus.altanay@iceberg-digital.co.uk`
-- `mark@iceberg-digital.co.uk`
-- `ahmet.solmaz@iceberg-digital.co.uk`
-- `baris@iceberg-digital.co.uk`
-- `yusuf@iceberg-digital.co.uk`
+Use the portal's existing local account/invitation workflow. In the invitation path, a new account receives an unusable random password hash until its owner chooses a password through a one-time link. Invite tokens expire after 72 hours and only their SHA-256 hashes are stored. The Admin receives the link to share; the portal does not send an invitation email automatically. Existing accounts keep their passwords. Admin user creation also supports an explicitly supplied password; shared default Cube passwords are not the onboarding model.
 
-Seeded Mentor users:
-- `onur.basterzi@iceberg-digital.co.uk`
-- `altug.ege@iceberg-digital.co.uk`
-- `bora.kucukkara@iceberg-digital.co.uk`
-- `furkan.meraloglu@iceberg-digital.co.uk`
+The broad portal seed is an optional, separate setup tool and is never run by the forum installer. If deliberately using it in a disposable local environment, configure your own `SEED_STAFF_PASSWORD` and `SEED_CUBE_PASSWORD`; `SEED_YUNUS_PASSWORD` is an optional seed override. Do not treat seeded accounts or the inherited example passwords as a shared forum login.
 
-Seeded Iceberg Fellows use `Role.CUBE`, `current_level = Iceberg_Fellow`, and `status = alumni` until the dedicated Cube Mentor/Fellow layer is introduced.
+## Cube Forum
 
-Passwords are intentionally not documented in the repository. Configure seed and default onboarding passwords with `SEED_STAFF_PASSWORD`, `SEED_CUBE_PASSWORD`, optional `SEED_YUNUS_PASSWORD`, and `DEFAULT_CUBE_PASSWORD` in the deployment environment or local `.env`.
+The forum appears under **Community → Forum** at `/forum`. Topics, replies, follows, reports and statistics use the real `/api/forum` endpoints and PostgreSQL.
 
----
+It includes public portal identity/progression, up to three ordered earned badges, signatures, quest/mission context, exact-reply notifications, Admin-managed communities, topic movement and mobile layouts. Image upload/paste (PNG/JPEG/WEBP/GIF, up to 5 MB) and accepted answers are implemented extras beyond the original MVP. Upload storage/access behavior, current limits and validation commands are documented in [the forum guide](docs/forum.md).
+
+## Tech stack
+
+- **Backend:** Node.js, Express and TypeScript
+- **Frontend:** React, Vite, TypeScript and Tailwind CSS
+- **Database:** PostgreSQL with Prisma
+- **Existing portal AI helpers:** optional and separate from forum operation
 
 ## What Each User Type Can Do
 
@@ -195,27 +165,6 @@ Four AI assistants are available to help:
 
 ---
 
-## Railway Deployment
+## Inherited infrastructure files
 
-Deploying this monorepo to Railway is straightforward:
-
-1. **Database**: Add the **Railway PostgreSQL** plugin to your project.
-2. **Web Application**:
-   - Root Directory: `.`
-   - Build Command: `npm run build`
-   - Start Command: `sh -c "node backend/dist/wait-db.js && npx prisma migrate deploy && npx prisma db seed && node backend/dist/index.js"`
-   - Environment Variables:
-     - `DATABASE_URL`: (linked from Postgres plugin)
-     - `JWT_SECRET`: (generate a secure string)
-     - `OPENAI_API_KEY`: (your OpenAI developer key)
-     - `APP_URL`: (the domain URL of your frontend service)
-     - `NODE_ENV`: `production`
-     - `PORT`: `5001`
-
-## Cube Forum (fork)
-
-The Cube Forum lives on `/forum` under Community. Enable `FORUM_ENABLED=true` in `backend/.env` and `VITE_CUBE_FORUM_ENABLED=true` in `frontend/.env.local`. All topics, replies, follows, reports and statistics use the real `/api/forum` endpoints. No sample accounts or topics are created by the forum installer.
-
-Use the [current forum guide](docs/forum.md) for setup, APIs, data model, permissions and moderation. For a new **empty local** schema run `npm run db:forum:init --prefix backend`; for an existing migrated local portal run `npm run db:forum:plan --prefix backend`, then `npm run db:forum:migrate --prefix backend`. Both connection URLs must point to the same localhost database/schema. These guarded commands preserve existing category labels and avoid replaying the portal's historical Quest ordering bug; do not substitute a raw migration replay for a fresh fork installation.
-
-The forum includes portal progression, up to three ordered earned badges, signatures, quest/mission context, exact-reply notifications, community management, topic movement and mobile layouts. Image upload/paste (PNG/JPEG/WEBP/GIF, up to 5 MB) and accepted answers are implemented extras beyond the original MVP. See the [2:50 Demo Day runbook](docs/forum-demo.md); live presentation/recording remains a separate delivery step. [UI V4](docs/forum-ui-v4.md) and [UI V5](docs/forum-ui-v5.md) preserve design history. All work stays on `umrtkyrk/iceberg-x-os`; no upstream push or deployment is included.
+[Dockerfile](Dockerfile) and [docker-compose.yml](docker-compose.yml) are retained from the portal. The full application container starts with raw Prisma migration deployment, and its configuration is not the guarded local forum installation described above. The full Docker application and Railway production rollout are not validated release paths for this fork. Use the local forum guide for development; a later deployment requires its own reviewed migration, environment and upload-storage plan.
