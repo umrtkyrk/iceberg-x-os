@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import forumRoutes from './forum.routes';
 import authRoutes from './auth.routes';
 import cubesRoutes from './cubes.routes';
 import missionsRoutes from './missions.routes';
@@ -37,6 +38,7 @@ const router = Router();
  * in another module. `teams` is mounted before `missions` so that
  * `POST /missions/:id/teams` is matched by the teams module first.
  */
+router.use(forumRoutes);
 router.use(authRoutes);
 router.use(cubesRoutes);
 router.use(teamsRoutes);

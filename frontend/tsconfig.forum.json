@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "src/pages/forum/Forum.tsx",
+    "src/pages/forum/ForumPortal.tsx",
+    "src/pages/forum/forumModel.ts",
+    "src/components/MentionTextarea.tsx",
+    "src/utils/mentions.tsx",
+    "src/utils/forumImages.tsx",
+    "src/config/features.ts",
+    "src/vite-env.d.ts"
+  ]
+}
