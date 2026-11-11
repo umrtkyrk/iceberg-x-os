@@ -197,6 +197,37 @@ async function main() {
     await forum.changeForumReply(other, unanswered.id, owner[1].forum_target.reply_id, {}, true);
     owner = await ownerNotes();
     assert.equal(owner.length, 1);
+    // Force mark-read to commit between the grouped lookup and refresh.
+    await forum.createForumReply(other, unanswered.id, { body: 'Race seed' });
+    const seedNote = (await ownerNotes()).find(n => !n.read_at);
+    assert.ok(seedNote);
+    const rawTransaction = db.$transaction;
+    let readInterleaved = false;
+    db.$transaction = function(fn, ...options) {
+      return rawTransaction.call(db, async tx => {
+        const rawFind = tx.notification.findFirst;
+        tx.notification.findFirst = async function(args) {
+          const found = await rawFind.call(tx.notification, args);
+          if (!readInterleaved && found?.id === seedNote.id) {
+            await require('../dist/services/notificationRead.service').markNotificationsRead(cube.id, [found.id]);
+            readInterleaved = true;
+          }
+          return found;
+        };
+        try { return await fn(tx); } finally { tx.notification.findFirst = rawFind; }
+      }, ...options);
+    };
+    let freshReply;
+    try { freshReply = await forum.createForumReply(other, unanswered.id, { body: 'Race fresh event' }); }
+    finally { db.$transaction = rawTransaction; }
+    assert.ok(readInterleaved);
+    const oldRead = await db.notification.findUnique({ where: { id: seedNote.id } });
+    assert.ok(oldRead.read_at);
+    assert.match(oldRead.message, /Race seed/);
+    const freshUnread = (await ownerNotes()).filter(n => !n.read_at);
+    assert.equal(freshUnread.length, 1);
+    assert.equal(freshUnread[0].forum_target.reply_id, freshReply.id);
+    assert.match(freshUnread[0].message, /Race fresh event/);
     await forum.changeForumTopic(staff, unanswered.id, {}, true);
     assert.equal((await forum.forumStats()).unanswered.length, 0);
     // Forum history must not break the portal's existing account-deletion flow.

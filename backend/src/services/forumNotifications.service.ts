@@ -95,9 +95,13 @@ async function notifyTopicOwner(tx: ForumTx, ownerId: string, topic: { id: strin
   if (!summary) return;
   const existing = await unreadOwnerNotification(tx, ownerId, topic.id);
   if (existing) {
-    await tx.notification.update({ where: { id: existing.id }, data: { message: summary.message, created_at: new Date(),
-      forum_target: { update: { reply_id: summary.replyId } } } });
-    return;
+    // A concurrent mark-read must not absorb a newer event into already-read history.
+    const refreshed = await tx.notification.updateMany({ where: { id: existing.id, read_at: null },
+      data: { message: summary.message, created_at: new Date() } });
+    if (refreshed.count) {
+      await tx.forumNotificationTarget.update({ where: { notification_id: existing.id }, data: { reply_id: summary.replyId } });
+      return;
+    }
   }
   await tx.notification.create({ data: { user_id: ownerId, message: summary.message, forum_target: { create: { topic_id: topic.id, reply_id: summary.replyId } } } });
 }
