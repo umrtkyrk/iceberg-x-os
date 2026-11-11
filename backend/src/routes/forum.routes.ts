@@ -78,6 +78,7 @@ router.post('/forum/categories', handle(req => manageForumCategory(req.user!, un
 router.patch('/forum/categories/:id', handle(req => manageForumCategory(req.user!, req.params.id, body(req))));
 router.delete('/forum/categories/:id', handle(req => manageForumCategory(req.user!, req.params.id, {}, true)));
 router.get('/forum/stats', handle(() => forum.forumStats()));
+router.get('/forum/dashboard', handle(req => forum.forumDashboard(req.user!)));
 router.get('/forum/categories', handle(() => forum.forumCategories()));
 router.get('/forum/topics', handle(req => {
   const category = req.query.category === undefined ? undefined : forumText(req.query.category, 'Category', 1, 80);
