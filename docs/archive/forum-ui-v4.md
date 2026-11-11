@@ -1,6 +1,6 @@
 # Forum UI V4 — updated real-api design with portal integration
 
-Historical design notes. For the current setup and merged feature set use [the forum handover guide](forum.md). Later real-api changes include image upload/paste, mention length guards and data-preserving local installation.
+Historical design notes. For the current setup and merged feature set use [the forum handover guide](../forum.md). Later real-api changes include image upload/paste, mention length guards and data-preserving local installation.
 
 This branch starts at `forum/real-api` commit `00473584f1e0f73b40911138404f99322d059dee`. It retains the English community feed, magenta palette, white cards, collapsible comments and whole-board statistics. The portal integration previously built in `ui-v3` is adapted to that layout. Work belongs only to `umrtkyrk/iceberg-x-os:codex/ui-v4`; no upstream change, merge or deployment is included.
 
@@ -30,7 +30,7 @@ npm run db:forum:plan
 npm run db:forum:migrate
 ```
 
-These commands are for an existing migrated local portal. For an empty local schema use `npm run db:forum:init` instead; see [the baseline and data-preservation procedure](forum.md#local-setup). Start the normal backend/frontend dev scripts and open `/forum`. Both feature flags default to off. There is no local-storage demo fallback, and the forum installer creates no sample topics/accounts.
+These commands are for an existing migrated local portal. For an empty local schema use `npm run db:forum:init` instead; see [the baseline and data-preservation procedure](../forum.md#local-setup). Start the normal backend/frontend dev scripts and open `/forum`. Both feature flags default to off. There is no local-storage demo fallback, and the forum installer creates no sample topics/accounts.
 
 The additional migration `20261029120000_forum_portal_integration` was copied unchanged from `ui-v3`: three new tables (`ForumProfile`, `ForumTopicContext`, `ForumNotificationTarget`), their foreign keys/indexes and an insert-if-missing Ideas community. A later inherited migration renamed Ideas to English. The current guarded installer skips pending label-only UPDATE migrations and preserves existing labels; Admin can rename communities deliberately. New empty installs receive English defaults without updating existing rows.
 

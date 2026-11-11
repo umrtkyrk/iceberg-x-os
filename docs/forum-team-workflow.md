@@ -5,7 +5,7 @@ Forum geliştirmesi `umrtkyrk/iceberg-x-os` fork'unda yapılır. `yemrealtanay/i
 ## Ekip
 
 - Mesut Umur Tokyürek: `umrtkyrk`
-- Medine Kaynak: `u230709007` (collaborator davetini GitHub'da kabul etmeli)
+- Medine Kaynak: `u230709007`
 
 ## Yerel kurulum ve uzak repolar
 
@@ -23,18 +23,18 @@ git switch --track origin/forum-mvp
 
 ## Dallar ve PR'lar
 
-`main`, başlangıçta upstream ile aynı tutulur. `forum-mvp`, forumun ortak entegrasyon dalıdır. Her geliştirici bu daldan ayrı bir `forum-...` dalı açar, değişikliklerini kendi dalına gönderir ve diğer ekip üyesinden inceleme ister.
+`main`, fork'un son yayın sürümüdür; `forum-mvp` ortak entegrasyon dalıdır. Her yeni tasarım veya düzeltme ayrı bir branch'te yapılır ve PR ile `forum-mvp` içine alınır. Fork yayını için `forum-mvp` → aynı fork'un `main` dalına ayrıca PR açılır. Her iki dal korunur; gerekli GitHub inceleme ve kontrolleri atlanmaz.
 
 PR açarken hedefi özellikle kontrol edin:
 
 - Base repository: **umrtkyrk/iceberg-x-os**
-- Base branch: **forum-mvp**
+- Base branch: özellik/düzeltme için **forum-mvp**, fork yayını için **main**
 
-GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Bu görevde hedef fork olarak seçilir. Hazır olduğunda fork'un `main` dalına geçiş ayrıca değerlendirilir; üretim portalına katkı gönderilmez.
+GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Hedef her zaman aynı fork olarak seçilir; üretim portalına katkı gönderilmez. Eski tasarımlar ve branch temizliği [arşiv listesinde](repository-branches.md) açıklanır; farklı commit içeren çalışma önce doğrulanmış uzak etiketle korunur.
 
 ## Forum kapsamı
 
-Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Beğeni/reaksiyon, görsel yükleme, e-posta özeti ve Radar/MVCubes puanlaması MVP dışındadır.
+Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Beğeni/reaksiyon, e-posta özeti ve Radar/MVCubes puanlaması uygulanmamıştır; görsel yükleme ve kabul edilen cevap ise ilk MVP tanımının üzerinde mevcut ek özelliklerdir.
 
 Mevcut `mock-forum`, UI V4 ve UI V5 tarihsel tasarım referanslarıdır. Güncel API, feature flag, yetki, moderasyon ve güvenli yerel kurulum için [forum kılavuzuna](forum.md), 2–3 dakikalık sunum için [demo senaryosuna](forum-demo.md) bakın. İlk görevde kapsam dışı olan görsel yükleme/paste ve kabul edilen cevap, son real-api sürümünde ek özellik olarak mevcuttur; diğer kapsam dışı maddeler uygulanmamıştır.
 

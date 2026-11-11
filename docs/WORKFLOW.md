@@ -8,6 +8,7 @@ It builds on:
   repositories, pushing, or deploying.**
 - [`AGENTS.md`](../AGENTS.md): coding, security and migration rules for the whole portal.
 - [`forum-tasks.md`](forum-tasks.md): what we are building and who does what.
+- [`repository-branches.md`](repository-branches.md): release branches, archived designs and safe cleanup.
 
 ---
 
@@ -16,9 +17,9 @@ It builds on:
 1. **We work only in the fork `umrtkyrk/iceberg-x-os`.** No push, PR, merge, deploy, or
    `scripts/sync-remotes.sh` against `yemrealtanay/iceberg-x-os` or `Iceberg-Digital-Team/iceberg-x-os`.
    Upstream is read-only for us.
-2. **Nobody pushes directly to `forum-mvp` or `main`.** Every change is a PR into `forum-mvp`, reviewed by the
-   other person.
-3. **When you open a PR, check the base:** repository **`umrtkyrk/iceberg-x-os`**, branch **`forum-mvp`**.
+2. **Nobody pushes directly to `forum-mvp` or `main`.** Features/fixes go through reviewed PRs into `forum-mvp`;
+   a fork release uses a PR from `forum-mvp` into the fork's `main`. Respect required GitHub approvals/checks.
+3. **When you open a PR, check the base:** repository **`umrtkyrk/iceberg-x-os`**, branch **`forum-mvp`** for normal work or **`main`** for a fork release.
    GitHub suggests upstream by default.
 4. **Only one migration is in flight at a time,** it is additive only, and we never edit upstream migrations.
 5. **Build before you push** (see §5.1).
@@ -54,7 +55,7 @@ cp backend/.env.example backend/.env        # fill in; never commit
 echo "VITE_CUBE_FORUM_ENABLED=true" > frontend/.env.local   # plus FORUM_ENABLED=true in backend/.env
 docker-compose up postgres -d
 npm run db:forum:init --prefix backend       # only for an empty local schema
-npm run db:seed
+# Prepare local accounts separately; the broad portal seed is optional.
 npm run dev                                  # backend :5001, frontend :5173 → /forum
 ```
 
@@ -171,19 +172,18 @@ git push --force-with-lease      # own feature branch only
 
 If you merge instead of rebasing, **run the frontend build before pushing.** Broken JSX only shows up there.
 
-### 4.4 Pulling in upstream portal changes (occasionally, by agreement)
+### 4.4 Upstream reference updates (only by agreement)
 
-Upstream keeps moving. About every 1–2 weeks, one of us (announced in chat) does:
+The fork's `main` is reserved for forum releases; do not replace it with an upstream snapshot or push directly to it. If an upstream update is explicitly requested, fetch it read-only and prepare a separate integration PR in the fork:
 
 ```bash
 git fetch upstream
-git switch main && git merge --ff-only upstream/main && git push origin main
-git switch -c forum-sync-upstream origin/forum-mvp
-git merge main                   # resolve, build, test
-git push                         # PR into forum-mvp, reviewed like any other
+git switch -c codex/forum-sync-upstream origin/forum-mvp
+git merge upstream/main          # resolve, build, test
+git push -u origin codex/forum-sync-upstream  # PR into the fork's forum-mvp
 ```
 
-This only fetches **from** upstream. Nothing goes back.
+This only fetches **from** upstream. Nothing goes back. Never run `scripts/sync-remotes.sh --apply` for this fork workflow.
 
 ---
 
@@ -191,7 +191,7 @@ This only fetches **from** upstream. Nothing goes back.
 
 ### 5.1 Author checklist
 
-- [ ] Base is **`umrtkyrk/iceberg-x-os` ← `forum-mvp`**
+- [ ] Base is **`umrtkyrk/iceberg-x-os` ← `forum-mvp`** (fork release: **`main`**)
 - [ ] Rebased on the latest `origin/forum-mvp`
 - [ ] Backend: `cd backend && npm run build && npm test`
 - [ ] Frontend: `cd frontend && npm run build && npm run test:forum && npm run check:forum`
@@ -242,7 +242,9 @@ If two comments don't settle a disagreement, have a 10-minute call and write the
 
 ### 5.5 Merging
 
-**Squash and merge** into `forum-mvp` on the fork, delete the branch, and move the issue to **Done**.
+Merge approved changes into `forum-mvp` on the fork, preserving commit ancestry with a merge commit. Release `forum-mvp` into the fork's `main` through a separate PR and merge commit. Required GitHub reviews/checks must pass; never bypass branch protection.
+
+After merge, remove the inactive feature branch. If a squash/rebase merge was explicitly chosen, preserve an archive tag before deleting a head that is not an ancestor of integration. Keep `main` and `forum-mvp`; follow the archive/lease checks in `repository-branches.md`. Move the issue to **Done**.
 
 ---
 

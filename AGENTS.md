@@ -1,5 +1,17 @@
 # Iceberg X Portal - Developer Handbook & Coding Guidelines (V2)
 
+## Fork-specific repository boundary — takes precedence
+
+This checkout belongs to **`umrtkyrk/iceberg-x-os`**. Apply these fork rules before the inherited portal handbook below:
+
+- Work, branches and pull requests stay in this fork. Never push, open PRs, merge, deploy or run repository synchronization against `yemrealtanay/iceberg-x-os` or `Iceberg-Digital-Team/iceberg-x-os`. Do not run `scripts/sync-remotes.sh --apply` for this work.
+- `forum-mvp` is the integration branch. Promote a user-authorized forum release to the fork's `main` through a PR whose base repository is **`umrtkyrk/iceberg-x-os`**. A fork `main` merge is not authorization for a production deployment.
+- Use a separate branch for changes and designs. Follow [the team workflow](docs/WORKFLOW.md) and [the fork boundary](docs/forum-team-workflow.md), together with the user's current instructions. Preserve `main` and `forum-mvp` during branch cleanup.
+- For local forum databases, use the guarded setup and migration commands in [the current forum guide](docs/forum.md). They supersede generic migration-replay instructions for this fork and preserve existing category data. Never use production credentials or reset an existing database as part of setup.
+- Section 7 describes the original upstream project's release process for reference only. It does not authorize upstream writes or synchronization from this fork.
+
+---
+
 Welcome to the Iceberg X Portal developer guidelines. This repository has been refactored into a secure, modular, production-grade architecture. 
 
 Use this guide to align development practices, preserve system safety, enforce role boundaries, and navigate backend/frontend layers.
@@ -82,7 +94,7 @@ graph TD
 ## 3. Security Guidelines & Token Onboarding
 
 ### One-Time Onboarding Invites
-- **No Shared Passwords**: Replaced `DEFAULT_CUBE_PASSWORD` onboarding. New users are created in a locked state with a cryptographically random, unusable password hash (`unusablePasswordHash()`).
+- **Invitation Onboarding**: The invitation path creates users in a locked state with a cryptographically random, unusable password hash (`unusablePasswordHash()`); the person chooses their own password through a one-time link. Shared default Cube passwords are not the onboarding model. Admin creation can also accept an explicitly supplied password.
 - **Token Hashing**: Invitation links contain a unique Base64-URL token. The database only stores the SHA-256 hash (`token_hash`) of this token. plain tokens are never stored. If the database leaks, invite links cannot be replayed.
 - **Double-Submit Protection**: When accepting an invitation and setting a password, the transaction must re-verify `accepted_at` inside `prisma.$transaction` to prevent race conditions.
 - **BCrypt Performance**: Perform password hashing (`bcrypt.hash`) outside database transactions. Bcrypt is intentionally slow and CPU-heavy; executing it inside a database transaction wastes connection pool slots.
@@ -99,14 +111,15 @@ graph TD
 
 ## 4. Badge System & Rarity Hierarchy
 
-The system defines three badge rarity tiers (`BadgeRarity`) with specific visual layouts:
+The current Prisma `BadgeRarity` enum and `frontend/src/utils/badgeRarity.ts` define four badge rarity tiers:
 
 1. **Common**: Flat design, white background card, and neutral border. Hint: expected of every Cube.
 2. **Rare**: Coloured glow, lit gradient border (`from-sky-400 via-cyan-400 to-blue-600`). Hint: real depth of skill.
 3. **Epic**: Dark card, animated rotating spectrum border (`badge-frame-epic` CSS class), sheen sweep, and sparkles. Hint: moves the programme forward.
+4. **Legendary**: Molten-gold frame (`badge-frame-legendary`), gold sheen, breathing aura and drifting embers. Hint: the summit, held by almost no one.
 
 ### Naming & Asset Resolutions
-- **Rarity Sort**: Sorted rarest first using `compareByRarity` (order: Epic = 1, Rare = 2, Common = 3).
+- **Rarity Sort**: Sorted rarest first using `compareByRarity` (order: Legendary = 1, Epic = 2, Rare = 3, Common = 4). Preserve a Cube's explicitly chosen forum showcase order instead of applying rarity sorting to that selection.
 - **Lucide Icon Collisions**: Aliased imports that shadow JavaScript globals (e.g. `Map as MapIcon`, `Infinity as InfinityIcon`) must be strictly observed in `badgeIcons.ts` to prevent import-time application crashes.
 - **Backward Compatibility**: Pre-catalogue PascalCase icons (e.g. `ClarityMaker`, `DeepDiver`) map to new keys using `LEGACY_ICON_ALIASES` in `badgeIcons.ts`.
 - **Award Guards**: Prevents duplicate awards for the same mission/cube combination. Deleting a badge requires `?force=true` query confirmation if active awards exist.
@@ -128,7 +141,9 @@ The system defines three badge rarity tiers (`BadgeRarity`) with specific visual
 
 ---
 
-## 7. Repositories & deployment
+## 7. Upstream repositories & deployment — historical reference
+
+This section records the original portal maintenance process. The fork-specific boundary above takes precedence; none of the synchronization or deployment steps below applies to this fork's forum release.
 
 The code lives in **two repositories that must stay identical**:
 
