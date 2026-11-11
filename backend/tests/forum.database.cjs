@@ -228,6 +228,52 @@ async function main() {
     assert.equal(freshUnread.length, 1);
     assert.equal(freshUnread[0].forum_target.reply_id, freshReply.id);
     assert.match(freshUnread[0].message, /Race fresh event/);
+    // Likes must preserve read history when mark-read wins the lookup/update race.
+    const ownReply = await forum.createForumReply(cube, unanswered.id, { body: 'Owner reply for like notification races' });
+    const interleaveLikeRead = async (note, action) => {
+      const transaction = db.$transaction;
+      let interleaved = false;
+      db.$transaction = function(fn, ...options) {
+        return transaction.call(db, async tx => {
+          const findFirst = tx.notification.findFirst;
+          tx.notification.findFirst = async function(args) {
+            const found = await findFirst.call(tx.notification, args);
+            if (!interleaved && found?.id === note.id) {
+              await require('../dist/services/notificationRead.service').markNotificationsRead(cube.id, [found.id]);
+              interleaved = true;
+            }
+            return found;
+          };
+          try { return await fn(tx); } finally { tx.notification.findFirst = findFirst; }
+        }, ...options);
+      };
+      try { await action(); } finally { db.$transaction = transaction; }
+      assert.ok(interleaved);
+      const history = await db.notification.findUnique({ where: { id: note.id } });
+      assert.ok(history?.read_at);
+      assert.equal(history.message, note.message);
+      assert.deepEqual(history.created_at, note.created_at);
+    };
+    for (const replyId of [undefined, ownReply.id]) {
+      const unreadLikes = () => db.notification.findMany({ where: { user_id: cube.id, read_at: null,
+        message: { contains: 'liked your' }, forum_target: { is: { topic_id: unanswered.id, reply_id: replyId || null } } } });
+      await forum.likeForumPost(other, unanswered.id, replyId, { liked: true });
+      const [seedLike] = await unreadLikes();
+      assert.ok(seedLike);
+      await interleaveLikeRead(seedLike, () => forum.likeForumPost(staff, unanswered.id, replyId, { liked: true }));
+      const freshLikes = await unreadLikes();
+      assert.equal(freshLikes.length, 1);
+      assert.notEqual(freshLikes[0].id, seedLike.id);
+      assert.match(freshLikes[0].message, /Mentor Ayla/);
+      // An unlike must neither rewrite read history nor create a fresh notification.
+      await interleaveLikeRead(freshLikes[0], () => forum.likeForumPost(staff, unanswered.id, replyId, { liked: false }));
+      assert.equal((await unreadLikes()).length, 0);
+      await forum.likeForumPost(other, unanswered.id, replyId, { liked: true });
+      const [lastLike] = await unreadLikes();
+      assert.ok(lastLike);
+      await interleaveLikeRead(lastLike, () => forum.likeForumPost(other, unanswered.id, replyId, { liked: false }));
+      assert.equal((await unreadLikes()).length, 0);
+    }
     await forum.changeForumTopic(staff, unanswered.id, {}, true);
     assert.equal((await forum.forumStats()).unanswered.length, 0);
     // Forum history must not break the portal's existing account-deletion flow.

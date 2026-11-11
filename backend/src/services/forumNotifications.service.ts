@@ -141,14 +141,16 @@ export async function syncForumLikeNotification(tx: ForumTx, actor: ForumActor, 
     ? await tx.forumReplyLike.findMany({ where: { reply_id: reply.id, user_id: { not: ownerId } }, orderBy: { created_at: 'desc' }, take: 50, select: { user: { select: { name: true } } } })
     : await tx.forumTopicLike.findMany({ where: { topic_id: topic.id, user_id: { not: ownerId } }, orderBy: { created_at: 'desc' }, take: 50, select: { user: { select: { name: true } } } });
   if (!likers.length) {
-    if (existing) await tx.notification.delete({ where: { id: existing.id } });
+    if (existing) await tx.notification.deleteMany({ where: { id: existing.id, read_at: null } });
     return;
   }
   const names = [...new Set(likers.map(like => like.user?.name?.trim() || 'A Cube'))];
   const message = `${forumPeopleList(names)} ${LIKED} ${reply ? 'comment on' : 'post'} “${topic.title}”.`;
   if (existing) {
-    await tx.notification.update({ where: { id: existing.id }, data: { message, ...(liked ? { created_at: new Date() } : {}) } });
-    return;
+    // A concurrent mark-read must keep its history and leave a fresh like unread.
+    const refreshed = await tx.notification.updateMany({ where: { id: existing.id, read_at: null },
+      data: { message, ...(liked ? { created_at: new Date() } : {}) } });
+    if (refreshed.count) return;
   }
   if (!liked || !await tx.user.findFirst({ where: { AND: [eligible, { id: ownerId }] }, select: { id: true } })) return;
   await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: target } } });
