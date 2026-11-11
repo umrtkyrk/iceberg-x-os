@@ -27,6 +27,8 @@ import {
   TrendingUp,
   UserRound,
   Camera,
+  UserPlus,
+  Mic,
   MessagesSquare,
   type LucideIcon
 } from 'lucide-react';
@@ -78,6 +80,7 @@ const GROWTH: NavGroup = {
     {
       items: [
         { path: '/fundamentals', label: 'Fundamentals', hint: 'Learn, then take the quiz', icon: BookOpen },
+        { path: '/webinars', label: 'Webinars', hint: 'Career talks and your questions', icon: Mic },
         { path: '/quests', label: 'Quests', hint: 'Goals and your progress', icon: Trophy },
         { path: '/badges', label: 'Badges', hint: 'Earn them, collect them', icon: Award }
       ]
@@ -122,6 +125,7 @@ const buildManage = (isAdmin: boolean): NavGroup => ({
         { path: '/notifications', label: 'Broadcast', hint: 'Message every Cube', icon: Send },
         ...(isAdmin
           ? [
+              { path: '/admin/recruitment', label: 'Recruitment', hint: 'Pipeline, scoring and decisions', icon: UserPlus },
               { path: '/admin/users', label: 'Users Admin', hint: 'Accounts and roles', icon: Users },
               { path: '/admin/quests', label: 'Quests Admin', hint: 'Create and assign quests', icon: Trophy }
             ]

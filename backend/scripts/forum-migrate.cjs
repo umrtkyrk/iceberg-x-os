@@ -12,7 +12,8 @@ const schemaFile = path.join(backend, 'prisma/schema.prisma');
 const migrations = path.join(backend, 'prisma/migrations');
 const defaults = '20261109180000_forum_default_categories';
 const likes = '20261111120000_forum_likes';
-const baselineLast = '20261106120000_english_ideas_category';
+// Reviewed recruitment/webinar migrations are included in the current-schema empty baseline.
+const baselineLast = '20261106120000_webinar_attendance_votes';
 // Additive forum migrations newer than the baseline. A fresh install already gets their tables from
 // the current schema, so --init-empty records them as applied instead of running them.
 const additive = new Set([likes]);

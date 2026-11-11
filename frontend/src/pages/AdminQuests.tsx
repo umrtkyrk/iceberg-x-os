@@ -3,12 +3,14 @@ import { api } from '../utils/api';
 import { Trophy, Plus, Check, Clock, User, Sparkles, Calendar, RefreshCw, Send, CheckSquare, Trash, Search, Filter, CheckCircle } from 'lucide-react';
 import { getBadgeIcon } from '../utils/badgeIcons';
 import { PEER_CRITERIA_OPTIONS, PEER_RATE_CRITERIA, isPeerCriteria, peerQuestProgressText } from '../utils/peer';
+import { WEBINAR_CRITERIA_OPTIONS, WEBINAR_RATE_CRITERIA, webinarQuestProgressText } from '../utils/webinars';
+import { FORUM_BINARY_CRITERIA, FORUM_CRITERIA_OPTIONS, forumQuestProgressText } from '../utils/forumQuests';
 
 // Criteria types that express a rate (a score average, an attendance
 // percentage) rather than a raw count. Only these can specify a minimum
 // sample size — for a count-based criteria the target value already IS the
 // count, so there's nothing separate to floor.
-const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...PEER_RATE_CRITERIA];
+const RATE_CRITERIA_TYPES = ['average_score', 'meeting_attendance', ...WEBINAR_RATE_CRITERIA, ...PEER_RATE_CRITERIA];
 
 // Mirrors DEFAULT_MIN_SAMPLE_SIZE in backend/src/services/quest.service.ts.
 // Shown as a placeholder so an admin sees what happens if they leave the
@@ -366,7 +368,7 @@ export const AdminQuests: React.FC = () => {
                     onChange={e => {
                       const val = e.target.value;
                       setCriteriaType(val);
-                      if (val === 'nda_signed' || val === 'profile_picture' || val === 'avatar_upload' || val === 'quiz_completed') {
+                      if (val === 'nda_signed' || val === 'profile_picture' || val === 'avatar_upload' || val === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(val)) {
                         setCriteriaValue('1');
                       }
                     }}
@@ -387,6 +389,16 @@ export const AdminQuests: React.FC = () => {
                     <option value="profile_picture">Upload Profile Picture (Avatar Required)</option>
                     <option value="quiz_score">Web Fundamentals Quiz Score (Target Score: e.g. 50, 75, 90)</option>
                     <option value="quiz_completed">Web Fundamentals Quiz Completed (Target: 1)</option>
+                    <optgroup label="Webinars">
+                      {WEBINAR_CRITERIA_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Forum">
+                      {FORUM_CRITERIA_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </optgroup>
                     <optgroup label="Peer feedback & MVCubes">
                       {PEER_CRITERIA_OPTIONS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -400,7 +412,7 @@ export const AdminQuests: React.FC = () => {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Goal Target Value</label>
-                  {(criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed') && (
+                  {(criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(criteriaType)) && (
                     <span className="text-[9px] font-extrabold text-magenta bg-magenta/10 px-2 py-0.5 rounded-full">
                       Fixed: 1 (Completion Required)
                     </span>
@@ -410,7 +422,7 @@ export const AdminQuests: React.FC = () => {
                   type="number"
                   step="any"
                   required
-                  readOnly={criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed'}
+                  readOnly={criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(criteriaType)}
                   placeholder={
                     criteriaType === 'nda_signed' || criteriaType === 'profile_picture' ? '1 (Required)' :
                     criteriaType === 'daily_update_streak' ? 'e.g. 30 or 90 (consecutive days)' :
@@ -450,6 +462,8 @@ export const AdminQuests: React.FC = () => {
                   <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
                     {criteriaType === 'meeting_attendance'
                       ? 'How many logged meetings the attendance rate must be computed over. Without a floor, a Cube\'s very first meeting is trivially 100%.'
+                      : WEBINAR_RATE_CRITERIA.includes(criteriaType)
+                      ? 'How many closed webinars the rate must be computed over. Without a floor, a single webinar decides the quest.'
                       : 'How many completed missions the scorecard average must be computed over. Without a floor, one great scorecard "is" the average.'}
                     {' '}Leave blank to use the difficulty default shown above.
                   </p>
@@ -924,6 +938,8 @@ export const AdminQuests: React.FC = () => {
                                   : cq.quest?.criteria_type === 'mission_updates_count' || cq.quest?.criteria_type === 'mission_updates'
                                   ? `${cq.current_value} / ${cq.quest?.criteria_value} updates`
                                   : peerQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
+                                    webinarQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
+                                    forumQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
                                     `${cq.current_value} / ${cq.quest?.criteria_value}`}
                               </span>
                               <span className="text-slate-400 font-bold text-[9px]">{progressPercentage.toFixed(0)}%</span>

@@ -15,7 +15,7 @@ The October mock/preview task list has been replaced by this implementation stat
 | Permissions | Staff-only Announcements; active Cubes post; Alumni/Former/missing Cube profiles have read-only posting access |
 | Feature flags | `FORUM_ENABLED` and `VITE_CUBE_FORUM_ENABLED`, both off by default |
 | Frontend quality | TypeScript, scoped CSS, mobile/keyboard navigation, empty/loading/error states, guarded mention length |
-| Existing extras | Accepted answers in Tech Support and image upload/paste up to 5 MB; no score/reward side effects |
+| Existing extras | Accepted answers in Tech Support, image upload/paste up to 5 MB, forum quest progress and dashboard activity |
 
 ## Integrated handover
 

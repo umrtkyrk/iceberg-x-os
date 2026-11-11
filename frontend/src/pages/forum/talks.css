@@ -325,3 +325,87 @@
 .cube-forum .talk-show-more { margin-top: 4px; color: var(--talk-accent); font-size: 13px; font-weight: 700; }
 .cube-forum .talk-show-more:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cube-forum .talk-feed-card .talk-snippet { white-space: pre-line; }
+
+/* Special signatures: a compact chip that hugs its text, so it marks the author without taking over the thread.
+   Admin and Mentor: Legendary gold. Senior Cube: Rare sky-to-blue. */
+.cube-forum .forum-signature-legendary,
+.cube-forum .forum-signature-rare {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 3px 12px 3px 3px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.cube-forum .forum-signature-legendary {
+  background:
+    linear-gradient(160deg, #1d1405 0%, #0d0802 55%, #1a1103 100%) padding-box,
+    linear-gradient(110deg, #fff7cc, #fbbf24, #b45309, #fde68a, #f59e0b, #fff7cc) border-box;
+  background-size: 100% 100%, 260% 100%;
+  box-shadow: 0 0 12px -6px rgba(251, 191, 36, 0.7);
+  animation: forum-sig-border 4s ease infinite;
+}
+.cube-forum .forum-signature-legendary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 244, 190, 0.18) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: forum-sig-sheen 5s ease-in-out infinite;
+  pointer-events: none;
+}
+.cube-forum .forum-signature-crest {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3b2502;
+  background: linear-gradient(110deg, #fff7cc, #fbbf24, #f59e0b, #fff0a3);
+}
+.cube-forum .forum-signature-text {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.4;
+  background: linear-gradient(110deg, #fff7cc, #fcd34d, #f59e0b, #fde68a, #fff7cc);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: forum-sig-text 5s ease infinite;
+}
+.cube-forum .forum-signature-rare {
+  background:
+    linear-gradient(160deg, #f0f9ff 0%, #ffffff 55%, #ecfeff 100%) padding-box,
+    linear-gradient(110deg, #38bdf8, #22d3ee, #2563eb, #7dd3fc, #38bdf8) border-box;
+  background-size: 100% 100%, 260% 100%;
+  box-shadow: 0 0 10px -6px rgba(14, 165, 233, 0.7);
+  animation: forum-sig-border 5s ease infinite;
+}
+.cube-forum .forum-signature-rare .forum-signature-crest {
+  color: #ffffff;
+  background: linear-gradient(110deg, #38bdf8, #0891b2, #2563eb);
+}
+.cube-forum .forum-signature-rare .forum-signature-text {
+  background: linear-gradient(110deg, #0369a1, #0891b2, #2563eb, #0e7490, #0369a1);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cube-forum .forum-signature-rare,
+  .cube-forum .forum-signature-legendary,
+  .cube-forum .forum-signature-legendary::after,
+  .cube-forum .forum-signature-text { animation: none; }
+}
