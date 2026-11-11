@@ -242,9 +242,9 @@
 .cube-forum .talk-feed-card { padding: 20px; }
 .cube-forum .talk-card-title { margin-top: 10px; font-size: 18px; line-height: 1.4; letter-spacing: -.015em; text-decoration: none; }
 .cube-forum .talk-feed-card .talk-snippet { margin-top: 10px; line-height: 1.65; -webkit-line-clamp: 4; }
-/* Feed images keep their own size and proportions: never cropped or enlarged, only scaled down to fit. */
-.cube-forum .talk-feed-image { display: table; max-width: 100%; margin-top: 12px; border: 1px solid var(--talk-line); border-radius: 14px; overflow: hidden; background: var(--talk-bg); }
-.cube-forum .talk-feed-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 640px; object-fit: contain; }
+/* Feed images keep their proportions: never cropped or enlarged, only scaled down to a LinkedIn-like size. */
+.cube-forum .talk-feed-image { display: block; width: fit-content; max-width: min(100%, 560px); margin-top: 12px; border: 1px solid var(--talk-line); border-radius: 14px; overflow: hidden; background: var(--talk-bg); }
+.cube-forum .talk-feed-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 420px; object-fit: contain; }
 .cube-forum .talk-pill.talk-like.is-liked, .cube-forum .talk-comment .talk-pill.talk-like.is-liked { color: var(--talk-accent) !important; }
 .cube-forum .talk-pill.talk-like:disabled { cursor: default; opacity: .7; }
 .cube-forum .talk-feed-card .talk-actions { margin-top: 16px; }
