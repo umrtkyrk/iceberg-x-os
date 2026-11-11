@@ -361,7 +361,32 @@
   color: transparent;
   animation: forum-sig-text 5s ease infinite;
 }
+/* Senior Cube signatures: the Rare frame (sky, cyan and blue), a step below the programme team. */
+.cube-forum .forum-signature-rare {
+  position: relative;
+  margin-top: 14px;
+  padding: 10px 14px 11px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(160deg, #f0f9ff 0%, #ffffff 55%, #ecfeff 100%) padding-box,
+    linear-gradient(110deg, #38bdf8, #22d3ee, #2563eb, #7dd3fc, #38bdf8) border-box;
+  background-size: 100% 100%, 260% 100%;
+  box-shadow: 0 0 18px -8px rgba(14, 165, 233, 0.75);
+  animation: forum-sig-border 5s ease infinite;
+}
+.cube-forum .forum-signature-rare .forum-signature-crest {
+  color: #ffffff;
+  background: linear-gradient(110deg, #38bdf8, #0891b2, #2563eb);
+}
+.cube-forum .forum-signature-rare .forum-signature-text {
+  background: linear-gradient(110deg, #0369a1, #0891b2, #2563eb, #0e7490, #0369a1);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
 @media (prefers-reduced-motion: reduce) {
+  .cube-forum .forum-signature-rare,
   .cube-forum .forum-signature-legendary,
   .cube-forum .forum-signature-legendary::after,
   .cube-forum .forum-signature-text { animation: none; }

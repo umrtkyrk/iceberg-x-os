@@ -54,6 +54,15 @@ export function ForumSignature({ author }: { author: Author | null }) {
   if (!author?.signature) return null;
   const { signature } = author;
   const staffRole = author.role === 'ADMIN' ? 'Admin' : author.role === 'MENTOR' ? 'Mentor' : null;
+  if (!staffRole && author.stage === 'senior') {
+    // Senior Cubes get the Rare treatment: a step below the programme team.
+    return (
+      <div className="forum-signature-rare" aria-label="Senior Cube signature">
+        <span className="forum-signature-crest" aria-hidden="true">◆ Senior Cube</span>
+        <p className="forum-signature-text">{signature}</p>
+      </div>
+    );
+  }
   if (!staffRole) return <p className="forum-signature">{signature}</p>;
   return (
     <div className="forum-signature-legendary" aria-label={`${staffRole} signature`}>
