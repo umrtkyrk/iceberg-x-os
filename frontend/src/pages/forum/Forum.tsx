@@ -5,7 +5,7 @@ import { ArrowLeft, Bookmark, BookOpen, CheckCircle2, Clock, Coffee, Flame, Hand
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
-import { AuthorIdentity, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
+import { AuthorIdentity, ForumSignature, CategoryManager, ContextFields, ForumPreferences, PortalAvatar, type Author, type Category, type Viewer, type ForumContext } from './ForumPortal';
 import { forumLocation, forumPageParams, forumReadStatus, forumListParams, forumSearchParams } from './forumModel';
 import { MentionAwareLink, mentionOverhead, mentionsToText } from '../../utils/mentions';
 import { ForumImage, stripImages, uploadForumImage } from '../../utils/forumImages';
@@ -251,7 +251,7 @@ export default function Forum() {
         {!hidden && <>
           {accepted && <p className="talk-accepted"><CheckCircle2 size={14}/>Accepted answer</p>}
           {editor?.kind === 'reply' && editor.id === post.id ? editorForm(editor) : <Markdown text={post.body}/>}
-          {post.author?.signature && <p className="forum-signature">{post.author.signature}</p>}
+          <ForumSignature author={post.author}/>
           <div className="talk-actions">
             {canPost && !thread?.topic.locked && <button className="talk-pill" onClick={() => quote(post)}><MessageCircle size={14}/>Reply</button>}
             {canPost && thread?.topic.category_id === 'help' && thread.topic.author?.id === user?.id && !thread.topic.locked && <button className="talk-pill" disabled={busy} onClick={() => void mutate(async () => { await api.put(`${topicPath}/answer`, { reply_id: accepted ? null : post.id }); })}><CheckCircle2 size={14}/>{accepted ? 'Unmark answer' : 'Accept answer'}</button>}
@@ -323,7 +323,7 @@ export default function Forum() {
           <h2 className="talk-post-title">{thread.topic.title}</h2>
           <div className="talk-flairs">{flairs(thread.topic)}</div>{contextLinks(thread.topic)}
           {editor?.kind === 'topic' ? editorForm(editor) : <Markdown text={thread.topic.body}/>}
-          {thread.topic.author?.signature && <p className="forum-signature">{thread.topic.author.signature}</p>}
+          <ForumSignature author={thread.topic.author}/>
           <div className="talk-actions">
             <span className="talk-pill is-static"><MessageCircle size={16}/>{thread.total}</span>
             <button className={`talk-pill ${thread.topic.states?.[0]?.saved ? 'is-on' : ''}`} disabled={busy} onClick={() => toggleState('saved', thread.topic)}><Bookmark size={16}/>{thread.topic.states?.[0]?.saved ? 'Saved' : 'Save'}</button>

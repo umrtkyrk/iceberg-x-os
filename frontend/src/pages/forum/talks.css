@@ -310,3 +310,59 @@
   .cube-forum .talk-card-title { font-size: 17px; }
   .cube-forum .talk-pill { padding: 0 10px; }
 }
+
+/* Admin and Mentor signatures: Legendary gold, so the programme team stands out at a glance. */
+.cube-forum .forum-signature-legendary {
+  position: relative;
+  margin-top: 14px;
+  padding: 10px 14px 11px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(160deg, #1d1405 0%, #0d0802 55%, #1a1103 100%) padding-box,
+    linear-gradient(110deg, #fff7cc, #fbbf24, #b45309, #fde68a, #f59e0b, #fff7cc) border-box;
+  background-size: 100% 100%, 260% 100%;
+  box-shadow: 0 0 0 1px rgba(253, 224, 71, 0.25), 0 0 22px -6px rgba(251, 191, 36, 0.7);
+  overflow: hidden;
+  animation: forum-sig-border 4s ease infinite, forum-sig-glow 3.2s ease-in-out infinite;
+}
+.cube-forum .forum-signature-legendary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 244, 190, 0.22) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: forum-sig-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.cube-forum .forum-signature-crest {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3b2502;
+  background: linear-gradient(110deg, #fff7cc, #fbbf24, #f59e0b, #fff0a3);
+}
+.cube-forum .forum-signature-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  background: linear-gradient(110deg, #fff7cc, #fcd34d, #f59e0b, #fde68a, #fff7cc);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: forum-sig-text 5s ease infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cube-forum .forum-signature-legendary,
+  .cube-forum .forum-signature-legendary::after,
+  .cube-forum .forum-signature-text { animation: none; }
+}

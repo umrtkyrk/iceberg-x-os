@@ -46,6 +46,23 @@ export function AuthorIdentity({ author, compact = false }: { author: Author | n
   </div>;
 }
 
+/**
+ * A post signature. Admin and Mentor signatures get the Legendary gold
+ * treatment so the programme team is recognisable at a glance.
+ */
+export function ForumSignature({ author }: { author: Author | null }) {
+  if (!author?.signature) return null;
+  const { signature } = author;
+  const staffRole = author.role === 'ADMIN' ? 'Admin' : author.role === 'MENTOR' ? 'Mentor' : null;
+  if (!staffRole) return <p className="forum-signature">{signature}</p>;
+  return (
+    <div className="forum-signature-legendary" aria-label={`${staffRole} signature`}>
+      <span className="forum-signature-crest" aria-hidden="true">✦ {staffRole}</span>
+      <p className="forum-signature-text">{signature}</p>
+    </div>
+  );
+}
+
 export function ForumPreferences({ viewer, onSave, busy, onCancel }: { viewer: Viewer; onSave: (value: { badge_ids: string[]; signature: string }) => void; busy: boolean; onCancel: () => void }) {
   const [selected, setSelected] = useState(viewer.badge_ids);
   const [signature, setSignature] = useState(viewer.author?.signature || '');

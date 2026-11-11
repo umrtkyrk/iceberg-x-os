@@ -14,6 +14,7 @@ import {
 } from '../services/peerQuests.service';
 import { BadgeRarity } from '@prisma/client';
 import { WEBINAR_COUNT_CRITERIA, WEBINAR_CRITERIA, WEBINAR_RATE_CRITERIA } from '../services/webinar';
+import { FORUM_CRITERIA } from '../services/forumQuests.service';
 import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 
 const router = Router();
@@ -53,6 +54,7 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       'quiz_score',
       'quiz_completed',
       ...WEBINAR_CRITERIA,
+      ...FORUM_CRITERIA,
       ...PEER_CRITERIA
     ];
     if (!validCriteriaTypes.includes(criteria_type)) {
@@ -74,6 +76,14 @@ router.post('/admin/quests', requireAuth, isAdmin, async (req, res) => {
       const parsed = Number(criteria_value);
       if (!Number.isInteger(parsed) || parsed < 1) {
         throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a positive whole number of at least 1.`);
+      }
+    }
+
+    // Forum criteria are all counts (or a yes/no): whole numbers >= 1.
+    if (FORUM_CRITERIA.includes(criteria_type)) {
+      const parsed = Number(criteria_value);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw badRequest(`For "${criteria_type}" quests, Goal Target Value must be a whole number of at least 1.`);
       }
     }
 

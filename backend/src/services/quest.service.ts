@@ -5,6 +5,7 @@ import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 import { PEER_CRITERIA, PEER_QUESTS, isPeerCriteria } from './peerQuests.service';
 import { cubeEngagement, countStrongQuestions, countWebinarsWithOnTimeQuestion } from './webinarEngagement.service';
 import { recomputeCubePeerState } from './peerSignal.service';
+import { FORUM_BINARY_CRITERIA, FORUM_CRITERIA, forumQuestValue, isForumCriteria } from './forumQuests.service';
 
 /**
  * Fallback minimum sample size for "rate" criteria (average_score,
@@ -273,6 +274,8 @@ export async function verifyQuestProgress(
   // badge earned that way must never silently disappear, so once a peer quest
   // is complete it is final and is not re-evaluated.
   if (cubeQuest.is_completed && isPeerCriteria(cubeQuest.quest.criteria_type)) return cubeQuest;
+  // Same for forum quests: a deleted post never takes an earned badge away.
+  if (cubeQuest.is_completed && isForumCriteria(cubeQuest.quest.criteria_type)) return cubeQuest;
 
   const { quest } = cubeQuest;
   let newValue = cubeQuest.current_value;
@@ -528,6 +531,13 @@ export async function verifyQuestProgress(
     const value = quest.criteria_type === 'webinar_attendance' ? summary.attendance_rate : summary.average;
     newValue = sample >= resolveMinSampleSize(quest) && value !== null ? value : 0;
   }
+  else if (isForumCriteria(quest.criteria_type)) {
+    const profile = await prisma.cubeProfile.findUnique({
+      where: { id: cubeProfileId },
+      select: { user_id: true }
+    });
+    newValue = profile ? await forumQuestValue(profile.user_id, quest.criteria_type) : 0;
+  }
   else if (isPeerCriteria(quest.criteria_type)) {
     const profile = await prisma.cubeProfile.findUnique({
       where: { id: cubeProfileId },
@@ -544,7 +554,7 @@ export async function verifyQuestProgress(
   // 2. Check if quest criteria are met
   // For binary criteria, Goal Target Value MUST be at least 1.
   // A criteria_value of 0 would allow 0 >= 0, completing the quest for everyone!
-  const isBinaryCriteria = ['profile_picture', 'avatar_upload', 'nda_signed', 'quiz_completed'].includes(quest.criteria_type);
+  const isBinaryCriteria = ['profile_picture', 'avatar_upload', 'nda_signed', 'quiz_completed', ...FORUM_BINARY_CRITERIA].includes(quest.criteria_type);
   const effectiveTarget = isBinaryCriteria ? Math.max(1, quest.criteria_value) : quest.criteria_value;
 
   // Auto-heal corrupt/zero criteria_value in DB if found
@@ -731,6 +741,31 @@ export async function recalculateQuestsForMissionTeams(missionId: string): Promi
   });
   const cubeIds = teams.flatMap(t => t.members.map(m => m.cube_id));
   await recalculateQuestsForCubes(cubeIds);
+}
+
+/**
+ * Re-evaluates a user's open forum quests after they post or one of their
+ * answers is accepted. Staff have no Cube profile and are skipped. Best-effort:
+ * a forum action must never fail because a quest recalculation did.
+ */
+export async function recalculateForumQuestsForUsers(userIds: (string | null | undefined)[]): Promise<void> {
+  const ids = [...new Set(userIds.filter((id): id is string => !!id))];
+  if (!ids.length) return;
+  const open = await prisma.cubeQuest.findMany({
+    where: {
+      is_completed: false,
+      cube: { user_id: { in: ids } },
+      quest: { criteria_type: { in: FORUM_CRITERIA } }
+    },
+    select: { cube_id: true, quest_id: true }
+  });
+  for (const row of open) {
+    try {
+      await verifyQuestProgress(row.cube_id, row.quest_id);
+    } catch (err) {
+      console.error(`Failed to verify forum quest ${row.quest_id} for cube ${row.cube_id}:`, err);
+    }
+  }
 }
 
 export interface AssignQuestResult {
