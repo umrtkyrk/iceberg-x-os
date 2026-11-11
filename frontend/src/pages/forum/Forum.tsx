@@ -17,7 +17,7 @@ interface TopicList { topics: Topic[]; total: number; pageSize: number }
 interface Thread { page: number; acceptedReply?: Post | null; topic: Topic; replies: Post[]; total: number; pageSize: number }
 interface Report { id: string; topic_id: string; reply_id: string | null; reason: string; reporter: Author | null; topic: { title: string; body: string; deleted_at: string | null }; reply?: { body: string; deleted_at: string | null } | null }
 interface ReportList { reports: Report[]; total: number; pageSize: number }
-interface Stats { topics: number; replies: number; solved: number; contributors: { author: Author; topics: number; replies: number }[]; unanswered: { id: string; title: string; category_id: string; created_at: string; author: Author | null }[] }
+interface Stats { topics: number; replies: number; solved: number; contributors: { author: Author; topics: number }[]; unanswered: { id: string; title: string; category_id: string; created_at: string; author: Author | null }[] }
 const emptyStats: Stats = { topics: 0, replies: 0, solved: 0, contributors: [], unanswered: [] };
 interface Editor { kind: 'create' | 'topic' | 'reply'; id?: string; title: string; body: string; category: string; quest?: string; mission?: string }
 const date = (value: string) => new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
@@ -451,7 +451,7 @@ export default function Forum() {
 
       <section className="talk-card">
         <h2 className="talk-side-title">Most active · last 30 days</h2>
-        {statsStatus !== 'ready' ? statsNotice : stats.contributors.length ? <ol className="talk-people">{stats.contributors.map(({ author, topics, replies }) => <li key={author.id}><PortalAvatar author={author} size={28}/><AuthorIdentity author={author} compact/><small title={`${topics} topics, ${replies} comments`}>{topics + replies} posts</small></li>)}</ol> : <p className="talk-hint">No posts in the last 30 days.</p>}
+        {statsStatus !== 'ready' ? statsNotice : stats.contributors.length ? <ol className="talk-people">{stats.contributors.map(({ author, topics }) => <li key={author.id}><PortalAvatar author={author} size={28}/><AuthorIdentity author={author} compact/><small title={`${topics} ${topics === 1 ? 'post' : 'posts'} started in the last 30 days`}>{topics} {topics === 1 ? 'post' : 'posts'}</small></li>)}</ol> : <p className="talk-hint">No posts in the last 30 days.</p>}
       </section>
 
       <section className="talk-card">

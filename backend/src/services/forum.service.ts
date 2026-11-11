@@ -3,7 +3,7 @@ import prisma from './prisma';
 import { badRequest, forbidden, notFound } from '../utils/http';
 import { forumAuthorSelect, publicForumAuthor } from './forumIdentity.service';
 import { forumContextSelect, topicContextInput } from './forumContext.service';
-import { notifyForumEvent } from './forumNotifications.service';
+import { forgetForumReply, notifyForumEvent, syncForumLikeNotification } from './forumNotifications.service';
 import { assertForumAuthor, assertForumCategory, ForumActor, forumText, isForumStaff } from './forumPolicy';
 
 const author = forumAuthorSelect;
@@ -40,19 +40,18 @@ export async function forumStats() {
   const since = new Date(Date.now() - 30 * 86400000);
   const liveTopic = { deleted_at: null };
   const liveReply = { deleted_at: null, topic: liveTopic };
-  const [topics, replies, solved, topicAuthors, replyAuthors, unanswered] = await Promise.all([
+  const [topics, replies, solved, topicAuthors, unanswered] = await Promise.all([
     prisma.forumTopic.count({ where: liveTopic }),
     prisma.forumReply.count({ where: liveReply }),
     prisma.forumTopic.count({ where: { ...liveTopic, category_id: 'help', accepted_reply_id: { not: null } } }),
     prisma.forumTopic.groupBy({ by: ['author_id'], where: { ...liveTopic, author_id: { not: null }, created_at: { gte: since } }, _count: { _all: true } }),
-    prisma.forumReply.groupBy({ by: ['author_id'], where: { ...liveReply, author_id: { not: null }, created_at: { gte: since } }, _count: { _all: true } }),
     prisma.forumTopic.findMany({ where: { ...liveTopic, locked: false, accepted_reply_id: null, replies: { none: { deleted_at: null } } }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 4,
       select: { id: true, title: true, category_id: true, created_at: true, author: { select: author } } }),
   ]);
-  const counts = new Map<string, { topics: number; replies: number }>();
-  for (const row of topicAuthors) if (row.author_id) counts.set(row.author_id, { topics: row._count._all, replies: 0 });
-  for (const row of replyAuthors) if (row.author_id) counts.set(row.author_id, { topics: counts.get(row.author_id)?.topics || 0, replies: row._count._all });
-  const top = [...counts].sort(([, a], [, b]) => (b.topics + b.replies) - (a.topics + a.replies)).slice(0, 5);
+  // "Most active" counts the posts people started; comments are not counted.
+  const counts = new Map<string, { topics: number }>();
+  for (const row of topicAuthors) if (row.author_id) counts.set(row.author_id, { topics: row._count._all });
+  const top = [...counts].sort(([, a], [, b]) => b.topics - a.topics).slice(0, 5);
   const users = top.length ? await prisma.user.findMany({ where: { id: { in: top.map(([id]) => id) } }, select: author }) : [];
   const contributors = top.flatMap(([id, count]) => { const user = users.find(u => u.id === id); return user ? [{ author: publicForumAuthor(user), ...count }] : []; });
   return { topics, replies, solved, contributors, unanswered: unanswered.map(projectPost) };
@@ -200,6 +199,7 @@ export async function changeForumReply(actor: ForumActor, topicId: string, id: s
       const now = new Date();
       const removed = await tx.forumReply.update({ where: { id }, data: { deleted_at: now, deleted_by_id: actor.id } });
       await tx.forumReport.updateMany({ where: { topic_id: topicId, reply_id: id, resolved_at: null }, data: { resolved_at: now, resolved_by_id: actor.id } });
+      await forgetForumReply(tx, topic, id);
       const latest = await tx.forumReply.findFirst({ where: { topic_id: topicId, deleted_at: null }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], select: { created_at: true } });
       await tx.forumTopic.update({ where: { id: topicId }, data: {
         last_activity_at: latest?.created_at || topic.created_at,
@@ -245,19 +245,21 @@ export async function likeForumPost(actor: ForumActor, topicId: string, replyId:
   if (typeof input.liked !== 'boolean') throw badRequest('A liked value is required.');
   const liked = input.liked;
   return prisma.$transaction(async tx => {
-    const topic = await tx.forumTopic.findFirst({ where: { id: topicId, deleted_at: null }, select: { id: true } });
+    const topic = await tx.forumTopic.findFirst({ where: { id: topicId, deleted_at: null }, select: { id: true, title: true, author_id: true } });
     if (!topic) throw notFound('Topic not found.');
     if (replyId) {
-      const reply = await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null }, select: { id: true } });
+      const reply = await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null }, select: { id: true, author_id: true } });
       if (!reply) throw notFound('Reply not found.');
       const key = { user_id_reply_id: { user_id: actor.id, reply_id: replyId } };
       if (liked) await tx.forumReplyLike.upsert({ where: key, create: { user_id: actor.id, reply_id: replyId }, update: {} });
       else await tx.forumReplyLike.deleteMany({ where: { user_id: actor.id, reply_id: replyId } });
+      await syncForumLikeNotification(tx, actor, liked, topic, reply);
       return { liked, like_count: await tx.forumReplyLike.count({ where: { reply_id: replyId } }) };
     }
     const key = { user_id_topic_id: { user_id: actor.id, topic_id: topicId } };
     if (liked) await tx.forumTopicLike.upsert({ where: key, create: { user_id: actor.id, topic_id: topicId }, update: {} });
     else await tx.forumTopicLike.deleteMany({ where: { user_id: actor.id, topic_id: topicId } });
+    await syncForumLikeNotification(tx, actor, liked, topic, null);
     return { liked, like_count: await tx.forumTopicLike.count({ where: { topic_id: topicId } }) };
   });
 }

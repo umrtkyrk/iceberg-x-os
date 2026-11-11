@@ -88,11 +88,20 @@ async function main() {
     assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: true }), { liked: true, like_count: 1 });
     assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: true }), { liked: true, like_count: 1 }); // idempotent
     await forum.likeForumPost(staff, topic.id, reply.id, { liked: true });
+    const likeNotes = userId => db.notification.findMany({ where: { user_id: userId, message: { contains: 'liked your' } }, include: { forum_target: true } });
+    // Liking notifies the author once per post or comment; the liker's own likes never notify them.
+    assert.deepEqual((await likeNotes(cube.id)).map(n => [n.message, n.forum_target.reply_id]), [['Integration test liked your post “A real persistence test”.', null]]);
+    assert.deepEqual((await likeNotes(other.id)).map(n => [n.message, n.forum_target.reply_id]), [['Integration test liked your comment on “A real persistence test”.', reply.id]]);
+    await forum.likeForumPost(cube, topic.id, undefined, { liked: true });
+    assert.equal((await likeNotes(cube.id)).length, 1);
+    await forum.likeForumPost(cube, topic.id, undefined, { liked: false });
     const liked = await forum.readForumTopic(other, topic.id, 1);
     assert.equal(liked.topic.liked, true); assert.equal(liked.topic.like_count, 1);
     assert.equal(liked.replies[0].liked, false); assert.equal(liked.replies[0].like_count, 1);
     assert.equal((await forum.listForumTopics(other, { page: 1 })).topics.find(t => t.id === topic.id).like_count, 1);
     assert.deepEqual(await forum.likeForumPost(other, topic.id, undefined, { liked: false }), { liked: false, like_count: 0 });
+    // Taking back the only like removes the unread notification.
+    assert.equal((await likeNotes(cube.id)).length, 0);
     await assert.rejects(forum.likeForumPost(other, topic.id, undefined, { liked: 'yes' }), e => e.status === 400);
     await assert.rejects(forum.likeForumPost(other, topic.id, 'missing-reply', { liked: true }), e => e.status === 404);
     const beforeMention = await db.notification.count();
@@ -174,6 +183,20 @@ async function main() {
     owner = await ownerNotes();
     assert.equal(owner.length, 2);
     assert.equal(owner[1].message, 'Integration test commented on your post “An unanswered project log”: “Third”');
+    // Deleting a comment rewrites the owner's unread summary without it, or removes it when nobody is left.
+    const fourth = await forum.createForumReply(staff, unanswered.id, { body: 'Fourth' });
+    owner = await ownerNotes();
+    assert.equal(owner[1].message, 'Mentor Ayla and Integration test commented on your post “An unanswered project log”: “Fourth”');
+    const followerNotes = await db.notification.count({ where: { forum_target: { is: { reply_id: fourth.id } } } });
+    assert.ok(followerNotes >= 1);
+    await forum.changeForumReply(staff, unanswered.id, fourth.id, {}, true);
+    owner = await ownerNotes();
+    assert.equal(owner.length, 2);
+    assert.equal(owner[1].message, 'Integration test commented on your post “An unanswered project log”: “Third”');
+    assert.equal(await db.notification.count({ where: { forum_target: { is: { reply_id: fourth.id } } } }), 0);
+    await forum.changeForumReply(other, unanswered.id, owner[1].forum_target.reply_id, {}, true);
+    owner = await ownerNotes();
+    assert.equal(owner.length, 1);
     await forum.changeForumTopic(staff, unanswered.id, {}, true);
     assert.equal((await forum.forumStats()).unanswered.length, 0);
     // Forum history must not break the portal's existing account-deletion flow.

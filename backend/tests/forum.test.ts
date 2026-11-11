@@ -56,9 +56,10 @@ test('soft-deleting a reply auto-resolves open reports and recomputes topic last
   const original = prisma.$transaction;
   const topicCreated = new Date('2026-11-01T10:00:00Z');
   const prevReplyCreated = new Date('2026-11-02T12:00:00Z');
-  let topicUpdate: any, reportUpdate: any;
+  let topicUpdate: any, reportUpdate: any, notificationDelete: any;
   const tx = {
     $queryRaw: async () => [],
+    notification: { deleteMany: async (args: any) => { notificationDelete = args; return { count: 1 }; } },
     forumReply: {
       findFirst: async (args: any) => args.where.id
         ? ({ id: 'reply-2', author_id: cube.id })
@@ -81,6 +82,7 @@ test('soft-deleting a reply auto-resolves open reports and recomputes topic last
     assert.equal(reportUpdate.data.resolved_by_id, cube.id);
     assert.equal(topicUpdate.data.accepted_reply_id, null);
     assert.equal(topicUpdate.data.last_activity_at, prevReplyCreated);
+    assert.deepEqual(notificationDelete.where, { forum_target: { is: { reply_id: 'reply-2' } } });
   } finally { prisma.$transaction = original; }
 });
 

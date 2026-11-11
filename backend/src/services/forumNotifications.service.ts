@@ -40,7 +40,7 @@ export async function notifyForumEvent(tx: Prisma.TransactionClient, actor: Foru
   ] }] }, select: { id: true } });
   // One row per recipient/event even when owner, follower and mention overlap.
   for (const recipient of recipients) {
-    if (replyId && recipient.id === topic.author_id) { await notifyTopicOwner(tx, recipient.id, topic, body, replyId); continue; }
+    if (replyId && recipient.id === topic.author_id) { await notifyTopicOwner(tx, recipient.id, topic); continue; }
     await tx.notification.create({ data: {
     user_id: recipient.id, message: `${replyId ? 'New reply or mention' : 'You were mentioned'} in “${topic.title}”.`,
     forum_target: { create: { topic_id: topic.id, ...(replyId ? { reply_id: replyId } : {}) } },
@@ -63,26 +63,91 @@ export function forumPeopleList(names: string[]) {
   return `${names.slice(0, 3).join(', ')} and ${others} ${others === 1 ? 'other' : 'others'}`;
 }
 
+type ForumTx = Prisma.TransactionClient;
+type NotifiedTopic = { id: string; title: string; author_id: string | null };
+
+/** The owner's unread "commented on your post" notification for a topic, if any. */
+const unreadOwnerNotification = (tx: ForumTx, ownerId: string, topicId: string) => tx.notification.findFirst({
+  where: { user_id: ownerId, read_at: null, message: { contains: OWNER_REPLY }, forum_target: { is: { topic_id: topicId } } },
+  orderBy: { created_at: 'desc' }, select: { id: true } });
+
+/**
+ * Everyone who commented on the topic since the owner last read it, newest first, and the newest
+ * comment's text. Null when no such comment remains (for example after deletions).
+ */
+async function ownerSummary(tx: ForumTx, ownerId: string, topic: { id: string; title: string }) {
+  const state = await tx.forumTopicState.findUnique({ where: { user_id_topic_id: { user_id: ownerId, topic_id: topic.id } }, select: { read_at: true } });
+  const recent = await tx.forumReply.findMany({ where: { topic_id: topic.id, deleted_at: null, author_id: { not: ownerId },
+    ...(state?.read_at ? { created_at: { gt: state.read_at } } : {}) }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 50,
+    select: { id: true, body: true, author: { select: { name: true } } } });
+  if (!recent.length) return null;
+  const names = [...new Set(recent.map(reply => reply.author?.name?.trim() || 'A Cube'))];
+  const snippet = forumNotificationSnippet(recent[0].body);
+  return { replyId: recent[0].id, message: `${forumPeopleList(names)} ${OWNER_REPLY} “${topic.title}”${snippet ? `: “${snippet}”` : '.'}` };
+}
+
 /**
  * The post owner gets one notification per topic that names everyone who commented since they last read
  * it and quotes the newest comment. An unread one is updated and moved to the top instead of adding rows.
  */
-async function notifyTopicOwner(tx: Prisma.TransactionClient, ownerId: string, topic: { id: string; title: string }, body: string, replyId: string) {
-  const state = await tx.forumTopicState.findUnique({ where: { user_id_topic_id: { user_id: ownerId, topic_id: topic.id } }, select: { read_at: true } });
-  const recent = await tx.forumReply.findMany({ where: { topic_id: topic.id, deleted_at: null, author_id: { not: ownerId },
-    ...(state?.read_at ? { created_at: { gt: state.read_at } } : {}) }, orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 50,
-    select: { author: { select: { name: true } } } });
-  const names = [...new Set(recent.map(reply => reply.author?.name?.trim() || 'A Cube'))];
-  const snippet = forumNotificationSnippet(body);
-  const message = `${forumPeopleList(names)} ${OWNER_REPLY} “${topic.title}”${snippet ? `: “${snippet}”` : '.'}`;
-  const existing = await tx.notification.findFirst({ where: { user_id: ownerId, read_at: null, message: { contains: OWNER_REPLY },
-    forum_target: { is: { topic_id: topic.id } } }, orderBy: { created_at: 'desc' }, select: { id: true } });
+async function notifyTopicOwner(tx: ForumTx, ownerId: string, topic: { id: string; title: string }) {
+  const summary = await ownerSummary(tx, ownerId, topic);
+  if (!summary) return;
+  const existing = await unreadOwnerNotification(tx, ownerId, topic.id);
   if (existing) {
-    await tx.notification.update({ where: { id: existing.id }, data: { message, created_at: new Date(),
-      forum_target: { update: { reply_id: replyId } } } });
+    await tx.notification.update({ where: { id: existing.id }, data: { message: summary.message, created_at: new Date(),
+      forum_target: { update: { reply_id: summary.replyId } } } });
     return;
   }
-  await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: { topic_id: topic.id, reply_id: replyId } } } });
+  await tx.notification.create({ data: { user_id: ownerId, message: summary.message, forum_target: { create: { topic_id: topic.id, reply_id: summary.replyId } } } });
+}
+
+/**
+ * A deleted comment leaves no trace in anyone's notifications: notifications about that comment are
+ * removed, and the owner's unread summary is rewritten without it (or removed if nobody else commented).
+ */
+export async function forgetForumReply(tx: ForumTx, topic: NotifiedTopic, replyId: string) {
+  let kept: string | undefined;
+  if (topic.author_id) {
+    const owner = await unreadOwnerNotification(tx, topic.author_id, topic.id);
+    const summary = owner && await ownerSummary(tx, topic.author_id, topic);
+    if (owner && summary) {
+      kept = owner.id;
+      await tx.notification.update({ where: { id: owner.id }, data: { message: summary.message, forum_target: { update: { reply_id: summary.replyId } } } });
+    } else if (owner) {
+      await tx.notification.delete({ where: { id: owner.id } });
+    }
+  }
+  await tx.notification.deleteMany({ where: { forum_target: { is: { reply_id: replyId } }, ...(kept ? { id: { not: kept } } : {}) } });
+}
+
+const LIKED = 'liked your';
+/**
+ * The author of a liked post or comment gets one notification per item naming the people who like it,
+ * newest first. While unread it is kept up to date: a new like moves it to the top, and an unlike that
+ * leaves nobody removes it. Self-likes and likes on posts by former Cubes never notify.
+ */
+export async function syncForumLikeNotification(tx: ForumTx, actor: ForumActor, liked: boolean, topic: NotifiedTopic, reply: { id: string; author_id: string | null } | null) {
+  const ownerId = reply ? reply.author_id : topic.author_id;
+  if (!ownerId || ownerId === actor.id) return;
+  const target = { topic_id: topic.id, reply_id: reply ? reply.id : null };
+  const existing = await tx.notification.findFirst({ where: { user_id: ownerId, read_at: null, message: { contains: LIKED }, forum_target: { is: target } },
+    orderBy: { created_at: 'desc' }, select: { id: true } });
+  const likers = reply
+    ? await tx.forumReplyLike.findMany({ where: { reply_id: reply.id, user_id: { not: ownerId } }, orderBy: { created_at: 'desc' }, take: 50, select: { user: { select: { name: true } } } })
+    : await tx.forumTopicLike.findMany({ where: { topic_id: topic.id, user_id: { not: ownerId } }, orderBy: { created_at: 'desc' }, take: 50, select: { user: { select: { name: true } } } });
+  if (!likers.length) {
+    if (existing) await tx.notification.delete({ where: { id: existing.id } });
+    return;
+  }
+  const names = [...new Set(likers.map(like => like.user?.name?.trim() || 'A Cube'))];
+  const message = `${forumPeopleList(names)} ${LIKED} ${reply ? 'comment on' : 'post'} “${topic.title}”.`;
+  if (existing) {
+    await tx.notification.update({ where: { id: existing.id }, data: { message, ...(liked ? { created_at: new Date() } : {}) } });
+    return;
+  }
+  if (!liked || !await tx.user.findFirst({ where: { AND: [eligible, { id: ownerId }] }, select: { id: true } })) return;
+  await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: target } } });
 }
 
 export async function forumNotificationLinks(ids: string[]) {
