@@ -595,8 +595,4 @@ body {
 /* Admin/Mentor forum signature animations (styles live in pages/forum/talks.css). */
 @keyframes forum-sig-border { 0%, 100% { background-position: 0% 50%, 0% 50%; } 50% { background-position: 0% 50%, 100% 50%; } }
 @keyframes forum-sig-text { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-@keyframes forum-sig-glow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(253, 224, 71, 0.25), 0 0 18px -6px rgba(251, 191, 36, 0.55); }
-  50% { box-shadow: 0 0 0 1px rgba(255, 237, 160, 0.55), 0 0 30px -4px rgba(251, 191, 36, 0.85); }
-}
 @keyframes forum-sig-sheen { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }

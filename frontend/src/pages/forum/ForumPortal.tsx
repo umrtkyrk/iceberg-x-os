@@ -59,7 +59,7 @@ export function ForumSignature({ author }: { author: Author | null }) {
     return (
       <div className="forum-signature-rare" aria-label="Senior Cube signature">
         <span className="forum-signature-crest" aria-hidden="true">◆ Senior Cube</span>
-        <p className="forum-signature-text">{signature}</p>
+        <span className="forum-signature-text">{signature}</span>
       </div>
     );
   }
@@ -67,7 +67,7 @@ export function ForumSignature({ author }: { author: Author | null }) {
   return (
     <div className="forum-signature-legendary" aria-label={`${staffRole} signature`}>
       <span className="forum-signature-crest" aria-hidden="true">✦ {staffRole}</span>
-      <p className="forum-signature-text">{signature}</p>
+      <span className="forum-signature-text">{signature}</span>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export function ForumPreferences({ viewer, onSave, busy, onCancel }: { viewer: V
   const move = (index: number, delta: number) => setSelected(ids => { const next = [...ids]; [next[index], next[index + delta]] = [next[index + delta], next[index]]; return next; });
   return <form className="talk-card talk-form forum-preferences" onSubmit={e => { e.preventDefault(); onSave({ badge_ids: selected, signature }); }}>
     <h2>Your forum profile</h2><p className="talk-hint">Choose up to three earned badges and arrange their display order. Your name and progression stay connected to the portal.</p>
-    {viewer.author && <div className="forum-profile-preview"><span className="talk-eyebrow">How you appear in discussions</span><AuthorIdentity author={{ ...viewer.author, badges: selected.flatMap(id => { const badge = viewer.earned_badges.find(b => b.id === id); return badge ? [badge] : []; }) }}/><p className="forum-signature">{signature || 'Your signature will appear here.'}</p></div>}
+    {viewer.author && <div className="forum-profile-preview"><span className="talk-eyebrow">How you appear in discussions</span><AuthorIdentity author={{ ...viewer.author, badges: selected.flatMap(id => { const badge = viewer.earned_badges.find(b => b.id === id); return badge ? [badge] : []; }) }}/>{signature ? <ForumSignature author={{ ...viewer.author, signature }}/> : <p className="forum-signature">Your signature will appear here.</p>}</div>}
     <fieldset disabled={busy}><div className="forum-badge-picker">{viewer.earned_badges.map(b => <button type="button" key={b.id} aria-pressed={selected.includes(b.id)} disabled={!selected.includes(b.id) && selected.length === 3} onClick={() => setSelected(ids => ids.includes(b.id) ? ids.filter(id => id !== b.id) : [...ids, b.id])}><BadgeDisc icon={b.icon} rarity={b.rarity} size="sm"/><span>{b.name}<RarityPill rarity={b.rarity}/></span><b>{selected.includes(b.id) ? selected.indexOf(b.id) + 1 : '+'}</b></button>)}</div>
     {!viewer.earned_badges.length && <p className="talk-hint">No earned badges yet. <Link to="/badges">Explore portal badges</Link>.</p>}
     <ol className="forum-badge-order">{selected.map((id, index) => <li key={id}><span>{index + 1}. {viewer.earned_badges.find(b => b.id === id)?.name}</span><button type="button" aria-label="Move badge earlier" disabled={!index} onClick={() => move(index, -1)}>↑</button><button type="button" aria-label="Move badge later" disabled={index === selected.length - 1} onClick={() => move(index, 1)}>↓</button></li>)}</ol>
