@@ -34,7 +34,7 @@ GitHub, fork'tan PR açarken varsayılan olarak upstream'i önerebilir. Hedef he
 
 ## Forum kapsamı
 
-Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Beğeni/reaksiyon, e-posta özeti ve Radar/MVCubes puanlaması uygulanmamıştır; görsel yükleme ve kabul edilen cevap ise ilk MVP tanımının üzerinde mevcut ek özelliklerdir.
+Konu/yanıt, kategoriler, Markdown, soft-delete, üç kazanılmış rozetten sıralı vitrin, imza, takip/@mention/yanıt bildirimleri, rapor ve moderasyon. Önceki tasarım gereksinimleri olan quest etiketi ve iş dışı sohbet alanı korunur. Feature flag, additive migration, rol ve sahiplik kontrolleri, hata sanitizasyonu ve backend testleri gereklidir. Konu ve yanıtlarda beğeni ve gruplandırılmış yazar bildirimleri uygulanmıştır. Diğer emoji reaksiyonları, e-posta özeti ve Radar/MVCubes puanlaması uygulanmamıştır; görsel yükleme ve kabul edilen cevap ise ilk MVP tanımının üzerinde mevcut ek özelliklerdir.
 
 Mevcut `mock-forum`, UI V4 ve UI V5 tarihsel tasarım referanslarıdır. Güncel API, feature flag, yetki, moderasyon ve güvenli yerel kurulum için [forum kılavuzuna](forum.md), 2–3 dakikalık sunum için [demo senaryosuna](forum-demo.md) bakın. İlk görevde kapsam dışı olan görsel yükleme/paste ve kabul edilen cevap, son real-api sürümünde ek özellik olarak mevcuttur; diğer kapsam dışı maddeler uygulanmamıştır.
 
