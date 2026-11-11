@@ -4,6 +4,7 @@ import { Trophy, Plus, Check, Clock, User, Sparkles, Calendar, RefreshCw, Send, 
 import { getBadgeIcon } from '../utils/badgeIcons';
 import { PEER_CRITERIA_OPTIONS, PEER_RATE_CRITERIA, isPeerCriteria, peerQuestProgressText } from '../utils/peer';
 import { WEBINAR_CRITERIA_OPTIONS, WEBINAR_RATE_CRITERIA, webinarQuestProgressText } from '../utils/webinars';
+import { FORUM_BINARY_CRITERIA, FORUM_CRITERIA_OPTIONS, forumQuestProgressText } from '../utils/forumQuests';
 
 // Criteria types that express a rate (a score average, an attendance
 // percentage) rather than a raw count. Only these can specify a minimum
@@ -367,7 +368,7 @@ export const AdminQuests: React.FC = () => {
                     onChange={e => {
                       const val = e.target.value;
                       setCriteriaType(val);
-                      if (val === 'nda_signed' || val === 'profile_picture' || val === 'avatar_upload' || val === 'quiz_completed') {
+                      if (val === 'nda_signed' || val === 'profile_picture' || val === 'avatar_upload' || val === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(val)) {
                         setCriteriaValue('1');
                       }
                     }}
@@ -393,6 +394,11 @@ export const AdminQuests: React.FC = () => {
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </optgroup>
+                    <optgroup label="Forum">
+                      {FORUM_CRITERIA_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </optgroup>
                     <optgroup label="Peer feedback & MVCubes">
                       {PEER_CRITERIA_OPTIONS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -406,7 +412,7 @@ export const AdminQuests: React.FC = () => {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Goal Target Value</label>
-                  {(criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed') && (
+                  {(criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(criteriaType)) && (
                     <span className="text-[9px] font-extrabold text-magenta bg-magenta/10 px-2 py-0.5 rounded-full">
                       Fixed: 1 (Completion Required)
                     </span>
@@ -416,7 +422,7 @@ export const AdminQuests: React.FC = () => {
                   type="number"
                   step="any"
                   required
-                  readOnly={criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed'}
+                  readOnly={criteriaType === 'nda_signed' || criteriaType === 'profile_picture' || criteriaType === 'avatar_upload' || criteriaType === 'quiz_completed' || FORUM_BINARY_CRITERIA.includes(criteriaType)}
                   placeholder={
                     criteriaType === 'nda_signed' || criteriaType === 'profile_picture' ? '1 (Required)' :
                     criteriaType === 'daily_update_streak' ? 'e.g. 30 or 90 (consecutive days)' :
@@ -933,6 +939,7 @@ export const AdminQuests: React.FC = () => {
                                   ? `${cq.current_value} / ${cq.quest?.criteria_value} updates`
                                   : peerQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
                                     webinarQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
+                                    forumQuestProgressText(cq.quest?.criteria_type, cq.current_value, cq.quest?.criteria_value) ??
                                     `${cq.current_value} / ${cq.quest?.criteria_value}`}
                               </span>
                               <span className="text-slate-400 font-bold text-[9px]">{progressPercentage.toFixed(0)}%</span>

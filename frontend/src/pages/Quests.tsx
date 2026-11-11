@@ -5,6 +5,7 @@ import { Trophy, CheckCircle, Clock, Zap, Star, ShieldAlert, BookOpen, UserCheck
 import { getBadgeIcon } from '../utils/badgeIcons';
 import { peerQuestLabel, peerQuestProgressText } from '../utils/peer';
 import { WEBINAR_RATE_CRITERIA, webinarQuestLabel, webinarQuestProgressText } from '../utils/webinars';
+import { forumQuestLabel, forumQuestProgressText } from '../utils/forumQuests';
 
 export const Quests: React.FC = () => {
   const { user } = useAuth();
@@ -114,6 +115,7 @@ export const Quests: React.FC = () => {
             value,
             WEBINAR_RATE_CRITERIA.includes(type) ? q.min_sample_size ?? DEFAULT_MIN_SAMPLE_SIZE[q.difficulty] ?? 3 : null
           ) ??
+          forumQuestLabel(type, value) ??
           `Goal: ${value}`
         );
     }
@@ -152,7 +154,7 @@ export const Quests: React.FC = () => {
       case 'weekly_update_streak':
         return `${current} / ${target} consecutive weeks`;
       default:
-        return peerQuestProgressText(type, current, target) ?? webinarQuestProgressText(type, current, target) ?? `${current} / ${target}`;
+        return peerQuestProgressText(type, current, target) ?? webinarQuestProgressText(type, current, target) ?? forumQuestProgressText(type, current, target) ?? `${current} / ${target}`;
     }
   };
 

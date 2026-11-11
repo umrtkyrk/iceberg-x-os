@@ -5,11 +5,17 @@ import { forumAuthorSelect, publicForumAuthor } from './forumIdentity.service';
 import { forumContextSelect, topicContextInput } from './forumContext.service';
 import { notifyForumEvent } from './forumNotifications.service';
 import { assertForumAuthor, assertForumCategory, ForumActor, forumText, isForumStaff } from './forumPolicy';
+import { recalculateForumQuestsForUsers } from './quest.service';
 
 const author = forumAuthorSelect;
 const projectPost = <T extends { author: Parameters<typeof publicForumAuthor>[0] }>(post: T) => ({ ...post, author: publicForumAuthor(post.author) });
 const pageSize = 20;
 type Tx = Prisma.TransactionClient;
+
+// Forum quests are re-evaluated after the post is committed, off the request path.
+function refreshForumQuests(userIds: (string | null | undefined)[]) {
+  void recalculateForumQuestsForUsers(userIds).catch(error => console.error('Forum quest refresh failed:', error));
+}
 
 // Every topic mutation obtains the same row lock, including reply changes and moderation.
 async function lockedTopic(tx: Tx, id: string) {
@@ -117,7 +123,7 @@ export async function createForumTopic(actor: ForumActor, input: Record<string, 
   const category = await prisma.forumCategory.findUnique({ where: { id: categoryId } });
   if (!category) throw badRequest('Category not found.');
   assertForumCategory(actor, category.staff_only);
-  return prisma.$transaction(async tx => {
+  const created = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "ForumCategory" WHERE id = ${categoryId} FOR UPDATE`;
     const liveCategory = await tx.forumCategory.findUnique({ where: { id: categoryId } });
     if (!liveCategory) throw badRequest('Category not found.');
@@ -130,6 +136,8 @@ export async function createForumTopic(actor: ForumActor, input: Record<string, 
     await notifyForumEvent(tx, actor, topic, body);
     return topic;
   });
+  refreshForumQuests([actor.id]);
+  return created;
 }
 
 export async function changeForumTopic(actor: ForumActor, id: string, input: Record<string, unknown>, remove = false) {
@@ -168,7 +176,7 @@ export async function moderateForumTopic(actor: ForumActor, id: string, input: R
 
 export async function createForumReply(actor: ForumActor, topicId: string, input: Record<string, unknown>) {
   const body = forumText(input.body, 'Reply', 1, 5000);
-  return prisma.$transaction(async tx => {
+  const created = await prisma.$transaction(async tx => {
     const topic = await lockedTopic(tx, topicId);
     if (topic.locked) throw forbidden('This topic is closed to new replies.');
     const reply = await tx.forumReply.create({ data: { body, topic_id: topicId, author_id: actor.id } });
@@ -178,6 +186,8 @@ export async function createForumReply(actor: ForumActor, topicId: string, input
     await notifyForumEvent(tx, actor, topic, body, reply.id);
     return reply;
   });
+  refreshForumQuests([actor.id]);
+  return created;
 }
 
 export async function changeForumReply(actor: ForumActor, topicId: string, id: string, input: Record<string, unknown>, remove = false) {
@@ -205,14 +215,19 @@ export async function changeForumReply(actor: ForumActor, topicId: string, id: s
 
 export async function acceptForumAnswer(actor: ForumActor, topicId: string, input: Record<string, unknown>) {
   const replyId = input.reply_id === null ? null : forumText(input.reply_id, 'Reply', 1, 100);
-  return prisma.$transaction(async tx => {
+  const result = await prisma.$transaction(async tx => {
     const topic = await lockedTopic(tx, topicId);
     assertForumAuthor(actor, topic.author_id);
     if (topic.category_id !== 'help') throw badRequest('Only Tech Support questions can have an accepted answer.');
     if (topic.locked) throw forbidden('The answer of a locked topic cannot be changed.');
-    if (replyId && !await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null } })) throw notFound('Reply not found.');
-    return tx.forumTopic.update({ where: { id: topicId }, data: { accepted_reply_id: replyId } });
+    const reply = replyId ? await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null }, select: { author_id: true } }) : null;
+    if (replyId && !reply) throw notFound('Reply not found.');
+    const updated = await tx.forumTopic.update({ where: { id: topicId }, data: { accepted_reply_id: replyId } });
+    return { updated, answerAuthorId: reply?.author_id };
   });
+  // The answer's author may complete "accepted answers"; the asker "questions solved".
+  if (result.answerAuthorId) refreshForumQuests([result.answerAuthorId, actor.id]);
+  return result.updated;
 }
 
 export async function setForumState(actor: ForumActor, id: string, input: Record<string, unknown>) {
