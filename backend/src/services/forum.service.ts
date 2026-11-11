@@ -58,6 +58,38 @@ export async function forumStats() {
   return { topics, replies, solved, contributors, unanswered: unanswered.map(projectPost) };
 }
 
+// The dashboard card: what moved on the board recently, plus the viewer's own pulse.
+export async function forumDashboard(actor: ForumActor) {
+  const weekAgo = new Date(Date.now() - 7 * 86400000);
+  const liveTopic = { deleted_at: null };
+  const liveReply = { deleted_at: null, topic: liveTopic };
+  const staff = isForumStaff(actor);
+  const [recent, unanswered, myTopics, myReplies, weekTopics, weekReplies, followed, openReports] = await Promise.all([
+    prisma.forumTopic.findMany({ where: liveTopic, orderBy: [{ last_activity_at: 'desc' }, { id: 'desc' }], take: 5,
+      select: { id: true, title: true, last_activity_at: true, accepted_reply_id: true, author: { select: author },
+        category: { select: { id: true, name: true } }, _count: { select: { replies: { where: { deleted_at: null } } } },
+        states: { where: { user_id: actor.id }, select: { read_at: true } } } }),
+    prisma.forumTopic.findMany({ where: { ...liveTopic, locked: false, accepted_reply_id: null, author_id: { not: actor.id }, replies: { none: { deleted_at: null } } },
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 3,
+      select: { id: true, title: true, created_at: true, author: { select: author }, category: { select: { id: true, name: true } } } }),
+    prisma.forumTopic.count({ where: { ...liveTopic, author_id: actor.id } }),
+    prisma.forumReply.count({ where: { ...liveReply, author_id: actor.id } }),
+    prisma.forumTopic.count({ where: { ...liveTopic, created_at: { gte: weekAgo } } }),
+    prisma.forumReply.count({ where: { ...liveReply, created_at: { gte: weekAgo } } }),
+    prisma.$queryRaw<Array<{ count: bigint }>>`SELECT count(*) AS count FROM "ForumTopicState" s JOIN "ForumTopic" t ON t.id = s.topic_id
+      WHERE s.user_id = ${actor.id} AND s.following AND t.deleted_at IS NULL AND (s.read_at IS NULL OR s.read_at < t.last_activity_at)`,
+    staff ? prisma.forumReport.count({ where: { resolved_at: null } }) : Promise.resolve(null),
+  ]);
+  return {
+    recent: recent.map(({ states, ...topic }) => ({ ...projectPost(topic), read_at: states[0]?.read_at ?? null })),
+    unanswered: unanswered.map(projectPost),
+    my_posts: myTopics + myReplies,
+    week_posts: weekTopics + weekReplies,
+    followed_unread: Number(followed[0]?.count ?? 0),
+    open_reports: openReports,
+  };
+}
+
 export async function listForumTopics(actor: ForumActor, options: { category?: string; query?: string; view?: string; sort?: string; quest?: string; mission?: string; page: number }) {
   const where: Prisma.ForumTopicWhereInput = { deleted_at: null };
   if (options.quest) where.context = { is: { quest_id: options.quest } };
