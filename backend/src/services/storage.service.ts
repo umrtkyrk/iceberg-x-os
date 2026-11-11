@@ -6,6 +6,7 @@ import { STORAGE_PATH } from '../config/env';
 // Subdirectories under STORAGE_PATH
 const AVATARS_DIR = path.join(STORAGE_PATH, 'avatars');
 const DOCUMENTS_DIR = path.join(STORAGE_PATH, 'documents');
+const FORUM_IMAGES_DIR = path.join(STORAGE_PATH, 'forum');
 
 /**
  * Initializes and ensures storage directories exist.
@@ -20,6 +21,9 @@ export function ensureStorageDirectories(): void {
     }
     if (!fs.existsSync(DOCUMENTS_DIR)) {
       fs.mkdirSync(DOCUMENTS_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(FORUM_IMAGES_DIR)) {
+      fs.mkdirSync(FORUM_IMAGES_DIR, { recursive: true });
     }
   } catch (error) {
     console.error('[StorageService] Error creating storage directories:', error);
@@ -49,6 +53,25 @@ export class StorageService {
    */
   static getDocumentsDir(): string {
     return DOCUMENTS_DIR;
+  }
+
+  /**
+   * Returns the directory where forum post images are stored.
+   */
+  static getForumImagesDir(): string {
+    return FORUM_IMAGES_DIR;
+  }
+
+  /**
+   * Saves an image attached to a forum post under a random name.
+   * Publicly accessible via /uploads/forum/:filename. The caller must have
+   * verified the file contents; `extension` comes from that check, never from the client.
+   */
+  static async saveForumImage(buffer: Buffer, extension: 'png' | 'jpg' | 'webp' | 'gif'): Promise<{ relativeUrl: string }> {
+    ensureStorageDirectories();
+    const filename = `${crypto.randomUUID()}.${extension}`;
+    await fs.promises.writeFile(path.join(FORUM_IMAGES_DIR, filename), buffer, { flag: 'wx' });
+    return { relativeUrl: `/uploads/forum/${filename}` };
   }
 
   /**
