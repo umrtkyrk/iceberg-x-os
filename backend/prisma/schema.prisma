@@ -99,6 +99,8 @@ model User {
   forum_chat_created ForumChatRoom[] @relation("ForumChatCreator")
   forum_chat_memberships ForumChatMember[]
   forum_chat_messages ForumChatMessage[]
+  forum_chat_attachments ForumChatAttachment[]
+  forum_chat_reactions ForumChatReaction[]
 
   // Relations
   cube_profile         CubeProfile?          @relation("UserToCubeProfile")
@@ -1186,6 +1188,7 @@ model ForumChatRoom {
   creator User? @relation("ForumChatCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
   members ForumChatMember[]
   messages ForumChatMessage[]
+  attachments ForumChatAttachment[]
 }
 model ForumChatMember {
   room_id String
@@ -1193,6 +1196,8 @@ model ForumChatMember {
   room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   joined_at DateTime @default(now())
+  read_at DateTime?
+  typing_until DateTime?
   @@id([room_id, user_id])
   @@index([user_id])
 }
@@ -1201,9 +1206,41 @@ model ForumChatMessage {
   room_id String
   author_id String?
   body String
+  edited_at DateTime?
+  deleted_at DateTime?
+  reply_to_id String?
+  reply_to ForumChatMessage? @relation("ChatReply", fields: [reply_to_id], references: [id], onDelete: SetNull)
+  replies ForumChatMessage[] @relation("ChatReply")
+  attachments ForumChatAttachment[]
+  reactions ForumChatReaction[]
   created_at DateTime @default(now())
   room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
   @@index([room_id, created_at, id])
   @@index([author_id])
+}
+
+model ForumChatAttachment {
+  id String @id @default(uuid())
+  room_id String
+  uploader_id String?
+  message_id String?
+  original_name String
+  byte_size Int
+  storage_key String @unique
+  created_at DateTime @default(now())
+  room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  uploader User? @relation(fields: [uploader_id], references: [id], onDelete: SetNull)
+  message ForumChatMessage? @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  @@index([room_id, uploader_id])
+  @@index([message_id])
+}
+model ForumChatReaction {
+  message_id String
+  user_id String
+  emoji String
+  message ForumChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@id([message_id, user_id])
+  @@index([user_id])
 }

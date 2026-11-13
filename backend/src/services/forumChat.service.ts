@@ -5,6 +5,7 @@ import { ForumActor, forumText } from './forumPolicy';
 import { assertForumPosting } from './forumIdentity.service';
 
 // Chat deliberately never joins public topic search, stats, mentions or notifications.
+export const chatAttachmentSelect = { id: true, original_name: true, byte_size: true };
 const person = { id: true, name: true, role: true, avatar_url: true,
   cube_profile: { select: { cube_number: true } } } satisfies Prisma.UserSelect;
 const eligible: Prisma.UserWhereInput = { OR: [{ role: { in: ['ADMIN', 'MENTOR'] } },
@@ -62,7 +63,8 @@ export async function chatRoomDetails(actor: ForumActor, id: string, manage = fa
   return prisma.$transaction(async tx => {
     const room = manage ? await lockRoom(tx, id) : await membership(tx, actor, id);
     const members = await tx.forumChatMember.findMany({ where: { room_id: id }, select: { user: { select: person } }, orderBy: { joined_at: 'asc' } });
-    return { id: room.id, name: room.name, members: members.map(row => row.user) };
+    const typing = manage ? [] : await tx.forumChatMember.findMany({ where: { room_id: id, user_id: { not: actor.id }, typing_until: { gt: new Date() } }, select: { user: { select: { id: true, name: true } } } });
+    return { id: room.id, name: room.name, members: members.map(row => row.user), typing: typing.map(row => row.user) };
   });
 }
 export async function changeChatMember(actor: ForumActor, roomId: string, userId: string, remove: boolean) {
@@ -79,23 +81,78 @@ export async function changeChatMember(actor: ForumActor, roomId: string, userId
     return { ok: true };
   });
 }
-export async function chatMessages(actor: ForumActor, id: string, page: number) {
-  return prisma.$transaction(async tx => {
-    await membership(tx, actor, id);
-    const where = { room_id: id };
+export async function withChatMember<T>(actor: ForumActor, id: string, fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(async tx => { await membership(tx, actor, id); return fn(tx); });
+}
+export const CHAT_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+export async function chatMessages(actor: ForumActor, id: string, page: number, query = '') {
+  return withChatMember(actor, id, async tx => {
+    const where: Prisma.ForumChatMessageWhereInput = { room_id: id, ...(query ? { deleted_at: null, body: { contains: query, mode: 'insensitive' } } : {}) };
     const total = await tx.forumChatMessage.count({ where });
     const messages = await tx.forumChatMessage.findMany({ where, orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
-      skip: (page - 1) * 50, take: 50, select: { id: true, body: true, created_at: true, author: { select: person } } });
-    return { messages: messages.reverse(), total, page, pageSize: 50 };
+      skip: (page - 1) * 50, take: 50, select: { id: true, body: true, created_at: true, edited_at: true, deleted_at: true,
+        author: { select: person }, attachments: { select: chatAttachmentSelect }, reactions: { select: { user_id: true, emoji: true } },
+        reply_to: { select: { id: true, body: true, deleted_at: true, author: { select: { name: true } } } } } });
+    const readers = await tx.forumChatMember.findMany({ where: { room_id: id }, select: { user_id: true, read_at: true } });
+    return { messages: messages.reverse().map(message => ({ ...message,
+      ...(message.deleted_at ? { body: '', attachments: [], reactions: [], reply_to: null } : {}),
+      reply_to: !message.deleted_at && message.reply_to ? { ...message.reply_to, body: message.reply_to.deleted_at ? '' : message.reply_to.body.slice(0, 160) } : null,
+      read_by: readers.filter(reader => reader.user_id !== message.author?.id && reader.read_at && reader.read_at >= message.created_at).map(reader => reader.user_id)
+    })), total, page, pageSize: 50 };
   });
+}
+function messageBody(value: unknown, hasAttachments: boolean) {
+  if (typeof value !== 'string' || value.length > 5000 || (!value.trim() && !hasAttachments)) throw badRequest('Write a message or attach a file (up to 5,000 characters).');
+  return value.trim();
 }
 export async function sendChatMessage(actor: ForumActor, id: string, input: Record<string, unknown>) {
   await assertForumPosting(actor);
-  const body = forumText(input.body, 'Message', 1, 5000);
-  return prisma.$transaction(async tx => {
-    await membership(tx, actor, id);
-    const message = await tx.forumChatMessage.create({ data: { room_id: id, author_id: actor.id, body }, select: { id: true } });
+  const ids = input.attachment_ids ?? [];
+  if (!Array.isArray(ids) || ids.length > 5 || !ids.every(value => typeof value === 'string') || new Set(ids).size !== ids.length) throw badRequest('Attach up to five files.');
+  const body = messageBody(input.body, ids.length > 0);
+  const replyId = input.reply_to_id === undefined || input.reply_to_id === null ? null : forumText(input.reply_to_id, 'Reply', 1, 100);
+  return withChatMember(actor, id, async tx => {
+    if (replyId && !await tx.forumChatMessage.findFirst({ where: { id: replyId, room_id: id, deleted_at: null } })) throw notFound('Reply target not found.');
+    if (await tx.forumChatAttachment.count({ where: { id: { in: ids }, room_id: id, uploader_id: actor.id, message_id: null } }) !== ids.length) throw badRequest('An attachment is no longer available.');
+    const message = await tx.forumChatMessage.create({ data: { room_id: id, author_id: actor.id, body, reply_to_id: replyId }, select: { id: true } });
+    if (ids.length) await tx.forumChatAttachment.updateMany({ where: { id: { in: ids } }, data: { message_id: message.id } });
+    await tx.forumChatMember.update({ where: { room_id_user_id: { room_id: id, user_id: actor.id } }, data: { typing_until: null } });
     await tx.forumChatRoom.update({ where: { id }, data: { updated_at: new Date() } });
     return message;
+  });
+}
+export async function editChatMessage(actor: ForumActor, roomId: string, messageId: string, input: Record<string, unknown>, remove = false) {
+  await assertForumPosting(actor);
+  return withChatMember(actor, roomId, async tx => {
+    const message = await tx.forumChatMessage.findFirst({ where: { id: messageId, room_id: roomId, deleted_at: null }, include: { _count: { select: { attachments: true } } } });
+    if (!message) throw notFound('Message not found.');
+    if (message.author_id !== actor.id) throw forbidden('You can only change your own messages.');
+    await tx.forumChatMessage.update({ where: { id: messageId }, data: remove ? { body: '', deleted_at: new Date() } : { body: messageBody(input.body, message._count.attachments > 0), edited_at: new Date() } });
+    if (remove) await tx.forumChatReaction.deleteMany({ where: { message_id: messageId } });
+    return { ok: true };
+  });
+}
+export async function reactToChatMessage(actor: ForumActor, roomId: string, messageId: string, input: Record<string, unknown>) {
+  await assertForumPosting(actor);
+  if (input.emoji !== null && (typeof input.emoji !== 'string' || !CHAT_REACTIONS.includes(input.emoji))) throw badRequest('Choose a supported emoji.');
+  return withChatMember(actor, roomId, async tx => {
+    if (!await tx.forumChatMessage.findFirst({ where: { id: messageId, room_id: roomId, deleted_at: null } })) throw notFound('Message not found.');
+    if (input.emoji === null) await tx.forumChatReaction.deleteMany({ where: { message_id: messageId, user_id: actor.id } });
+    else await tx.forumChatReaction.upsert({ where: { message_id_user_id: { message_id: messageId, user_id: actor.id } }, create: { message_id: messageId, user_id: actor.id, emoji: input.emoji as string }, update: { emoji: input.emoji as string } });
+    return { ok: true };
+  });
+}
+export async function chatPresence(actor: ForumActor, roomId: string, input: Record<string, unknown>) {
+  if (typeof input.typing !== 'boolean') throw badRequest('A typing value is required.');
+  const readId = input.read_message_id === undefined || input.read_message_id === null ? null : forumText(input.read_message_id, 'Read message', 1, 100);
+  return withChatMember(actor, roomId, async tx => {
+    const member = await tx.forumChatMember.findUniqueOrThrow({ where: { room_id_user_id: { room_id: roomId, user_id: actor.id } } });
+    const message = readId ? await tx.forumChatMessage.findFirst({ where: { id: readId, room_id: roomId }, select: { created_at: true } }) : null;
+    if (readId && !message) throw notFound('Message not found.');
+    await tx.forumChatMember.update({ where: { room_id_user_id: { room_id: roomId, user_id: actor.id } }, data: {
+      typing_until: input.typing ? new Date(Date.now() + 8000) : null,
+      ...(message && (!member.read_at || message.created_at > member.read_at) ? { read_at: message.created_at } : {})
+    } });
+    return { ok: true };
   });
 }
