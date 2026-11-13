@@ -1,6 +1,6 @@
 # Local prototype: private rooms and liker lists
 
-This branch is for local evaluation only. It is not pushed, deployed or submitted as a PR.
+This prototype is submitted for review in the umrtkyrk/iceberg-x-os fork. Validation uses local synthetic accounts and disposable schemas. It has not been deployed to production.
 
 ## Liker lists
 
