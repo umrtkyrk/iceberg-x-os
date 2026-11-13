@@ -93,11 +93,11 @@ export async function chatMessages(actor: ForumActor, id: string, page: number, 
       skip: (page - 1) * 50, take: 50, select: { id: true, body: true, created_at: true, edited_at: true, deleted_at: true,
         author: { select: person }, attachments: { select: chatAttachmentSelect }, reactions: { select: { user_id: true, emoji: true } },
         reply_to: { select: { id: true, body: true, deleted_at: true, author: { select: { name: true } } } } } });
-    const readers = await tx.forumChatMember.findMany({ where: { room_id: id }, select: { user_id: true, read_at: true } });
+    const readers = await tx.forumChatMember.findMany({ where: { room_id: id }, select: { user_id: true, read_at: true, read_message_id: true } });
     return { messages: messages.reverse().map(message => ({ ...message,
       ...(message.deleted_at ? { body: '', attachments: [], reactions: [], reply_to: null } : {}),
       reply_to: !message.deleted_at && message.reply_to ? { ...message.reply_to, body: message.reply_to.deleted_at ? '' : message.reply_to.body.slice(0, 160) } : null,
-      read_by: readers.filter(reader => reader.user_id !== message.author?.id && reader.read_at && reader.read_at >= message.created_at).map(reader => reader.user_id)
+      read_by: readers.filter(reader => reader.user_id !== message.author?.id && reader.read_at && (reader.read_at > message.created_at || (+reader.read_at === +message.created_at && (!reader.read_message_id || reader.read_message_id >= message.id)))).map(reader => reader.user_id)
     })), total, page, pageSize: 50 };
   });
 }
@@ -151,8 +151,24 @@ export async function chatPresence(actor: ForumActor, roomId: string, input: Rec
     if (readId && !message) throw notFound('Message not found.');
     await tx.forumChatMember.update({ where: { room_id_user_id: { room_id: roomId, user_id: actor.id } }, data: {
       typing_until: input.typing ? new Date(Date.now() + 8000) : null,
-      ...(message && (!member.read_at || message.created_at > member.read_at) ? { read_at: message.created_at } : {})
+      ...(message && (!member.read_at || message.created_at > member.read_at || (+message.created_at === +member.read_at && !!member.read_message_id && readId! > member.read_message_id)) ? { read_at: message.created_at, read_message_id: readId } : {})
     } });
     return { ok: true };
   });
+}
+
+/** Aggregate only memberships belonging to the caller, never the admin-management room list. */
+export async function chatUnread(actor: ForumActor) {
+  const rows = await prisma.$queryRaw<Array<{ room_id: string; unread: bigint }>>`
+    SELECT member.room_id, count(*) AS unread
+    FROM "ForumChatMember" member
+    JOIN "ForumChatMessage" message ON message.room_id = member.room_id
+    WHERE member.user_id = ${actor.id} AND message.author_id IS DISTINCT FROM ${actor.id}
+      AND message.deleted_at IS NULL
+      AND (member.read_at IS NULL OR message.created_at > member.read_at
+        OR (message.created_at = member.read_at AND member.read_message_id IS NOT NULL AND message.id > member.read_message_id))
+    GROUP BY member.room_id
+  `;
+  const rooms = rows.map(row => ({ id: row.room_id, count: Number(row.unread) }));
+  return { total: rooms.reduce((sum, room) => sum + room.count, 0), rooms };
 }

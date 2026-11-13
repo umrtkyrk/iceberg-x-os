@@ -111,6 +111,7 @@ router.get('/forum/reports', handle(req => forum.listForumReports(req.user!, for
 router.patch('/forum/reports/:id', handle(req => forum.resolveForumReport(req.user!, req.params.id)));
 // Private chat endpoints share forum auth, feature flag, and write rate limiting.
 router.use('/forum/chat', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+router.get('/forum/chat/unread', handle(req => chat.chatUnread(req.user!)));
 router.get('/forum/chat/rooms', handle(req => chat.listChatRooms(req.user!, forumPage(req.query.page))));
 router.get('/forum/chat/admin/rooms', handle(req => chat.listChatRooms(req.user!, forumPage(req.query.page), true)));
 router.get('/forum/chat/people', handle(req => chat.chatPeople(req.user!, req.query.q === undefined ? '' : forumText(req.query.q, 'Search', 1, 80), forumPage(req.query.page))));

@@ -1197,6 +1197,7 @@ model ForumChatMember {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   joined_at DateTime @default(now())
   read_at DateTime?
+  read_message_id String?
   typing_until DateTime?
   @@id([room_id, user_id])
   @@index([user_id])

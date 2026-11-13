@@ -11,6 +11,7 @@ import { MentionAwareLink, mentionOverhead, mentionsToText } from '../../utils/m
 import { ForumImage, firstForumImage, joinImages, splitImages, stripImages, uploadForumImage } from '../../utils/forumImages';
 import { ForumLikers } from './ForumLikers';
 import { ForumChat } from './ForumChat';
+import { PrivateRoomsButton } from './ForumChatUnread';
 import './talks.css';
 
 interface Post { id: string; body: string; author: Author | null; created_at: string; updated_at: string; liked?: boolean; like_count?: number }
@@ -328,7 +329,7 @@ export default function Forum() {
   });
   if (view === 'rooms' && !topicId) return <div className="cube-forum talk-forum talk-chat-page"><button type="button" className="talk-btn is-ghost" onClick={() => go({})}>← Back to forum</button><ForumChat key={user?.id} admin={user?.role === 'ADMIN'} userId={user?.id || ''} canPost={!!viewer?.can_post}/></div>;
   return <div className="cube-forum talk-forum" aria-busy={loading || busy}>
-    <div className="talk-room-entry"><button type="button" className="talk-btn is-ghost" onClick={() => go({ view: 'rooms' })}><LockKeyhole size={16}/>Private rooms</button></div>
+    <div className="talk-room-entry"><PrivateRoomsButton userId={user?.id || ''} onClick={() => go({ view: 'rooms' })}/></div>
     <nav className="talk-mobile-nav" aria-label="Mobile forum navigation">
       <label>Browse<select aria-label="Browse forum" value={topicId ? '__topic' : view === 'all' && activeFilters.length ? '__filtered' : view} disabled={busy} onChange={e => go(e.target.value === 'all' ? {} : { view: e.target.value })}>{topicId && <option value="__topic" disabled>Current discussion</option>}{!topicId && view === 'all' && !!activeFilters.length && <option value="__filtered" disabled>Filtered discussions</option>}{feeds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label>Community<select aria-label="Choose community" value={categoryId} disabled={busy || loading} onChange={e => go(forumListParams(params, { category: e.target.value, view: 'all' }))}><option value="">All communities</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

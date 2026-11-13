@@ -81,3 +81,9 @@ denial, deleted attachments, Unicode emoji, replies, edit ownership, reaction
 replacement/removal, read-cursor monotonicity, typing expiration, search isolation
 and heartbeat/write quota separation. Neither calls nor production deployment,
 end-to-end encryption, virus scanning or full WhatsApp feature parity are claimed.
+
+## Unread badges
+
+The Private rooms entry and room heading show the total unread-message count across current memberships. Each room also shows its own count. Own messages and deleted messages are excluded; attachment-only messages count. Admin management access does not grant unread counts for rooms the admin has not joined. Counts refresh every three seconds and immediately after the UI acknowledges a newly displayed message. A zero count hides the badge entirely. Background tabs, search results and older message pages do not automatically mark a conversation read.
+
+The additive `20261113190000_forum_chat_unread_cursor` migration adds a nullable message-id tie-breaker to the existing read timestamp. This prevents two messages created at the same timestamp from being mistaken for one read event and keeps read receipts aligned with unread counts. Existing read timestamps remain valid. Tests verify per-room/total counts, timestamp ties, monotonically advancing reads, own/deleted/attachment-only messages, account isolation and membership revocation.

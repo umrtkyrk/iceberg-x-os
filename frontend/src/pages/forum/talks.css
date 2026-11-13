@@ -470,3 +470,5 @@
 @media (max-width: 480px) { .cube-forum .talk-chat-emoji { grid-template-columns: repeat(6, minmax(0, 1fr)); } .cube-forum .talk-chat-search { flex-wrap: wrap; } }
 
 .cube-forum .talk-private-chat input[type=file] { display: none; }
+
+.cube-forum .talk-chat-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #e6007e; color: #fff; font-size: 12px; line-height: 1; font-weight: 800; vertical-align: middle; }

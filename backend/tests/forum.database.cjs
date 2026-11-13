@@ -44,6 +44,7 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261111120000_forum_likes/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113120000_forum_private_chat/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113160000_forum_chat_extras/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113190000_forum_chat_unread_cursor/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };
@@ -372,6 +373,7 @@ async function main() {
     await forum.changeForumTopic(cube, likeTopic.id, {}, true);
     await assert.rejects(forum.forumPostLikers(likeTopic.id, undefined, 1), e => e.status === 404);
     await require('./forumChat.extras.cjs')({ db, chat, room, secondRoom, cube, other, adminActor, outsiderAdmin });
+    await require('./forumChat.unread.cjs')({ db, chat, outsiderAdmin });
     console.log('PASS: private room roles, API isolation, revocation races, cross-room isolation, history, pagination, safe identities and topic/reply liker lists.');
     // Forum history must not break the portal's existing account-deletion flow.
     await db.user.delete({ where: { id: other.id } });

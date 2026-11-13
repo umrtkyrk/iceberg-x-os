@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
 import { api } from '../../utils/api';
+import { ChatUnreadBadge, useChatUnread } from './ForumChatUnread';
 import { EMOJIS } from '../../components/MarkdownEditor';
 
 interface Person { id: string; name: string; role: string; cube_profile?: { cube_number: string } | null }
@@ -51,6 +52,8 @@ export function ForumChat({ admin, userId, canPost }: { admin: boolean; userId: 
   const textarea = useRef<HTMLTextAreaElement>(null), fileInput = useRef<HTMLInputElement>(null), messageList = useRef<HTMLOListElement>(null);
   const draftBeforeEdit = useRef<string | null>(null);
   const pendingFiles = useRef<Attachment[]>([]); pendingFiles.current = attachments; bodyRef.current = body;
+  const unread = useChatUnread(userId);
+  const acknowledgedRead = useRef<string | null>(null);
   const mode = admin && manage;
   const roomPath = `${base}/rooms/${encodeURIComponent(selected)}`;
   const refresh = () => setRevision(n => n + 1);
@@ -59,7 +62,7 @@ export function ForumChat({ admin, userId, canPost }: { admin: boolean; userId: 
     if (uploadingRef.current) return;
     for (const file of pendingFiles.current) void api.delete(`${base}/rooms/${selected}/files/${file.id}`).catch(() => {});
     setAttachments([]); setDetail(null); setMessages([]); clearDraft(); setSelected(id); setMessagePage(1); setCreating(false); setError('');
-    setQuery(''); setSearchDraft(''); setDeleting(''); setReacting(''); readMessage.current = null;
+    setQuery(''); setSearchDraft(''); setDeleting(''); setReacting(''); readMessage.current = null; acknowledgedRead.current = null;
   };
   useEffect(() => {
     let current = true, running = false;
@@ -102,7 +105,10 @@ export function ForumChat({ admin, userId, canPost }: { admin: boolean; userId: 
     const presence = async () => {
       if (running || document.visibilityState !== 'visible' || !document.hasFocus()) return;
       running = true;
-      try { await api.put(`${roomPath}/presence`, { typing: canPost && !!bodyRef.current.trim() && Date.now() - lastTyped.current < 3500, read_message_id: readMessage.current }); }
+      const readId = readMessage.current;
+      try { await api.put(`${roomPath}/presence`, { typing: canPost && !!bodyRef.current.trim() && Date.now() - lastTyped.current < 3500, read_message_id: readId });
+        if (current && readId && acknowledgedRead.current !== readId) { acknowledgedRead.current = readId; window.dispatchEvent(new Event('forum-chat-read')); }
+      }
       catch (err) { if (current && (err as { status?: number }).status === 404) { setDetail(null); setMessages([]); clearDraft(); } }
       finally { running = false; }
     };
@@ -153,7 +159,7 @@ export function ForumChat({ admin, userId, canPost }: { admin: boolean; userId: 
   const memberName = (id: string) => detail?.members.find(person => person.id === id)?.name || 'Former member';
   const locked = busy || uploading;
   return <section className="talk-private-chat">
-    <header className="talk-heading"><div><span className="talk-eyebrow">Members only</span><h1 className="talk-title">Private rooms</h1><p>Team conversations, files and reactions.</p></div></header>
+    <header className="talk-heading"><div><span className="talk-eyebrow">Members only</span><h1 className="talk-title">Private rooms <ChatUnreadBadge count={unread.total}/></h1><p>Team conversations, files and reactions.</p></div></header>
     <div className="talk-form-actions">
       <button type="button" disabled={locked} className={`talk-btn ${!mode ? 'is-primary' : 'is-ghost'}`} onClick={() => { choose(''); setManage(false); setPage(1); }}>My rooms</button>
       {admin && <><button type="button" disabled={locked} className={`talk-btn ${mode ? 'is-primary' : 'is-ghost'}`} onClick={() => { choose(''); setManage(true); setPage(1); }}>Manage rooms</button><button type="button" disabled={locked} className="talk-btn is-ghost" onClick={() => { choose(''); setCreating(true); setMembers([]); setName(''); }}>Create room</button></>}
@@ -166,7 +172,7 @@ export function ForumChat({ admin, userId, canPost }: { admin: boolean; userId: 
     </form> : <div className="talk-chat-layout">
       <aside className="talk-card talk-chat-rooms" aria-label={mode ? 'Manage all rooms' : 'My private rooms'}><h2>{mode ? 'Room management' : 'Your rooms'}</h2>
         {mode && <p className="talk-hint">Management shows room names and members, never messages.</p>}{loading && <p role="status">Loading rooms…</p>}{!loading && !rooms.length && <p>No rooms here yet.</p>}
-        <ul>{rooms.map(room => <li key={room.id}><button type="button" disabled={locked} className={selected === room.id ? 'selected' : ''} onClick={() => choose(room.id)}>{room.name}<small>{room._count.members} members</small></button></li>)}</ul>
+        <ul>{rooms.map(room => <li key={room.id}><button type="button" disabled={locked} className={selected === room.id ? 'selected' : ''} onClick={() => choose(room.id)}>{room.name} <ChatUnreadBadge count={unread.rooms.find(item => item.id === room.id)?.count || 0}/><small>{room._count.members} members</small></button></li>)}</ul>
         <div className="talk-form-actions"><button type="button" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span>{page}</span><button type="button" disabled={page * 25 >= total} onClick={() => setPage(page + 1)}>Next</button></div>
       </aside>
       <article className="talk-card talk-chat-thread" aria-label="Private room">
