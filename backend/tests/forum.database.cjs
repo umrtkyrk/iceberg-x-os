@@ -42,6 +42,7 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261106120000_english_ideas_category/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261109180000_forum_default_categories/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261111120000_forum_likes/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113120000_forum_private_chat/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };
@@ -277,6 +278,99 @@ async function main() {
     }
     await forum.changeForumTopic(staff, unanswered.id, {}, true);
     assert.equal((await forum.forumStats()).unanswered.length, 0);
+    // Private room authorization is enforced on real queries, not only in the UI.
+    const chat = require('../dist/services/forumChat.service');
+    const adminActor = { id: randomUUID(), role: 'ADMIN' };
+    const outsiderAdmin = { id: randomUUID(), role: 'ADMIN' };
+    for (const actor of [adminActor, outsiderAdmin]) await db.user.create({ data: { ...actor, name: 'Room admin', email: actor.id + '@example.invalid', password_hash: 'unusable-test-only' } });
+    await assert.rejects(chat.createChatRoom(cube, { name: 'No', member_ids: [] }), e => e.status === 403);
+    await assert.rejects(chat.createChatRoom(staff, { name: 'No', member_ids: [] }), e => e.status === 403);
+    await assert.rejects(chat.chatPeople(cube, '', 1), e => e.status === 403);
+    await assert.rejects(chat.createChatRoom(adminActor, { name: 'No', member_ids: ['missing'] }), e => e.status === 400);
+    const room = await chat.createChatRoom(adminActor, { name: 'SecretRoomSentinel', member_ids: [cube.id, cube.id] });
+    assert.equal(room._count.members, 2);
+    assert.equal((await chat.listChatRooms(cube, 1)).total, 1);
+    assert.equal((await chat.listChatRooms(other, 1)).total, 0);
+    assert.equal((await chat.listChatRooms(outsiderAdmin, 1)).total, 0);
+    await assert.rejects(chat.listChatRooms(cube, 1, true), e => e.status === 403);
+    assert.equal((await chat.listChatRooms(outsiderAdmin, 1, true)).total, 1);
+    await assert.rejects(chat.chatRoomDetails(other, room.id), e => e.status === 404);
+    await assert.rejects(chat.chatMessages(other, room.id, 1), e => e.status === 404);
+    await assert.rejects(chat.chatMessages(outsiderAdmin, room.id, 1), e => e.status === 404);
+    await assert.rejects(chat.sendChatMessage(other, room.id, { body: 'Intruder' }), e => e.status === 404);
+    await assert.rejects(chat.changeChatMember(cube, room.id, other.id, false), e => e.status === 403);
+    await assert.rejects(chat.sendChatMessage(cube, room.id, { body: ' '.repeat(5) }), e => e.status === 400);
+    await assert.rejects(chat.sendChatMessage(cube, room.id, { body: 'x'.repeat(5001) }), e => e.status === 400);
+    await chat.sendChatMessage(cube, room.id, { body: 'PrivateBodySentinel' });
+    const secretMessages = await chat.chatMessages(cube, room.id, 1);
+    assert.equal(secretMessages.messages[0].body, 'PrivateBodySentinel');
+    assert.doesNotMatch(JSON.stringify(secretMessages), /password_hash|@example|nda_status/);
+    assert.equal((await forum.listForumTopics(cube, { query: 'PrivateBodySentinel', page: 1 })).total, 0);
+    assert.doesNotMatch(JSON.stringify(await forum.forumStats()), /SecretRoomSentinel|PrivateBodySentinel/);
+    assert.equal(await db.notification.count({ where: { message: { contains: 'PrivateBodySentinel' } } }), 0);
+    await chat.changeChatMember(adminActor, room.id, other.id, false);
+    await chat.changeChatMember(adminActor, room.id, other.id, false); // idempotent add
+    assert.equal((await chat.chatRoomDetails(other, room.id)).members.length, 3);
+    assert.equal((await chat.chatMessages(other, room.id, 1)).total, 1); // new member sees history
+    await chat.changeChatMember(adminActor, room.id, other.id, true);
+    await assert.rejects(chat.chatMessages(other, room.id, 1), e => e.status === 404);
+    await assert.rejects(chat.sendChatMessage(other, room.id, { body: 'After removal' }), e => e.status === 404);
+    assert.equal((await chat.listChatRooms(other, 1)).total, 0);
+    // The same room row lock serializes revocation with reads/writes.
+    let unlockRemoval, removalLocked;
+    const removalReady = new Promise(resolve => { removalLocked = resolve; });
+    const removalGate = new Promise(resolve => { unlockRemoval = resolve; });
+    const removing = db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "ForumChatRoom" WHERE id = ${room.id} FOR UPDATE`;
+      await tx.forumChatMember.delete({ where: { room_id_user_id: { room_id: room.id, user_id: cube.id } } });
+      removalLocked(); await removalGate;
+    });
+    await removalReady;
+    const racingRead = assert.rejects(chat.chatMessages(cube, room.id, 1), e => e.status === 404);
+    const racingSend = assert.rejects(chat.sendChatMessage(cube, room.id, { body: 'RevocationRaceSentinel' }), e => e.status === 404);
+    unlockRemoval(); await Promise.all([removing, racingRead, racingSend]);
+    assert.equal(await db.forumChatMessage.count({ where: { body: 'RevocationRaceSentinel' } }), 0);
+    await chat.changeChatMember(adminActor, room.id, cube.id, false);
+    const secondRoom = await chat.createChatRoom(adminActor, { name: 'Other room', member_ids: [staff.id] });
+    await chat.sendChatMessage(staff, secondRoom.id, { body: 'SecondRoomOnlySentinel' });
+    assert.doesNotMatch(JSON.stringify(await chat.chatMessages(cube, room.id, 1)), /SecondRoomOnlySentinel/);
+    await assert.rejects(chat.chatMessages(cube, secondRoom.id, 1), e => e.status === 404);
+    // Real HTTP routes reject direct requests from outsiders, including admin non-members.
+    const jwt = require('jsonwebtoken');
+    const server = require('../dist/app').default.listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    try {
+      const root = 'http://127.0.0.1:' + server.address().port + '/api/forum';
+      const request = (actor, path, options = {}) => fetch(root + path, { ...options, headers: { 'Content-Type': 'application/json', ...(actor ? { Authorization: 'Bearer ' + jwt.sign(actor, process.env.JWT_SECRET) } : {}) } });
+      assert.equal((await request(null, '/chat/rooms')).status, 401);
+      const denied = await request(other, '/chat/rooms/' + room.id + '/messages');
+      assert.equal(denied.status, 404); assert.match(denied.headers.get('cache-control'), /no-store/);
+      assert.doesNotMatch(await denied.text(), /PrivateBodySentinel|SecretRoomSentinel/);
+      assert.equal((await request(other, '/chat/admin/rooms')).status, 403);
+      assert.equal((await request(outsiderAdmin, '/chat/rooms/' + room.id + '/messages')).status, 404);
+      assert.equal((await request(other, '/chat/rooms/' + room.id + '/messages', { method: 'POST', body: JSON.stringify({ body: 'Direct request' }) })).status, 404);
+      assert.equal((await request(cube, '/chat/rooms/' + room.id + '/messages')).status, 200);
+    } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+    // Pagination and public-safe liker identities cover both post kinds.
+    await db.forumChatMessage.createMany({ data: Array.from({ length: 51 }, (_, i) => ({ room_id: room.id, author_id: cube.id, body: 'Page ' + i, created_at: new Date(Date.now() + i) })) });
+    const pageOne = await chat.chatMessages(cube, room.id, 1), pageTwo = await chat.chatMessages(cube, room.id, 2);
+    assert.equal(pageOne.messages.length, 50); assert.equal(pageTwo.messages.length, 2);
+    assert.equal(new Set([...pageOne.messages, ...pageTwo.messages].map(row => row.id)).size, 52);
+    const likeTopic = await forum.createForumTopic(cube, { category_id: 'lounge', title: 'Liker list test', body: 'A public post for testing likes.' });
+    const likeReply = await forum.createForumReply(other, likeTopic.id, { body: 'A public reply.' });
+    await forum.likeForumPost(other, likeTopic.id, undefined, { liked: true });
+    await forum.likeForumPost(staff, likeTopic.id, likeReply.id, { liked: true });
+    const postLikers = await forum.forumPostLikers(likeTopic.id, undefined, 1);
+    assert.deepEqual(postLikers.people.map(person => person.id), [other.id]);
+    assert.deepEqual((await forum.forumPostLikers(likeTopic.id, likeReply.id, 1)).people.map(person => person.id), [staff.id]);
+    assert.doesNotMatch(JSON.stringify(postLikers), /password_hash|@example|nda_status/);
+    assert.equal((await forum.forumPostLikers(likeTopic.id, undefined, 2)).people.length, 0);
+    await assert.rejects(forum.forumPostLikers(likeTopic.id, 'missing', 1), e => e.status === 404);
+    await forum.changeForumReply(other, likeTopic.id, likeReply.id, {}, true);
+    await assert.rejects(forum.forumPostLikers(likeTopic.id, likeReply.id, 1), e => e.status === 404);
+    await forum.changeForumTopic(cube, likeTopic.id, {}, true);
+    await assert.rejects(forum.forumPostLikers(likeTopic.id, undefined, 1), e => e.status === 404);
+    console.log('PASS: private room roles, API isolation, revocation races, cross-room isolation, history, pagination, safe identities and topic/reply liker lists.');
     // Forum history must not break the portal's existing account-deletion flow.
     await db.user.delete({ where: { id: other.id } });
     assert.equal((await db.forumReply.findUnique({ where: { id: reply.id } })).author_id, null);

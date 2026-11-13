@@ -8,6 +8,7 @@ import { forumViewer, saveForumProfile, assertForumPosting } from '../services/f
 import { forumContext } from '../services/forumContext.service';
 import { forumMentionPeople } from '../services/forumNotifications.service';
 import { manageForumCategory } from '../services/forumCategory.service';
+import * as chat from '../services/forumChat.service';
 import * as forum from '../services/forum.service';
 import { StorageService } from '../services/storage.service';
 
@@ -106,4 +107,18 @@ router.delete('/forum/topics/:id/replies/:replyId', handle(req => forum.changeFo
 router.post('/forum/topics/:id/reports', handle(req => forum.reportForumPost(req.user!, req.params.id, body(req)), 201));
 router.get('/forum/reports', handle(req => forum.listForumReports(req.user!, forumPage(req.query.page))));
 router.patch('/forum/reports/:id', handle(req => forum.resolveForumReport(req.user!, req.params.id)));
+// Private chat endpoints share forum auth, feature flag, and write rate limiting.
+router.use('/forum/chat', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+router.get('/forum/chat/rooms', handle(req => chat.listChatRooms(req.user!, forumPage(req.query.page))));
+router.get('/forum/chat/admin/rooms', handle(req => chat.listChatRooms(req.user!, forumPage(req.query.page), true)));
+router.get('/forum/chat/people', handle(req => chat.chatPeople(req.user!, req.query.q === undefined ? '' : forumText(req.query.q, 'Search', 1, 80), forumPage(req.query.page))));
+router.post('/forum/chat/rooms', handle(req => chat.createChatRoom(req.user!, body(req)), 201));
+router.get('/forum/chat/admin/rooms/:id', handle(req => chat.chatRoomDetails(req.user!, req.params.id, true)));
+router.get('/forum/chat/rooms/:id', handle(req => chat.chatRoomDetails(req.user!, req.params.id)));
+router.put('/forum/chat/rooms/:id/members/:userId', handle(req => chat.changeChatMember(req.user!, req.params.id, req.params.userId, false)));
+router.delete('/forum/chat/rooms/:id/members/:userId', handle(req => chat.changeChatMember(req.user!, req.params.id, req.params.userId, true)));
+router.get('/forum/chat/rooms/:id/messages', handle(req => chat.chatMessages(req.user!, req.params.id, forumPage(req.query.page))));
+router.post('/forum/chat/rooms/:id/messages', handle(req => chat.sendChatMessage(req.user!, req.params.id, body(req)), 201));
+router.get('/forum/topics/:id/likes', handle(req => forum.forumPostLikers(req.params.id, undefined, forumPage(req.query.page))));
+router.get('/forum/topics/:id/replies/:replyId/likes', handle(req => forum.forumPostLikers(req.params.id, req.params.replyId, forumPage(req.query.page))));
 export default router;

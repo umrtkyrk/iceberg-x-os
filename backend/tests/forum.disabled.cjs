@@ -10,7 +10,7 @@ const app = express(); app.use('/api', router);
 const server = app.listen(0, '127.0.0.1', async () => {
   try {
     const base = `http://127.0.0.1:${server.address().port}/api/forum`;
-    for (const path of ['/stats', '/categories', '/topics', '/me/profile', '/context', '/mentions', '/reports']) {
+    for (const path of ['/stats', '/categories', '/topics', '/me/profile', '/context', '/mentions', '/reports', '/chat/rooms', '/chat/admin/rooms', '/chat/people', '/chat/rooms/missing/messages', '/topics/missing/likes']) {
       assert.equal((await fetch(base + path)).status, 404);
     }
     console.log('PASS: feature flag off hides all forum reads without accessing a database.');
