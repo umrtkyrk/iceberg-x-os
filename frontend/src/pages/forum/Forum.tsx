@@ -9,6 +9,9 @@ import { AuthorIdentity, ForumSignature, CategoryManager, ContextFields, ForumPr
 import { forumLocation, forumPageParams, forumReadStatus, forumListParams, forumSearchParams } from './forumModel';
 import { MentionAwareLink, mentionOverhead, mentionsToText } from '../../utils/mentions';
 import { ForumImage, firstForumImage, joinImages, splitImages, stripImages, uploadForumImage } from '../../utils/forumImages';
+import { ForumLikers } from './ForumLikers';
+import { ForumChat } from './ForumChat';
+import { PrivateRoomsButton } from './ForumChatUnread';
 import './talks.css';
 
 interface Post { id: string; body: string; author: Author | null; created_at: string; updated_at: string; liked?: boolean; like_count?: number }
@@ -140,7 +143,7 @@ export default function Forum() {
           api.get<Viewer>('/forum/me/profile'),
           topicId ? api.get<Thread>(`/forum/topics/${encodeURIComponent(topicId)}?${new URLSearchParams({ page: String(page), ...(replyId ? { reply: replyId } : {}) })}`)
             : view === 'reports' ? api.get<ReportList>(`/forum/reports?page=${page}`)
-              : !['index', 'profile', 'categories'].includes(view) || categoryId || query ? api.get<TopicList>(`/forum/topics?${request}`) : Promise.resolve(null),
+              : !['index', 'profile', 'categories', 'rooms'].includes(view) || categoryId || query ? api.get<TopicList>(`/forum/topics?${request}`) : Promise.resolve(null),
         ]);
         if (!current) return;
         setCategories(nextCategories); setViewer(nextViewer);
@@ -241,9 +244,9 @@ export default function Forum() {
       setError(err instanceof Error ? err.message : 'The like could not be saved.');
     } finally { likePending.current.delete(post.id); }
   };
-  const likeButton = (post: Post, topicId: string, isReply: boolean, title: string) => <button type="button" className={`talk-pill talk-like ${post.liked ? 'is-liked' : ''}`} disabled={!canPost} aria-pressed={!!post.liked}
+  const likeButton = (post: Post, topicId: string, isReply: boolean, title: string) => <span className="talk-like-group"><button type="button" className={`talk-pill talk-like ${post.liked ? 'is-liked' : ''}`} disabled={!canPost} aria-pressed={!!post.liked}
     aria-label={`${post.liked ? 'Unlike' : 'Like'} ${title} · ${post.like_count || 0} ${post.like_count === 1 ? 'like' : 'likes'}`} title={canPost ? (post.liked ? 'Unlike' : 'Like') : 'Your account has read-only forum access.'}
-    onClick={() => void toggleLike(post, topicId, isReply)}><Heart size={16} fill={post.liked ? 'currentColor' : 'none'}/>{post.like_count || 0}</button>;
+    onClick={() => void toggleLike(post, topicId, isReply)}><Heart size={16} fill={post.liked ? 'currentColor' : 'none'}/></button><ForumLikers topicId={topicId} replyId={isReply ? post.id : undefined} count={post.like_count || 0}/></span>;
   const share = async (topic: Topic) => {
     const url = new URL('/forum?topic=' + encodeURIComponent(topic.id), window.location.origin).href;
     try { await navigator.clipboard.writeText(url); setShareUrl(''); setMessage('Link copied to clipboard.'); }
@@ -324,7 +327,9 @@ export default function Forum() {
   const saveProfile = (value: { badge_ids: string[]; signature: string }) => void mutate(async () => {
     await api.put('/forum/me/profile', value); setPreferences(false); setMessage('Your forum profile has been saved.');
   });
+  if (view === 'rooms' && !topicId) return <div className="cube-forum talk-forum talk-chat-page"><button type="button" className="talk-btn is-ghost" onClick={() => go({})}>← Back to forum</button><ForumChat key={user?.id} admin={user?.role === 'ADMIN'} userId={user?.id || ''} canPost={!!viewer?.can_post}/></div>;
   return <div className="cube-forum talk-forum" aria-busy={loading || busy}>
+    <div className="talk-room-entry"><PrivateRoomsButton userId={user?.id || ''} onClick={() => go({ view: 'rooms' })}/></div>
     <nav className="talk-mobile-nav" aria-label="Mobile forum navigation">
       <label>Browse<select aria-label="Browse forum" value={topicId ? '__topic' : view === 'all' && activeFilters.length ? '__filtered' : view} disabled={busy} onChange={e => go(e.target.value === 'all' ? {} : { view: e.target.value })}>{topicId && <option value="__topic" disabled>Current discussion</option>}{!topicId && view === 'all' && !!activeFilters.length && <option value="__filtered" disabled>Filtered discussions</option>}{feeds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label>Community<select aria-label="Choose community" value={categoryId} disabled={busy || loading} onChange={e => go(forumListParams(params, { category: e.target.value, view: 'all' }))}><option value="">All communities</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
