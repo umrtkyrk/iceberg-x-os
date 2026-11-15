@@ -6,6 +6,7 @@ import { PEER_CRITERIA, PEER_QUESTS, isPeerCriteria } from './peerQuests.service
 import { cubeEngagement, countStrongQuestions, countWebinarsWithOnTimeQuestion } from './webinarEngagement.service';
 import { recomputeCubePeerState } from './peerSignal.service';
 import { FORUM_BINARY_CRITERIA, FORUM_CRITERIA, forumQuestValue, isForumCriteria } from './forumQuests.service';
+import { isScoringV2Criteria, scoringV2QuestValue } from './scoringQuests.service';
 
 /**
  * Fallback minimum sample size for "rate" criteria (average_score,
@@ -269,6 +270,10 @@ export async function verifyQuestProgress(
   });
 
   if (!cubeQuest || (cubeQuest.is_completed && !options?.forceRecheck)) return cubeQuest;
+  // A retired quest (scoring v2) takes no more progress; earned badges stay.
+  if (cubeQuest.quest.retired_at) return cubeQuest;
+  // A v2 score can dip; a badge earned from it is final, like peer quests.
+  if (cubeQuest.is_completed && isScoringV2Criteria(cubeQuest.quest.criteria_type)) return cubeQuest;
 
   // Peer-derived progress can fall (a concern is dismissed, a rate dips). A
   // badge earned that way must never silently disappear, so once a peer quest
@@ -531,6 +536,9 @@ export async function verifyQuestProgress(
     const value = quest.criteria_type === 'webinar_attendance' ? summary.attendance_rate : summary.average;
     newValue = sample >= resolveMinSampleSize(quest) && value !== null ? value : 0;
   }
+  else if (isScoringV2Criteria(quest.criteria_type)) {
+    newValue = await scoringV2QuestValue(cubeProfileId, quest.criteria_type);
+  }
   else if (isForumCriteria(quest.criteria_type)) {
     const profile = await prisma.cubeProfile.findUnique({
       where: { id: cubeProfileId },
@@ -691,8 +699,8 @@ export async function recalculateAllQuestsForCube(
 ): Promise<void> {
   const questsToVerify = await prisma.cubeQuest.findMany({
     where: options?.forceRecheck
-      ? { cube_id: cubeProfileId }
-      : { cube_id: cubeProfileId, is_completed: false },
+      ? { cube_id: cubeProfileId, quest: { retired_at: null } }
+      : { cube_id: cubeProfileId, is_completed: false, quest: { retired_at: null } },
     select: { quest_id: true }
   });
 
@@ -874,7 +882,7 @@ export async function ensureAutoQuestsForCube(cubeProfileId: string): Promise<nu
   if (!profile || !IN_PROGRAMME_CUBE_LEVELS.includes(profile.current_level)) return 0;
 
   const [quests, existing] = await Promise.all([
-    prisma.quest.findMany({ where: { auto_assign: true } }),
+    prisma.quest.findMany({ where: { auto_assign: true, retired_at: null } }),
     prisma.cubeQuest.findMany({ where: { cube_id: cubeProfileId }, select: { quest_id: true } })
   ]);
   const assigned = new Set(existing.map(e => e.quest_id));
@@ -905,7 +913,7 @@ export async function autoAssignQuestToEligibleCubes(questId: string): Promise<{
   skipped: number;
 }> {
   const quest = await prisma.quest.findUnique({ where: { id: questId } });
-  if (!quest) return { newlyAssigned: 0, skipped: 0 };
+  if (!quest || quest.retired_at) return { newlyAssigned: 0, skipped: 0 };
 
   const cubes = await prisma.cubeProfile.findMany({
     where: { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } },

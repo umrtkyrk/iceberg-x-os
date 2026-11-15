@@ -642,16 +642,6 @@ async function main() {
       badgeRarity: 'Rare'
     },
     {
-      title: 'High Achiever',
-      description: 'Achieve an average score of 4.2 or above across all your feedback scorecards.',
-      difficulty: 'Rare',
-      criteria_type: 'average_score',
-      criteria_value: 4.2,
-      badgeName: 'OwnYourWork',
-      badgeIcon: 'award',
-      badgeRarity: 'Rare'
-    },
-    {
       title: 'R&D Heavyweight',
       description: 'Build and deliver 3 working POCs or integration candidates.',
       difficulty: 'Epic',
@@ -660,16 +650,6 @@ async function main() {
       badgeName: 'DemoMaker',
       badgeIcon: 'play',
       badgeRarity: 'Rare'
-    },
-    {
-      title: 'Iceberg Elite Fellow',
-      description: 'Maintain an outstanding feedback score of 4.7+ across multiple completed missions.',
-      difficulty: 'Epic',
-      criteria_type: 'average_score',
-      criteria_value: 4.7,
-      badgeName: 'Crown',
-      badgeIcon: 'crown',
-      badgeRarity: 'Epic'
     },
     {
       title: 'First Pulse',
@@ -788,15 +768,8 @@ async function main() {
     }
   }
 
-  // Setup default dependencies
-  const highAchiever = await prisma.quest.findFirst({ where: { title: 'High Achiever' } });
-  const eliteFellow = await prisma.quest.findFirst({ where: { title: 'Iceberg Elite Fellow' } });
-  if (highAchiever && eliteFellow) {
-    await prisma.quest.update({
-      where: { id: eliteFellow.id },
-      data: { dependency_quest_id: highAchiever.id }
-    });
-  }
+  // The average-score quests (High Achiever, Iceberg Elite Fellow) are no longer
+  // seeded: scoring v2 retires them and replaces them (scoringQuests.service).
 
   const daily30 = await prisma.quest.findFirst({ where: { title: 'Daily Signal (30 Days)' } });
   const daily90 = await prisma.quest.findFirst({ where: { title: 'Unbroken Signal (90 Days)' } });

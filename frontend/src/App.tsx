@@ -23,6 +23,8 @@ import { DemoDays } from './pages/DemoDays';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminDisciplines } from './pages/AdminDisciplines';
 import { AdminRubrics } from './pages/AdminRubrics';
+import { AdminScoring } from './pages/AdminScoring';
+import { AdminOps } from './pages/AdminOps';
 import { AdminApplications } from './pages/AdminApplications';
 import { Recruitment } from './pages/Recruitment';
 import { CaseForm } from './pages/CaseForm';
@@ -261,6 +263,25 @@ function App() {
                 }
               />
             )}
+            {SCORING_V2_ENABLED && (
+              <Route
+                path="admin/scoring"
+                element={
+                  <RouteGuard allowedRoles={['ADMIN']}>
+                    <AdminScoring />
+                  </RouteGuard>
+                }
+              />
+            )}
+            {/* Admin operations: reached by URL only, never linked from the menu. */}
+            <Route
+              path="admin/ops"
+              element={
+                <RouteGuard allowedRoles={['ADMIN']}>
+                  <AdminOps />
+                </RouteGuard>
+              }
+            />
 
             {/* Admin-only User Administration */}
             <Route

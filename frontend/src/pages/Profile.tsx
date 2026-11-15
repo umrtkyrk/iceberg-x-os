@@ -14,6 +14,8 @@ import { PeerRecognition } from '../components/peer/PeerRecognition';
 import { CubeFeedbackPanel } from '../components/peer/StaffFeedback';
 import { WebinarEngagementCard } from '../components/WebinarEngagementCard';
 import { LEGACY_SCORE_ITEMS, averageLegacyScores, scorecardItems } from '../utils/scorecard';
+import { ScoreV2Card } from '../components/ScoreV2Card';
+import { SCORING_V2_ENABLED, SCORING_V2_LIVE } from '../config/features';
 
 const formatExternalUrl = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -1138,6 +1140,17 @@ export const Profile: React.FC = () => {
 
       {/* Right 2 Columns: Tabs, Timelines, Badges & Feedback */}
       <div className="lg:col-span-2 flex flex-col gap-8">
+
+        {/* Scoring v2: staff see it in shadow mode; the Cube once it is live. */}
+        {((SCORING_V2_ENABLED && isMentorOrAdmin) || (SCORING_V2_LIVE && isOwner)) && id && (
+          <ScoreV2Card
+            cubeProfileId={id}
+            cubeName={profile?.user?.name || 'this Cube'}
+            disciplineId={profile?.discipline_id || null}
+            viewer={isMentorOrAdmin ? 'staff' : 'owner'}
+            openCheckIn={new URLSearchParams(window.location.search).get('checkin') === '1'}
+          />
+        )}
         
         {/* Internal Private Notes Section (visible ONLY to Mentors/Admins) */}
         {isMentorOrAdmin && (

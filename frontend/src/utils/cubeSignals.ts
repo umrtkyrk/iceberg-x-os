@@ -36,6 +36,10 @@ export interface CubeSignals {
   next_meeting: { id: string; title: string; date: string } | null;
   next_webinar: { id: string; title: string; date: string; questions_close_at: string; has_question: boolean } | null;
   last_feedback_at: string | null;
+  /** Latest scorecard or check-in. */
+  last_assessed_at?: string | null;
+  /** Scoring v2, mentor-side: an active mission has gone 6 weeks without an assessment. */
+  checkin_due?: boolean;
 }
 
 export const STATUS_COPY: Record<SignalStatus, { label: string; pill: string; dot: string }> = {
