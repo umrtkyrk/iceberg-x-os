@@ -29,6 +29,8 @@ import { QuestBoard } from '../components/dashboard/QuestBoard';
 import { peerApi } from '../utils/peer';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
 import { ForumPulse } from '../components/dashboard/ForumPulse';
+import { FocusPanel } from '../components/dashboard/FocusPanel';
+import { CUBE_FOCUS_ENABLED } from '../config/features';
 
 export const CubeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -56,8 +58,11 @@ export const CubeDashboard: React.FC = () => {
 
   const [quests, setQuests] = useState<any[]>([]);
   const [kudos, setKudos] = useState<any[]>([]);
+  // Bumped on every refetch so the focus panel follows the rest of the page.
+  const [focusKey, setFocusKey] = useState(0);
 
   const fetchDashboardData = async () => {
+    setFocusKey(key => key + 1);
     try {
       const [res, questsRes] = await Promise.all([
         api.get('/cube/dashboard'),
@@ -195,6 +200,14 @@ export const CubeDashboard: React.FC = () => {
     setUpdateError(null);
   };
 
+  /** From the focus panel: open the form on that mission's card and bring it into view. */
+  const openUpdateFromFocus = (missionId: string) => {
+    openUpdate(missionId);
+    requestAnimationFrame(() =>
+      document.getElementById(`mission-card-${missionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
+  };
+
   return (
     <div className="flex flex-col gap-8">
       {/* Hero */}
@@ -277,6 +290,8 @@ export const CubeDashboard: React.FC = () => {
         </div>
       </header>
 
+      {CUBE_FOCUS_ENABLED && <FocusPanel onPostUpdate={openUpdateFromFocus} refreshKey={focusKey} />}
+
       {/* The star of the page: where every quest stands */}
       <QuestBoard quests={quests} />
 
@@ -305,7 +320,7 @@ export const CubeDashboard: React.FC = () => {
               const isUpdateOpen = activeUpdateMissionId === m.id;
 
               return (
-                <article key={m.id} className="flex flex-col gap-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">
+                <article key={m.id} id={`mission-card-${m.id}`} className="scroll-mt-28 flex flex-col gap-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">

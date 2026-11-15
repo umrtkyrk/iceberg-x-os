@@ -8,6 +8,7 @@ import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 import { loadAdminDashboard } from '../services/adminDashboard.service';
 import { getAdminBriefing } from '../services/adminBriefing.service';
 import { sendError } from '../utils/http';
+import { loadCubeSignals } from '../services/cubeSignals.service';
 
 const router = Router();
 
@@ -122,6 +123,24 @@ router.get('/mentor/dashboard', requireAuth, isMentorOrAdmin, async (req: Authen
       cubesNeedingFeedback
     });
   } catch (error: any) {
+    return sendError(res, error);
+  }
+});
+
+/**
+ * The Cube's focus panel: what they are on, what to do next, and the same
+ * activity signals their mentor sees. Feedback is limited to what is already
+ * visible to the Cube; private notes are never read.
+ */
+router.get('/cube/focus', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user || req.user.role !== 'CUBE' || !req.user.cubeProfileId) {
+      return res.status(403).json({ error: 'Only Cubes can access this view' });
+    }
+    const [signals] = await loadCubeSignals([req.user.cubeProfileId], { audience: 'cube' });
+    if (!signals) return res.status(404).json({ error: 'Profile not found' });
+    return res.json(signals);
+  } catch (error) {
     return sendError(res, error);
   }
 });
