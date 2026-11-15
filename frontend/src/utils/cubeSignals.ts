@@ -19,6 +19,7 @@ export interface CubeSignals {
   cube_profile_id: string;
   user_id: string;
   name: string;
+  email: string;
   cube_number: string;
   avatar_url: string | null;
   status: SignalStatus;
@@ -59,3 +60,43 @@ export function relativeDay(value: string | null | undefined, now: Date = new Da
 
 export const formatDateTime = (value: string) =>
   new Date(value).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+const STATUS_RANK: Record<SignalStatus, number> = { quiet: 0, needs_attention: 1, on_track: 2 };
+
+/**
+ * Mentor order: quiet first, then needs attention, then on track; within a
+ * group, the Cube whose last contribution is oldest (or missing) first.
+ */
+export function sortForMentor<T extends Pick<CubeSignals, 'status' | 'name' | 'activity'>>(cubes: T[]): T[] {
+  const lastContribution = (c: T) => (c.activity.last_contribution_at ? new Date(c.activity.last_contribution_at).getTime() : 0);
+  return [...cubes].sort(
+    (a, b) =>
+      STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
+      lastContribution(a) - lastContribution(b) ||
+      a.name.localeCompare(b.name)
+  );
+}
+
+/** One line per signal, written for the mentor ("Ayşe is ..."). */
+export function describeForMentor(item: SignalItem, now: Date = new Date()): string {
+  switch (item.kind) {
+    case 'quiet_no_visits':
+      return item.days === null ? 'Has not signed in yet' : `Not seen on the portal for ${item.days} days`;
+    case 'quiet_no_contribution':
+      return item.days === null ? 'No visible contribution yet' : `No visible contribution for ${item.days} days`;
+    case 'update_overdue':
+      return item.days === null
+        ? `No update since joining ${item.mission_title}`
+        : `No update on ${item.mission_title} for ${item.days} days`;
+    case 'open_blocker':
+      return `Blocked on ${item.mission_title} (reported ${relativeDay(item.reported_at, now)})`;
+    case 'no_mission':
+      return 'Not on a mission';
+    case 'nda_pending':
+      return 'NDA not signed yet';
+    case 'document_rejected':
+      return item.count === 1 ? '1 rejected document to re-upload' : `${item.count} rejected documents to re-upload`;
+    case 'webinar_question_due':
+      return `Webinar question not sent: ${item.title}`;
+  }
+}

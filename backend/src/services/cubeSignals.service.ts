@@ -41,6 +41,7 @@ export interface CubeSignals {
   cube_profile_id: string;
   user_id: string;
   name: string;
+  email: string;
   cube_number: string;
   avatar_url: string | null;
   status: SignalStatus;
@@ -189,7 +190,7 @@ export async function loadCubeSignals(
       current_level: true,
       nda_status: true,
       created_at: true,
-      user: { select: { name: true, created_at: true, last_seen_at: true, last_login_at: true } },
+      user: { select: { name: true, email: true, created_at: true, last_seen_at: true, last_login_at: true } },
       assigned_mentor: { select: { id: true, name: true, email: true } },
     },
     orderBy: { cube_number: 'asc' },
@@ -382,6 +383,7 @@ export async function loadCubeSignals(
       cube_profile_id: profile.id,
       user_id: profile.user_id,
       name: profile.user.name,
+      email: profile.user.email,
       cube_number: profile.cube_number,
       avatar_url: profile.avatar_url,
       status: deriveStatus(items),

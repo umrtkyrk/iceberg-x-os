@@ -9,3 +9,6 @@ export const CUBE_FOCUS_ENABLED = import.meta.env.VITE_CUBE_FOCUS_ENABLED === 't
 
 // Image, PDF and DOCX attachments on progress updates and demo submissions.
 export const ATTACHMENTS_ENABLED = import.meta.env.VITE_ATTACHMENTS_ENABLED === 'true';
+
+// Mentor dashboard "My Cubes" panel built on the Cube signals (status, reasons, activity).
+export const MENTOR_CUBES_ENABLED = import.meta.env.VITE_MENTOR_CUBES_ENABLED === 'true';

@@ -145,6 +145,31 @@ router.get('/cube/focus', requireAuth, async (req: AuthenticatedRequest, res) =>
   }
 });
 
+/**
+ * The mentor's view of their Cubes, from the same signals the Cubes see on
+ * their focus panel. Mentors get the Cubes assigned to them; admins get
+ * theirs, or every Cube in the programme with `?scope=all` (the default when
+ * they have none assigned).
+ */
+router.get('/mentor/cubes', requireAuth, isMentorOrAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const user = req.user!;
+    const inProgramme = { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } };
+    const mine = await prisma.cubeProfile.findMany({
+      where: { ...inProgramme, assigned_mentor_id: user.id },
+      select: { id: true },
+    });
+    const wantsAll = user.role === 'ADMIN' && (req.query.scope === 'all' || (req.query.scope !== 'mine' && mine.length === 0));
+    const ids = wantsAll
+      ? (await prisma.cubeProfile.findMany({ where: inProgramme, select: { id: true } })).map(c => c.id)
+      : mine.map(c => c.id);
+    const cubes = await loadCubeSignals(ids, { audience: 'staff' });
+    return res.json({ scope: wantsAll ? 'all' : 'mine', can_view_all: user.role === 'ADMIN', assigned_count: mine.length, cubes });
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
 router.get('/cube/dashboard', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.user || req.user.role !== 'CUBE') {
