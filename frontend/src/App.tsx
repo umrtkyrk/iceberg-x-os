@@ -22,6 +22,7 @@ import { CubeVault } from './pages/CubeVault';
 import { DemoDays } from './pages/DemoDays';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminDisciplines } from './pages/AdminDisciplines';
+import { AdminRubrics } from './pages/AdminRubrics';
 import { AdminApplications } from './pages/AdminApplications';
 import { Recruitment } from './pages/Recruitment';
 import { CaseForm } from './pages/CaseForm';
@@ -246,6 +247,16 @@ function App() {
                 element={
                   <RouteGuard allowedRoles={['ADMIN']}>
                     <AdminDisciplines />
+                  </RouteGuard>
+                }
+              />
+            )}
+            {SCORING_V2_ENABLED && (
+              <Route
+                path="admin/rubrics"
+                element={
+                  <RouteGuard allowedRoles={['ADMIN']}>
+                    <AdminRubrics />
                   </RouteGuard>
                 }
               />
