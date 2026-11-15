@@ -354,20 +354,24 @@ model MentorFeedback {
   mission                 Mission?            @relation(fields: [mission_id], references: [id], onDelete: Cascade)
   mentor_id               String
   mentor                  User                @relation("FeedbackMentor", fields: [mentor_id], references: [id], onDelete: Cascade)
-  technical_ability_score Int
-  research_ability_score  Int
-  demo_output_score       Int
-  ownership_score         Int
-  communication_score     Int
-  leadership_score        Int
-  product_thinking_score  Int
-  reliability_score       Int
-  self_reflection_score   Int
+  technical_ability_score Int?
+  research_ability_score  Int?
+  demo_output_score       Int?
+  ownership_score         Int?
+  communication_score     Int?
+  leadership_score        Int?
+  product_thinking_score  Int?
+  reliability_score       Int?
+  self_reflection_score   Int?
   strengths               String
   areas_to_improve        String
   private_notes           String?
   visible_to_cube         Boolean             @default(false)
   recommended_next_step   RecommendedNextStep
+  /// Scoring v2 ratings, one per criterion shown on the form. The legacy
+  /// columns above are still written for criteria that map to them, and are
+  /// null when a criterion was not observed or does not apply (e.g. Marketing).
+  ratings                 ScorecardRating[]
   created_at              DateTime            @default(now())
   updated_at              DateTime            @updatedAt
 
@@ -1284,7 +1288,8 @@ model Criterion {
   created_at    DateTime    @default(now())
   updated_at    DateTime    @updatedAt
 
-  levels RubricLevel[]
+  levels  RubricLevel[]
+  ratings ScorecardRating[]
 
   @@index([discipline_id])
 }
@@ -1300,4 +1305,19 @@ model RubricLevel {
   updated_at    DateTime  @updatedAt
 
   @@unique([criterion_id, level])
+}
+
+/// Scoring v2: one criterion rated on one scorecard. A null value means the
+/// mentor did not observe it, which is left out of averages, never zero.
+model ScorecardRating {
+  id           String         @id @default(uuid())
+  feedback_id  String
+  feedback     MentorFeedback @relation(fields: [feedback_id], references: [id], onDelete: Cascade)
+  criterion_id String
+  criterion    Criterion      @relation(fields: [criterion_id], references: [id], onDelete: Restrict)
+  value        Int?
+  created_at   DateTime       @default(now())
+
+  @@unique([feedback_id, criterion_id])
+  @@index([criterion_id])
 }

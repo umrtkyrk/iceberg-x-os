@@ -9,6 +9,7 @@ import { MissionPeoplePanel } from '../components/MissionPeoplePanel';
 import { MissionLineage } from '../components/MissionLineage';
 import { QuickStatusSelect } from '../components/QuickStatusSelect';
 import { AttachmentList, AttachmentPicker } from '../components/Attachments';
+import { scorecardAverage } from '../utils/scorecard';
 
 export const MissionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Mission ID
@@ -1101,7 +1102,7 @@ ${mission.description || 'No description provided.'}
                   <div className="flex justify-between items-center font-bold text-gray-900 mb-1">
                     <span>{fb.cube ? fb.cube.name : 'Unknown Cube'}</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-magenta">{fb.technical_ability_score}/5</span>
+                      <span className="text-magenta" title="Average of the observed ratings">{scorecardAverage(fb) ?? '—'}/5</span>
                       {isAdmin && (
                         <button
                           onClick={() => handleDeleteFeedback(fb.id)}

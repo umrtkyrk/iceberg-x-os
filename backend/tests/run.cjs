@@ -16,4 +16,5 @@ require('./cubeSignals.test.ts');
 require('./mentorCubes.test.ts');
 require('./discipline.test.ts');
 require('./rubric.test.ts');
+require('./scorecard.test.ts');
 require('./attachment.test.ts');

@@ -8,7 +8,9 @@ import { MIN_SCORE, MAX_SCORE } from '../config/constants';
 import { badRequest, conflict, forbidden, sendError, parseScore } from '../utils/http';
 import { createSingleNotification } from '../services/notification.service';
 import { recalculateAllQuestsForCube } from '../services/quest.service';
-import { CubeLevel, RecommendedNextStep } from '@prisma/client';
+import { CubeLevel, Prisma, RecommendedNextStep } from '@prisma/client';
+import { criteriaForDiscipline } from '../services/rubric.service';
+import { legacyColumns, normalizeRatings, type NormalizedRating } from '../services/scorecard.service';
 
 const router = Router();
 
@@ -43,7 +45,7 @@ router.post('/feedback', requireAuth, isMentorOrAdmin, async (req: Authenticated
     // assessment.
     const target = await prisma.user.findUnique({
       where: { id: cube_id },
-      select: { name: true, cube_profile: { select: { current_level: true } } }
+      select: { name: true, cube_profile: { select: { current_level: true, discipline_id: true } } }
     });
     if (target?.cube_profile?.current_level === CubeLevel.Alumni) {
       throw conflict(
@@ -51,42 +53,58 @@ router.post('/feedback', requireAuth, isMentorOrAdmin, async (req: Authenticated
       );
     }
 
-    // The radar chart renders score / 5, so anything outside 1..5 (or NaN from
-    // an empty field) corrupted the chart. Validate before writing.
-    const rawScores: Record<string, any> = {
-      technical_ability_score,
-      research_ability_score,
-      demo_output_score,
-      ownership_score,
-      communication_score,
-      leadership_score,
-      product_thinking_score,
-      reliability_score,
-      self_reflection_score
-    };
-
-    const scores: Record<string, number> = {};
-    const invalidScores: string[] = [];
-    for (const [key, value] of Object.entries(rawScores)) {
-      const parsed = parseScore(value);
-      if (parsed === null) {
-        invalidScores.push(key);
-      } else {
-        scores[key] = parsed;
-      }
-    }
-
-    if (invalidScores.length > 0) {
-      throw badRequest(
-        `Scores must be whole numbers between ${MIN_SCORE} and ${MAX_SCORE}.`,
-        { invalidScores }
-      );
-    }
-
     if (!req.user) throw forbidden('Unauthorized');
-
+    const mentorId = req.user.id;
     const targetMissionId = mission_id ? String(mission_id) : null;
-    let feedback;
+
+    // Two shapes are accepted. Scoring v2 sends `ratings` (one per criterion
+    // of the mission's or Cube's discipline); the legacy form sends the nine
+    // fixed columns. v2 ratings are mirrored into the legacy columns that map
+    // to them, so the current score, radar chart and quests keep working.
+    let scores: Record<string, number | null>;
+    let ratings: NormalizedRating[] | null = null;
+    if (req.body.ratings !== undefined) {
+      const mission = targetMissionId
+        ? await prisma.mission.findUnique({ where: { id: targetMissionId }, select: { discipline_id: true } })
+        : null;
+      const disciplineId = mission?.discipline_id ?? target?.cube_profile?.discipline_id ?? null;
+      const applicable = await criteriaForDiscipline(disciplineId);
+      ratings = normalizeRatings(req.body.ratings, applicable);
+      scores = legacyColumns(ratings, applicable);
+    } else {
+      // The radar chart renders score / 5, so anything outside 1..5 (or NaN from
+      // an empty field) corrupted the chart. Validate before writing.
+      const rawScores: Record<string, any> = {
+        technical_ability_score,
+        research_ability_score,
+        demo_output_score,
+        ownership_score,
+        communication_score,
+        leadership_score,
+        product_thinking_score,
+        reliability_score,
+        self_reflection_score
+      };
+
+      const legacyScores: Record<string, number> = {};
+      const invalidScores: string[] = [];
+      for (const [key, value] of Object.entries(rawScores)) {
+        const parsed = parseScore(value);
+        if (parsed === null) {
+          invalidScores.push(key);
+        } else {
+          legacyScores[key] = parsed;
+        }
+      }
+
+      if (invalidScores.length > 0) {
+        throw badRequest(
+          `Scores must be whole numbers between ${MIN_SCORE} and ${MAX_SCORE}.`,
+          { invalidScores }
+        );
+      }
+      scores = legacyScores;
+    }
 
     const feedbackData = {
       ...(scores as any),
@@ -97,51 +115,54 @@ router.post('/feedback', requireAuth, isMentorOrAdmin, async (req: Authenticated
       recommended_next_step: recommended_next_step as RecommendedNextStep
     };
 
-    if (!targetMissionId) {
-      // Postgres treats NULLs as distinct, so the composite unique constraint
-      // does not cover general (mission-less) feedback; look it up explicitly.
-      const existing = await prisma.mentorFeedback.findFirst({
-        where: {
-          cube_id,
-          mission_id: null,
-          mentor_id: req.user.id
-        }
-      });
-
-      if (existing) {
-        feedback = await prisma.mentorFeedback.update({
-          where: { id: existing.id },
-          data: feedbackData
-        });
-      } else {
-        feedback = await prisma.mentorFeedback.create({
-          data: {
+    const feedback = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      let saved;
+      if (!targetMissionId) {
+        // Postgres treats NULLs as distinct, so the composite unique constraint
+        // does not cover general (mission-less) feedback; look it up explicitly.
+        const existing = await tx.mentorFeedback.findFirst({
+          where: {
             cube_id,
             mission_id: null,
-            mentor_id: req.user.id,
+            mentor_id: mentorId
+          }
+        });
+
+        saved = existing
+          ? await tx.mentorFeedback.update({ where: { id: existing.id }, data: feedbackData })
+          : await tx.mentorFeedback.create({
+              data: { cube_id, mission_id: null, mentor_id: mentorId, ...feedbackData }
+            });
+      } else {
+        // Upsert feedback for mission-based feedback
+        saved = await tx.mentorFeedback.upsert({
+          where: {
+            cube_id_mission_id_mentor_id: {
+              cube_id,
+              mission_id: targetMissionId,
+              mentor_id: mentorId
+            }
+          },
+          update: feedbackData,
+          create: {
+            cube_id,
+            mission_id: targetMissionId,
+            mentor_id: mentorId,
             ...feedbackData
           }
         });
       }
-    } else {
-      // Upsert feedback for mission-based feedback
-      feedback = await prisma.mentorFeedback.upsert({
-        where: {
-          cube_id_mission_id_mentor_id: {
-            cube_id,
-            mission_id: targetMissionId,
-            mentor_id: req.user.id
-          }
-        },
-        update: feedbackData,
-        create: {
-          cube_id,
-          mission_id: targetMissionId,
-          mentor_id: req.user.id,
-          ...feedbackData
-        }
-      });
-    }
+
+      // Re-scoring replaces the ratings; a legacy-form save clears them so the
+      // legacy columns are the only source for that scorecard.
+      await tx.scorecardRating.deleteMany({ where: { feedback_id: saved.id } });
+      if (ratings) {
+        await tx.scorecardRating.createMany({
+          data: ratings.map(r => ({ feedback_id: saved.id, criterion_id: r.criterion_id, value: r.value }))
+        });
+      }
+      return saved;
+    });
 
     await createSingleNotification(cube_id, "A mentor graded your scorecard.");
 
