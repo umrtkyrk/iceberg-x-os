@@ -174,7 +174,12 @@ model CubeProfile {
   peer_titles            PeerTitle[]           @relation("PeerTitleCube")
   mvcubes_awards         MvcubesAward[]        @relation("MvcubesCube")
 
+  /// Scoring v2: the Cube's main discipline. Null until an admin assigns it.
+  discipline_id String?
+  discipline    Discipline? @relation(fields: [discipline_id], references: [id], onDelete: SetNull)
+
   @@index([assigned_mentor_id])
+  @@index([discipline_id])
   @@index([current_level])
   @@index([nda_signed])
   @@index([nda_status])
@@ -212,9 +217,13 @@ model Mission {
   contributors      MissionContributor[]
   predecessor_links MissionLink[]         @relation("MissionPredecessors")
   followup_links    MissionLink[]         @relation("MissionFollowUps")
+  /// Scoring v2: which discipline's criteria the scorecard uses. Null until assigned.
+  discipline_id     String?
+  discipline        Discipline?           @relation(fields: [discipline_id], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([mentor_id])
+  @@index([discipline_id])
   @@index([updated_at])
 }
 
@@ -1234,4 +1243,23 @@ model Attachment {
   @@index([update_id])
   @@index([demo_submission_id])
   @@index([uploaded_by_id, created_at])
+}
+
+/// Scoring v2: a field of work (Engineer, Marketing, ...). Decides which
+/// scorecard criteria apply to a Cube and a mission. Admins add and rename
+/// disciplines; they are never deleted, only deactivated, so history keeps
+/// its meaning.
+model Discipline {
+  id          String   @id @default(uuid())
+  /// Stable identifier used in code and URLs, e.g. "engineer".
+  key         String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  sort_order  Int      @default(0)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  cubes    CubeProfile[]
+  missions Mission[]
 }

@@ -14,4 +14,5 @@ require('./activity.test.ts');
 require('./activityStatus.test.ts');
 require('./cubeSignals.test.ts');
 require('./mentorCubes.test.ts');
+require('./discipline.test.ts');
 require('./attachment.test.ts');
