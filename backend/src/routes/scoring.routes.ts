@@ -4,9 +4,9 @@
  */
 import { Router } from 'express';
 import prisma from '../services/prisma';
-import { requireAuth, isAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { forbidden, notFound, sendError } from '../utils/http';
-import { calibrationReport, createCheckIn, isScoringV2Live, listCheckIns, liveScore, shadowReport } from '../services/scoreV2.data';
+import { calibrationReport, createCheckIn, isScoringV2Live, listCheckIns, liveScore, scoresForAllCubes, shadowReport } from '../services/scoreV2.data';
 import { listOperations, runOperation } from '../services/ops.service';
 
 const router = Router();
@@ -14,6 +14,15 @@ const router = Router();
 router.get('/admin/scoring/shadow', requireAuth, isAdmin, async (_req, res) => {
   try {
     return res.json(await shadowReport());
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+/** Every Cube's current v2 score, for the Directory. Mentors and admins only. */
+router.get('/scoring/scores', requireAuth, isMentorOrAdmin, async (_req, res) => {
+  try {
+    return res.json(await scoresForAllCubes());
   } catch (error) {
     return sendError(res, error);
   }

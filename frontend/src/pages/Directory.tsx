@@ -22,6 +22,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { QuizScoreBadge } from '../components/QuizScoreBadge';
 import { GiveFeedbackButton } from '../components/peer/GiveFeedbackButton';
 import { getLevelMeta, isInProgramme } from '../utils/cubeStatus';
+import { SCORING_V2_ENABLED } from '../config/features';
 import {
   activeDirectoryMissions,
   directoryOptions,
@@ -64,6 +65,8 @@ export function Directory() {
   const [nda, setNda] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [sort, setSort] = useState('number');
+  // Scoring v2, staff only: current score per Cube profile id.
+  const [scores, setScores] = useState<Record<string, CubeScore>>({});
   const [view, setView] = useState<'cards' | 'list'>('cards');
   const [limit, setLimit] = useState(24);
 
@@ -83,6 +86,14 @@ export function Directory() {
   useEffect(() => {
     void load();
   }, []);
+  const showScores = staff && SCORING_V2_ENABLED;
+  useEffect(() => {
+    if (!showScores) return;
+    api
+      .get<{ scores: Record<string, CubeScore> }>('/scoring/scores')
+      .then(res => setScores(res.scores))
+      .catch(() => setScores({}));
+  }, [showScores]);
   useEffect(() => {
     setLimit(24);
   }, [query, quick, level, skill, mentor, mission, nda, showArchived, sort]);
@@ -171,6 +182,12 @@ export function Directory() {
         return isOriginalCube(a) ? -1 : 1;
       if (sort === 'name')
         return (a.user?.name || '').localeCompare(b.user?.name || '');
+      if (sort === 'score') {
+        // Highest first; Cubes without a score yet go last.
+        const sa = scores[a.id]?.overall ?? -1;
+        const sb = scores[b.id]?.overall ?? -1;
+        return sb - sa || Number(a.cube_number) - Number(b.cube_number);
+      }
       if (sort === 'missions')
         return (
           activeDirectoryMissions(b).length -
@@ -355,6 +372,7 @@ export function Directory() {
               <option value="name">Name A–Z</option>
               <option value="missions">Most missions</option>
               <option value="badges">Most badges</option>
+              {showScores && <option value="score">Highest score</option>}
             </select>
           </label>
           <div
@@ -556,6 +574,7 @@ export function Directory() {
                   cube={cube}
                   staff={staff}
                   selfId={user?.cubeProfileId}
+                  score={showScores ? scores[cube.id] : undefined}
                 />
               )
             )}
@@ -570,6 +589,7 @@ export function Directory() {
                 <th>{staff ? 'Mentor' : 'Skills'}</th>
                 <th>Missions</th>
                 <th>Badges</th>
+                {showScores && <th>Score</th>}
                 {staff && <th>NDA</th>}
                 <th>
                   <span className="sr-only">Profile</span>
@@ -629,6 +649,11 @@ export function Directory() {
                     <td className="text-sm tabular-nums">
                       {cube._count?.cube_badges || 0}
                     </td>
+                    {showScores && (
+                      <td>
+                        <ScorePill score={scores[cube.id]} />
+                      </td>
+                    )}
                     {staff && (
                       <td>
                         <Nda cube={cube} />
@@ -670,10 +695,13 @@ function CubeCard({
   cube,
   staff,
   selfId,
+  score,
 }: {
   cube: DirectoryCube;
   staff: boolean;
   selfId?: string;
+  /** Staff only (scoring v2); undefined hides it. */
+  score?: CubeScore;
 }) {
   const missions = activeDirectoryMissions(cube);
   const programme = isInProgramme(cube.current_level);
@@ -821,6 +849,7 @@ function CubeCard({
           <Award className="h-3.5 w-3.5" /> {cube._count?.cube_badges || 0}{' '}
           badges
         </span>
+        {score !== undefined && <ScorePill score={score} />}
         {staff && cube.quiz_attempts?.[0] && (
           <QuizScoreBadge
             score={cube.quiz_attempts[0].score}
@@ -912,5 +941,34 @@ function OriginalCube() {
         </p>
       </div>
     </article>
+  );
+}
+
+interface CubeScore {
+  overall: number | null;
+  band: string | null;
+  provisional: boolean;
+}
+
+const BAND_PILL: Record<string, string> = {
+  Developing: 'bg-amber-50 text-amber-700 border-amber-200',
+  Solid: 'bg-sky-50 text-sky-700 border-sky-200',
+  Strong: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Exceptional: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+};
+
+/** Scoring v2 score and band. Rendered for mentors and admins only. */
+function ScorePill({ score }: { score?: CubeScore }) {
+  if (!score || score.overall === null) {
+    return <span className="text-[11px] text-gray-400" title="No scorecard yet">No score</span>;
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${BAND_PILL[score.band || ''] || 'border-gray-200 text-gray-600'}`}
+      title={score.provisional ? 'Provisional: fewer than two scorecards' : `${score.band} band`}
+    >
+      {score.overall}
+      <span className="font-bold opacity-80">· {score.band}{score.provisional ? '*' : ''}</span>
+    </span>
   );
 }

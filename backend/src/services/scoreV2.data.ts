@@ -243,6 +243,22 @@ export async function backfillSnapshots(cubeProfileIds?: string[]) {
   return { cubes: loaded.size, snapshots: written, formula_version: FORMULA_VERSION };
 }
 
+/**
+ * Current v2 score of every Cube, for staff lists such as the Directory.
+ * Computed live in one batch (a fixed number of queries).
+ */
+export async function scoresForAllCubes() {
+  const ids = (await prisma.cubeProfile.findMany({ select: { id: true } })).map(c => c.id);
+  const loaded = await loadScoreInputs(ids);
+  const now = new Date();
+  const scores: Record<string, { overall: number | null; band: string | null; provisional: boolean }> = {};
+  for (const [id, { input }] of loaded) {
+    const s = computeScoreV2(input, now, { includePeer: true });
+    scores[id] = { overall: s.overall, band: s.band, provisional: s.provisional };
+  }
+  return { formula_version: FORMULA_VERSION, scores };
+}
+
 /** Admin shadow view: legacy score next to v2, biggest moves first. */
 export async function shadowReport() {
   const cubes = await prisma.cubeProfile.findMany({
