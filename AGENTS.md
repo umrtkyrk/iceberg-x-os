@@ -77,6 +77,12 @@ graph TD
   - Snippet description: `line-clamp-3 min-h-[3.75rem]`
   - Content details blocks: `min-h-[3.25rem] flex flex-col gap-1`
 
+### Rule 5: Dark Theme Colours
+- The workspace has a light/dark theme (`VITE_DARK_THEME_ENABLED`, toggle in the account menu). Public pages (landing, login, shareable profiles, certificates) are always light.
+- Ordinary Tailwind colour classes switch automatically through `frontend/tailwind.palette.js` (`bg-white`, `bg-gray-50`, `text-gray-900`, `border-gray-100`, `bg-emerald-50`, `text-emerald-700`, ...). Use them; do **not** write arbitrary hex colours (`text-[#11151C]`), which cannot switch.
+- Use `bg-page` for full-page canvases, `dark:` only where the automatic mapping is wrong, and wrap printed or fixed-design content (certificates) in `.theme-fixed`.
+- Hand-written CSS needs its own `html.dark` rules (see the end of `index.css` and `pages/forum/talks.css`).
+
 ---
 
 ## 3. Security Guidelines & Token Onboarding

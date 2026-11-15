@@ -171,7 +171,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaPr
       aria-expanded={showList}
       aria-controls={listId}
       aria-activedescendant={open && people[active] ? `${listId}-${people[active].id}` : undefined}
-      style={{ ...style, color: 'transparent', caretColor: '#1f2937' }}
+      style={{ ...style, color: 'transparent', caretColor: 'rgb(var(--ix-text-gray-800))' }}
     />
     <div ref={overlay} aria-hidden="true" className="absolute pointer-events-none overflow-hidden whitespace-pre-wrap break-words m-0 border-solid border-transparent text-gray-800">
       {highlighted}{'​'}

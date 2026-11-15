@@ -8,6 +8,9 @@ COPY frontend/ ./
 # together with FORUM_ENABLED=true on the backend to open the Cube Forum.
 ARG VITE_CUBE_FORUM_ENABLED=false
 ENV VITE_CUBE_FORUM_ENABLED=$VITE_CUBE_FORUM_ENABLED
+# Pass --build-arg VITE_DARK_THEME_ENABLED=true to show the light/dark theme toggle.
+ARG VITE_DARK_THEME_ENABLED=false
+ENV VITE_DARK_THEME_ENABLED=$VITE_DARK_THEME_ENABLED
 RUN npm run build
 
 # Stage 2: Build Backend

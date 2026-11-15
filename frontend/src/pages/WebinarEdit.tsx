@@ -199,7 +199,7 @@ export const WebinarEdit: React.FC = () => {
           <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="font-extrabold text-gray-900 flex items-center gap-2"><Mic size={18} /> Speakers</h2>
-              <Link to="/webinars/speakers" className="text-xs font-bold text-[#e6007e] flex items-center gap-1">
+              <Link to="/webinars/speakers" className="text-xs font-bold text-magenta flex items-center gap-1">
                 <Plus size={14} /> Add or edit speakers
               </Link>
             </div>
@@ -287,7 +287,7 @@ export const WebinarEdit: React.FC = () => {
             </div>
           </section>
 
-          <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 font-bold bg-[#e6007e] text-white px-4 py-3 rounded-xl hover:bg-[#c9006e] disabled:opacity-50">
+          <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 font-bold bg-magenta text-white px-4 py-3 rounded-xl hover:bg-[#c9006e] disabled:opacity-50">
             <Save size={16} /> {saving ? 'Saving…' : isNew ? 'Create draft' : 'Save changes'}
           </button>
         </aside>

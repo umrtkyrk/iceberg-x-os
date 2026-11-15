@@ -278,13 +278,13 @@ Iceberg Digital Ekibi`
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#E5007D] border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-ink-brand border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-[#11151C] font-sans pb-16">
+    <div className="min-h-screen bg-ink-canvas text-ink-950 font-sans pb-16">
       <main className="w-full">
         {/* Page Header */}
         <div className="workspace-header">
@@ -292,19 +292,19 @@ Iceberg Digital Ekibi`
             <h1 className="text-3xl font-extrabold tracking-tight m-0">
               Offboarding &amp; Alumni
             </h1>
-            <p className="text-sm text-[#6B7480] mt-1.5 mb-0 max-w-xl">
+            <p className="text-sm text-ink-600 mt-1.5 mb-0 max-w-xl">
               Graduate a Cube, issue its certificate, and send the outreach email — in one pass.
             </p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right">
               <div className="font-mono text-2xl font-semibold text-white">{cubes.length}</div>
-              <div className="text-[10px] font-bold tracking-wider text-[#8A93A0]">IN QUEUE</div>
+              <div className="text-[10px] font-bold tracking-wider text-ink-500">IN QUEUE</div>
             </div>
-            <div className="w-[1px] h-8 bg-[#E1E4EA]" />
+            <div className="w-[1px] h-8 bg-ink-200" />
             <div className="text-right">
-              <div className="font-mono text-2xl font-semibold text-[#E5007D]">{alumni.length}</div>
-              <div className="text-[10px] font-bold tracking-wider text-[#8A93A0]">ALUMNI</div>
+              <div className="font-mono text-2xl font-semibold text-ink-brand">{alumni.length}</div>
+              <div className="text-[10px] font-bold tracking-wider text-ink-500">ALUMNI</div>
             </div>
           </div>
         </div>
@@ -313,27 +313,27 @@ Iceberg Digital Ekibi`
         <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-6 mt-6 items-start">
           
           {/* Left Column: Offboarding Queue Sidebar */}
-          <aside className="bg-white border border-[#E7E9EE] rounded-2xl overflow-hidden sticky top-6">
-            <div className="p-4 border-b border-[#EEF0F3]">
+          <aside className="bg-white border border-ink-150 rounded-2xl overflow-hidden sticky top-6">
+            <div className="p-4 border-b border-ink-100">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-extrabold tracking-wider text-[#8A93A0]">
+                <span className="text-[11px] font-extrabold tracking-wider text-ink-500">
                   OFFBOARDING QUEUE
                 </span>
-                <span className="font-mono text-xs text-[#9AA2AE]">{cubes.length}</span>
+                <span className="font-mono text-xs text-ink-400">{cubes.length}</span>
               </div>
-              <div className="flex items-center gap-2 px-3 h-10 bg-[#F4F5F7] rounded-xl">
-                <Search className="w-4 h-4 text-[#9AA2AE]" />
+              <div className="flex items-center gap-2 px-3 h-10 bg-ink-50 rounded-xl">
+                <Search className="w-4 h-4 text-ink-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search Cube or name…"
-                  className="border-none outline-none bg-transparent text-xs text-[#11151C] w-full font-medium"
+                  className="border-none outline-none bg-transparent text-xs text-ink-950 w-full font-medium"
                 />
               </div>
             </div>
 
-            <div className="max-h-[560px] overflow-y-auto divide-y divide-[#F1F3F6]">
+            <div className="max-h-[560px] overflow-y-auto divide-y divide-ink-75">
               {filteredQueue.map((c) => {
                 const isSelected = selectedCube?.id === c.id;
                 return (
@@ -341,27 +341,27 @@ Iceberg Digital Ekibi`
                     key={c.id}
                     onClick={() => setSelectedCube(c)}
                     className={`w-full flex items-center gap-3 px-4 py-3.5 border-none text-left cursor-pointer transition-colors ${
-                      isSelected ? 'bg-[#FFF5FA]' : 'bg-transparent hover:bg-[#F8F9FB]'
+                      isSelected ? 'bg-ink-brand-50' : 'bg-transparent hover:bg-ink-30'
                     }`}
                   >
                     <span
                       className={`w-9 h-9 flex-none rounded-full flex items-center justify-center font-mono text-xs font-semibold ${
-                        isSelected ? 'bg-[#E5007D] text-white' : 'bg-[#F4F5F7] text-[#6B7480]'
+                        isSelected ? 'bg-ink-brand text-white' : 'bg-ink-50 text-ink-600'
                       }`}
                     >
                       #{c.cube_number}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-[#11151C] truncate">
+                      <span className="block text-sm font-bold text-ink-950 truncate">
                         {c.user?.name || `Cube #${c.cube_number}`}
                       </span>
-                      <span className="block text-[10.5px] font-bold tracking-wide text-[#9AA2AE] mt-0.5 uppercase truncate">
+                      <span className="block text-[10.5px] font-bold tracking-wide text-ink-400 mt-0.5 uppercase truncate">
                         {c.cohort || 'Fellowship'}
                       </span>
                     </span>
                     <span
                       className={`text-sm font-bold flex-none ${
-                        isSelected ? 'text-[#E5007D]' : 'text-[#C9CED8]'
+                        isSelected ? 'text-ink-brand' : 'text-ink-300'
                       }`}
                     >
                       →
@@ -380,44 +380,44 @@ Iceberg Digital Ekibi`
           {/* Right Column: Configuration & Actions */}
           <section className="flex flex-col gap-6 min-w-0">
             {selectedCube ? (
-              <div className="bg-white border border-[#E7E9EE] rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-white border border-ink-150 rounded-2xl overflow-hidden shadow-sm">
                 
                 {/* Selected Candidate Header Banner */}
-                <div className="flex items-center gap-4 p-5 bg-[#FCFCFD] border-b border-[#EEF0F3] flex-wrap">
-                  <div className="w-11 h-11 rounded-full bg-[#E5007D] text-white flex items-center justify-center font-mono text-sm font-bold flex-none shadow-md shadow-[#E5007D]/20">
+                <div className="flex items-center gap-4 p-5 bg-ink-20 border-b border-ink-100 flex-wrap">
+                  <div className="w-11 h-11 rounded-full bg-ink-brand text-white flex items-center justify-center font-mono text-sm font-bold flex-none shadow-md shadow-[#E5007D]/20">
                     #{selectedCube.cube_number}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-lg font-extrabold tracking-tight">
                       {selectedCube.user?.name}
                     </div>
-                    <div className="text-xs text-[#6B7480] mt-0.5">
+                    <div className="text-xs text-ink-600 mt-0.5">
                       {selectedCube.cohort || 'Founding Cohort'} · joined {new Date(selectedCube.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-[#F4F5F7] text-xs font-bold text-[#4A5361]">
+                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-ink-50 text-xs font-bold text-ink-700">
                       {stats?.completedMissions ?? 0} missions
                     </span>
-                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-[#F4F5F7] text-xs font-bold text-[#4A5361]">
+                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-ink-50 text-xs font-bold text-ink-700">
                       {stats?.badgesEarned ?? 0} badges
                     </span>
-                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-[#FDE7F3] text-xs font-bold text-[#B80064]">
+                    <span className="inline-flex items-center h-7 px-3 rounded-lg bg-ink-brand-100 text-xs font-bold text-ink-brand-deep">
                       {stats?.attendanceRate !== null && stats?.attendanceRate !== undefined ? `${stats.attendanceRate}%` : '100%'} attendance
                     </span>
                   </div>
                 </div>
 
                 {/* 3-Step Configuration Row */}
-                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-[#EEF0F3]">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-ink-100">
                   
                   {/* Step 1: Target Status */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-4 h-4 rounded-full bg-[#11151C] text-white text-[10px] font-bold flex items-center justify-center">
+                      <span className="w-4 h-4 rounded-full bg-ink-950 text-white text-[10px] font-bold flex items-center justify-center">
                         1
                       </span>
-                      <span className="text-[11px] font-extrabold tracking-wider text-[#4A5361]">
+                      <span className="text-[11px] font-extrabold tracking-wider text-ink-700">
                         TARGET STATUS
                       </span>
                     </div>
@@ -425,7 +425,7 @@ Iceberg Digital Ekibi`
                       <select
                         value={targetLevel}
                         onChange={(e) => setTargetLevel(e.target.value)}
-                        className="w-full h-11 px-3.5 pr-8 border border-[#E1E4EA] rounded-xl bg-white text-xs font-bold text-[#11151C] cursor-pointer appearance-none outline-none focus:border-[#E5007D]"
+                        className="w-full h-11 px-3.5 pr-8 border border-ink-200 rounded-xl bg-white text-xs font-bold text-ink-950 cursor-pointer appearance-none outline-none focus:border-ink-brand"
                       >
                         <option value="Alumni">Alumni — completed programme</option>
                         <option value="Iceberger">Iceberger — hired into team</option>
@@ -435,7 +435,7 @@ Iceberg Digital Ekibi`
                         ▾
                       </span>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-[#8A93A0] mt-2 mb-0">
+                    <p className="text-[11px] leading-relaxed text-ink-500 mt-2 mb-0">
                       Graduating Cubes receive an achievement or participation certificate.
                     </p>
                   </div>
@@ -443,10 +443,10 @@ Iceberg Digital Ekibi`
                   {/* Step 2: Certificate Type */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-4 h-4 rounded-full bg-[#11151C] text-white text-[10px] font-bold flex items-center justify-center">
+                      <span className="w-4 h-4 rounded-full bg-ink-950 text-white text-[10px] font-bold flex items-center justify-center">
                         2
                       </span>
-                      <span className="text-[11px] font-extrabold tracking-wider text-[#4A5361]">
+                      <span className="text-[11px] font-extrabold tracking-wider text-ink-700">
                         CERTIFICATE TYPE
                       </span>
                     </div>
@@ -457,12 +457,12 @@ Iceberg Digital Ekibi`
                         disabled={!availableCertTypes.includes('success')}
                         className={`p-2.5 rounded-xl text-left border cursor-pointer transition-all ${
                           certType === 'success'
-                            ? 'border-[#E5007D] bg-[#FFF5FA]'
-                            : 'border-[#E1E4EA] bg-white hover:border-gray-300'
+                            ? 'border-ink-brand bg-ink-brand-50'
+                            : 'border-ink-200 bg-white hover:border-gray-300'
                         } ${!availableCertTypes.includes('success') ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
-                        <span className="block text-xs font-bold text-[#11151C]">Achievement</span>
-                        <span className="block text-[10px] text-[#6B7480] mt-1 leading-snug">
+                        <span className="block text-xs font-bold text-ink-950">Achievement</span>
+                        <span className="block text-[10px] text-ink-600 mt-1 leading-snug">
                           Outstanding · gold
                         </span>
                       </button>
@@ -472,12 +472,12 @@ Iceberg Digital Ekibi`
                         onClick={() => setCertType('participation')}
                         className={`p-2.5 rounded-xl text-left border cursor-pointer transition-all ${
                           certType === 'participation'
-                            ? 'border-[#E5007D] bg-[#FFF5FA]'
-                            : 'border-[#E1E4EA] bg-white hover:border-gray-300'
+                            ? 'border-ink-brand bg-ink-brand-50'
+                            : 'border-ink-200 bg-white hover:border-gray-300'
                         }`}
                       >
-                        <span className="block text-xs font-bold text-[#11151C]">Participation</span>
-                        <span className="block text-[10px] text-[#6B7480] mt-1 leading-snug">
+                        <span className="block text-xs font-bold text-ink-950">Participation</span>
+                        <span className="block text-[10px] text-ink-600 mt-1 leading-snug">
                           Programme · light
                         </span>
                       </button>
@@ -487,10 +487,10 @@ Iceberg Digital Ekibi`
                   {/* Step 3: Programme Mentor */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-4 h-4 rounded-full bg-[#11151C] text-white text-[10px] font-bold flex items-center justify-center">
+                      <span className="w-4 h-4 rounded-full bg-ink-950 text-white text-[10px] font-bold flex items-center justify-center">
                         3
                       </span>
-                      <span className="text-[11px] font-extrabold tracking-wider text-[#4A5361]">
+                      <span className="text-[11px] font-extrabold tracking-wider text-ink-700">
                         PROGRAMME MENTOR
                       </span>
                     </div>
@@ -499,9 +499,9 @@ Iceberg Digital Ekibi`
                       value={mentorName}
                       onChange={(e) => setMentorName(e.target.value)}
                       placeholder="e.g. Ahmet Onur Solmaz"
-                      className="w-full h-11 px-3.5 border border-[#E1E4EA] rounded-xl text-xs font-bold text-[#11151C] outline-none focus:border-[#E5007D]"
+                      className="w-full h-11 px-3.5 border border-ink-200 rounded-xl text-xs font-bold text-ink-950 outline-none focus:border-ink-brand"
                     />
-                    <p className="text-[11px] leading-relaxed text-[#8A93A0] mt-2 mb-0">
+                    <p className="text-[11px] leading-relaxed text-ink-500 mt-2 mb-0">
                       Printed under the Cube's name and on the signature row.
                     </p>
                   </div>
@@ -510,30 +510,30 @@ Iceberg Digital Ekibi`
                 {/* Live Preview Dual Section */}
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="text-[11px] font-extrabold tracking-wider text-[#4A5361]">
+                    <span className="text-[11px] font-extrabold tracking-wider text-ink-700">
                       LIVE PREVIEW
                     </span>
-                    <span className="flex-1 h-[1px] bg-[#EEF0F3]" />
+                    <span className="flex-1 h-[1px] bg-ink-100" />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     
                     {/* Left Sub-card: Live Mini Certificate */}
-                    <div className="border border-[#E7E9EE] rounded-2xl overflow-hidden flex flex-col">
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-[#FCFCFD] border-b border-[#EEF0F3]">
-                        <span className="text-[10.5px] font-extrabold tracking-wider text-[#8A93A0] uppercase">
+                    <div className="border border-ink-150 rounded-2xl overflow-hidden flex flex-col">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-ink-20 border-b border-ink-100">
+                        <span className="text-[10.5px] font-extrabold tracking-wider text-ink-500 uppercase">
                           {certType === 'success' ? 'ACHIEVEMENT CERTIFICATE' : 'PARTICIPATION CERTIFICATE'}
                         </span>
                         <button
                           type="button"
                           onClick={() => setShowLargePreview(true)}
-                          className="text-xs font-bold text-[#E5007D] hover:underline bg-transparent border-none cursor-pointer"
+                          className="text-xs font-bold text-ink-brand hover:underline bg-transparent border-none cursor-pointer"
                         >
                           Enlarge ↗
                         </button>
                       </div>
 
-                      <div className="p-4 bg-[#F7F8FA] flex items-center justify-center">
+                      <div className="p-4 bg-ink-40 flex items-center justify-center">
                         <ScaledCertificatePreview
                           name={selectedCube.user?.name || ''}
                           cubeNumber={selectedCube.cube_number}
@@ -552,19 +552,19 @@ Iceberg Digital Ekibi`
                     </div>
 
                     {/* Right Sub-card: Outreach Email Editor */}
-                    <div className="border border-[#E7E9EE] rounded-2xl overflow-hidden flex flex-col">
-                      <div className="flex items-center justify-between px-4 py-2 bg-[#FCFCFD] border-b border-[#EEF0F3]">
-                        <span className="text-[10.5px] font-extrabold tracking-wider text-[#8A93A0]">
+                    <div className="border border-ink-150 rounded-2xl overflow-hidden flex flex-col">
+                      <div className="flex items-center justify-between px-4 py-2 bg-ink-20 border-b border-ink-100">
+                        <span className="text-[10.5px] font-extrabold tracking-wider text-ink-500">
                           OUTREACH EMAIL
                         </span>
-                        <div className="flex bg-[#F1F3F6] p-0.5 rounded-lg">
+                        <div className="flex bg-ink-75 p-0.5 rounded-lg">
                           <button
                             type="button"
                             onClick={() => setActiveLangTab('en')}
                             className={`h-6 px-3 border-none rounded-md text-xs font-bold cursor-pointer transition-colors ${
                               activeLangTab === 'en'
-                                ? 'bg-white text-[#11151C] shadow-sm'
-                                : 'bg-transparent text-[#8A93A0]'
+                                ? 'bg-white text-ink-950 shadow-sm'
+                                : 'bg-transparent text-ink-500'
                             }`}
                           >
                             EN
@@ -574,8 +574,8 @@ Iceberg Digital Ekibi`
                             onClick={() => setActiveLangTab('tr')}
                             className={`h-6 px-3 border-none rounded-md text-xs font-bold cursor-pointer transition-colors ${
                               activeLangTab === 'tr'
-                                ? 'bg-white text-[#11151C] shadow-sm'
-                                : 'bg-transparent text-[#8A93A0]'
+                                ? 'bg-white text-ink-950 shadow-sm'
+                                : 'bg-transparent text-ink-500'
                             }`}
                           >
                             TR
@@ -590,12 +590,12 @@ Iceberg Digital Ekibi`
                           onChange={(e) =>
                             activeLangTab === 'en' ? setEmailEn(e.target.value) : setEmailTr(e.target.value)
                           }
-                          className="w-full flex-1 p-2.5 border border-[#E1E4EA] rounded-xl text-xs leading-relaxed text-[#3D4652] outline-none font-sans resize-none focus:border-[#E5007D]"
+                          className="w-full flex-1 p-2.5 border border-ink-200 rounded-xl text-xs leading-relaxed text-ink-800 outline-none font-sans resize-none focus:border-ink-brand"
                         />
                       </div>
 
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-[#FCFCFD] border-t border-[#EEF0F3] text-xs">
-                        <span className="text-[#9AA2AE] truncate">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-ink-20 border-t border-ink-100 text-xs">
+                        <span className="text-ink-400 truncate">
                           To: {selectedCube.user?.email || 'candidate@example.com'}
                         </span>
                         <button
@@ -606,7 +606,7 @@ Iceberg Digital Ekibi`
                             setCopiedEmail(true);
                             setTimeout(() => setCopiedEmail(false), 2000);
                           }}
-                          className="text-[#E5007D] font-bold hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1"
+                          className="text-ink-brand font-bold hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1"
                         >
                           <Copy className="w-3.5 h-3.5" />
                           <span>{copiedEmail ? 'Copied ✓' : 'Copy Text'}</span>
@@ -617,15 +617,15 @@ Iceberg Digital Ekibi`
                 </div>
 
                 {/* Action Bar Footer */}
-                <div className="flex items-center justify-between gap-4 p-5 bg-[#FCFCFD] border-t border-[#EEF0F3] flex-wrap">
-                  <span className="text-xs text-[#6B7480]">
-                    Certificate <strong className="font-mono text-[#11151C] font-semibold">{estimatedCertNo}</strong> will be generated.
+                <div className="flex items-center justify-between gap-4 p-5 bg-ink-20 border-t border-ink-100 flex-wrap">
+                  <span className="text-xs text-ink-600">
+                    Certificate <strong className="font-mono text-ink-950 font-semibold">{estimatedCertNo}</strong> will be generated.
                   </span>
                   <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => setSelectedCube(null)}
-                      className="h-10 px-4 border border-[#E1E4EA] rounded-xl bg-white text-xs font-bold text-[#4A5361] hover:border-gray-400 cursor-pointer transition-colors"
+                      className="h-10 px-4 border border-ink-200 rounded-xl bg-white text-xs font-bold text-ink-700 hover:border-gray-400 cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
@@ -633,7 +633,7 @@ Iceberg Digital Ekibi`
                       type="button"
                       disabled={submitting}
                       onClick={handleConfirmOffboarding}
-                      className="h-10 px-5 border-none rounded-xl bg-[#E5007D] hover:bg-[#C90070] text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-[#E5007D]/25 disabled:opacity-50 flex items-center gap-1.5"
+                      className="h-10 px-5 border-none rounded-xl bg-ink-brand hover:bg-ink-brand-hover text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-[#E5007D]/25 disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {submitting ? 'Offboarding...' : '✓ Accept & Offboard'}
                     </button>
@@ -642,7 +642,7 @@ Iceberg Digital Ekibi`
 
               </div>
             ) : (
-              <div className="bg-white border border-[#E7E9EE] rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-3 text-gray-400">
+              <div className="bg-white border border-ink-150 rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-3 text-gray-400">
                 <GraduationCap className="w-10 h-10 text-gray-300" />
                 <div className="text-sm font-bold text-gray-600">No Cube Selected</div>
                 <p className="text-xs text-gray-400 max-w-sm m-0">
@@ -652,16 +652,16 @@ Iceberg Digital Ekibi`
             )}
 
             {/* Alumni Records Table */}
-            <div className="bg-white border border-[#E7E9EE] rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center justify-between p-5 border-b border-[#EEF0F3]">
+            <div className="bg-white border border-ink-150 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between p-5 border-b border-ink-100">
                 <h3 className="text-base font-extrabold tracking-tight m-0">Alumni Records</h3>
-                <span className="font-mono text-xs text-[#9AA2AE]">{alumni.length} issued</span>
+                <span className="font-mono text-xs text-ink-400">{alumni.length} issued</span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-[#FCFCFD] border-b border-[#EEF0F3] text-[10px] font-extrabold tracking-wider text-[#9AA2AE] uppercase">
+                    <tr className="bg-ink-20 border-b border-ink-100 text-[10px] font-extrabold tracking-wider text-ink-400 uppercase">
                       <th className="py-3 px-5">CUBE</th>
                       <th className="py-3 px-5">NAME</th>
                       <th className="py-3 px-5">LEFT AS</th>
@@ -672,7 +672,7 @@ Iceberg Digital Ekibi`
                       <th className="py-3 px-5 text-right">ACTIONS</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F1F3F6]">
+                  <tbody className="divide-y divide-ink-75">
                     {alumni.map((a) => {
                       const rec = a.offboarding_record;
                       const isAch = rec?.type === 'success' || rec?.type === 'achievement';
@@ -680,36 +680,36 @@ Iceberg Digital Ekibi`
                         ? new Date(rec.issue_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                         : '-';
                       return (
-                        <tr key={a.id} className="hover:bg-[#FCFCFD] transition-colors">
-                          <td className="py-3.5 px-5 font-mono font-bold text-[#E5007D]">
+                        <tr key={a.id} className="hover:bg-ink-20 transition-colors">
+                          <td className="py-3.5 px-5 font-mono font-bold text-ink-brand">
                             #{a.cube_number}
                           </td>
-                          <td className="py-3.5 px-5 font-bold text-[#11151C]">
-                            <Link to={`/x/${a.cube_number}`} className="hover:text-[#E5007D] transition-colors">
+                          <td className="py-3.5 px-5 font-bold text-ink-950">
+                            <Link to={`/x/${a.cube_number}`} className="hover:text-ink-brand transition-colors">
                               {a.user?.name}
                             </Link>
                           </td>
                           <td className="py-3.5 px-5">
-                            <span className="inline-flex items-center h-6 px-2.5 rounded-md text-[10.5px] font-bold bg-[#E6F6F7] text-[#0E7C86]">
+                            <span className="inline-flex items-center h-6 px-2.5 rounded-md text-[10.5px] font-bold bg-ink-teal-50 text-ink-teal">
                               {a.current_level}
                             </span>
                           </td>
-                          <td className="py-3.5 px-5 font-mono text-[#6B7480]">
+                          <td className="py-3.5 px-5 font-mono text-ink-600">
                             {rec?.certificate_no || '-'}
                           </td>
                           <td className="py-3.5 px-5">
                             <span
                               className={`inline-flex items-center h-6 px-2.5 rounded-md text-[10.5px] font-bold ${
-                                isAch ? 'bg-[#FDF1DF] text-[#B26A00]' : 'bg-[#F1F3F6] text-[#4A5361]'
+                                isAch ? 'bg-ink-amber-50 text-ink-amber' : 'bg-ink-75 text-ink-700'
                               }`}
                             >
                               {isAch ? 'Achievement' : 'Participation'}
                             </span>
                           </td>
-                          <td className="py-3.5 px-5 text-[#4A5361]">
+                          <td className="py-3.5 px-5 text-ink-700">
                             {rec?.mentor_name || '-'}
                           </td>
-                          <td className="py-3.5 px-5 text-[#8A93A0]">
+                          <td className="py-3.5 px-5 text-ink-500">
                             {dateStr}
                           </td>
                           <td className="py-3.5 px-5 text-right">
@@ -718,7 +718,7 @@ Iceberg Digital Ekibi`
                                 type="button"
                                 onClick={() => setViewingAlumni(a)}
                                 title="View Outreach Email"
-                                className="h-7 px-2.5 border border-[#E1E4EA] rounded-lg bg-white text-[11px] font-bold text-[#4A5361] hover:border-gray-400 cursor-pointer transition-colors"
+                                className="h-7 px-2.5 border border-ink-200 rounded-lg bg-white text-[11px] font-bold text-ink-700 hover:border-gray-400 cursor-pointer transition-colors"
                               >
                                 Email
                               </button>
@@ -726,7 +726,7 @@ Iceberg Digital Ekibi`
                                 to={`/offboarding/certificate/${a.id}?download=true`}
                                 target="_blank"
                                 title="Print / Download PDF"
-                                className="inline-flex items-center h-7 px-2.5 border border-[#FBD3E7] rounded-lg bg-[#FFF5FA] text-[11px] font-bold text-[#B80064] hover:bg-[#FDE7F3] transition-colors"
+                                className="inline-flex items-center h-7 px-2.5 border border-ink-brand-200 rounded-lg bg-ink-brand-50 text-[11px] font-bold text-ink-brand-deep hover:bg-ink-brand-100 transition-colors"
                               >
                                 Print
                               </Link>
@@ -734,7 +734,7 @@ Iceberg Digital Ekibi`
                                 type="button"
                                 onClick={() => setRevertingAlumni(a)}
                                 title="Revert Offboarding Status"
-                                className="h-7 px-2 border border-[#E1E4EA] rounded-lg bg-white text-[11px] font-bold text-[#8A93A0] hover:text-red-600 hover:border-red-300 cursor-pointer transition-colors"
+                                className="h-7 px-2 border border-ink-200 rounded-lg bg-white text-[11px] font-bold text-ink-500 hover:text-red-600 hover:border-red-300 cursor-pointer transition-colors"
                               >
                                 Revert
                               </button>
@@ -822,7 +822,7 @@ Iceberg Digital Ekibi`
                   navigator.clipboard.writeText(text);
                   alert('Email copied to clipboard!');
                 }}
-                className="h-9 px-4 bg-[#11151C] hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                className="h-9 px-4 bg-ink-950 hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer transition-colors"
               >
                 Copy to Clipboard
               </button>
