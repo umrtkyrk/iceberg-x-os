@@ -13,3 +13,4 @@ require('./webinar.test.ts');
 require('./activity.test.ts');
 require('./activityStatus.test.ts');
 require('./cubeSignals.test.ts');
+require('./attachment.test.ts');

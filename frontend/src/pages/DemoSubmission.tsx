@@ -32,6 +32,8 @@ export const DemoSubmission: React.FC = () => {
   const [documentUrl, setDocumentUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
+  const [attachmentsBusy, setAttachmentsBusy] = useState(false);
 
   // AI assistant states
   const [aiRefResult, setAiRefResult] = useState<string | null>(null);
@@ -135,7 +137,8 @@ export const DemoSubmission: React.FC = () => {
       pull_request_url: pullRequestUrl || null,
       demo_url: demoUrl || null,
       document_url: documentUrl || null,
-      video_url: videoUrl || null
+      video_url: videoUrl || null,
+      attachment_ids: attachmentIds
     };
 
     try {
@@ -325,9 +328,14 @@ export const DemoSubmission: React.FC = () => {
             </div>
           </div>
 
+          <div className="flex flex-col gap-1.5 border-t border-gray-50 pt-5">
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Screenshots & documents</label>
+            <AttachmentPicker onChange={setAttachmentIds} onBusyChange={setAttachmentsBusy} />
+          </div>
+
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || attachmentsBusy}
             className="w-full mt-4 py-3.5 bg-magenta text-white font-bold text-xs tracking-wide uppercase rounded-xl hover:bg-magenta-hover active:scale-[0.99] transition-all shadow-md shadow-magenta/15 flex items-center justify-center gap-1.5"
           >
             <Send className="w-4 h-4" />
@@ -386,3 +394,4 @@ export const DemoSubmission: React.FC = () => {
   );
 };
 import { PageHeader } from '../components/PageHeader';
+import { AttachmentPicker } from '../components/Attachments';

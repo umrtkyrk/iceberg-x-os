@@ -78,100 +78,101 @@ enum RecommendedNextStep {
 }
 
 model User {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
-  email         String   @unique
+  email         String    @unique
   password_hash String
-  role          Role     @default(CUBE)
+  role          Role      @default(CUBE)
   avatar_url    String?
   last_login_at DateTime?
   last_seen_at  DateTime?
-  login_streak  Int      @default(0)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  login_streak  Int       @default(0)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
-  activity_days UserActivityDay[]
-  forum_topics ForumTopic[]
-  forum_replies ForumReply[]
-  forum_states ForumTopicState[]
-  forum_reports ForumReport[]
-  forum_profile ForumProfile?
+  activity_days     UserActivityDay[]
+  forum_topics      ForumTopic[]
+  forum_replies     ForumReply[]
+  forum_states      ForumTopicState[]
+  forum_reports     ForumReport[]
+  forum_profile     ForumProfile?
   forum_topic_likes ForumTopicLike[]
   forum_reply_likes ForumReplyLike[]
 
   // Relations
-  cube_profile         CubeProfile?          @relation("UserToCubeProfile")
-  assigned_cubes       CubeProfile[]         @relation("MentorToCube")
-  created_missions     Mission[]             @relation("MissionCreator")
-  assigned_missions    Mission[]             @relation("MissionMentor")
-  updates              Update[]
-  demo_submissions     DemoSubmission[]
-  mentor_feedback      MentorFeedback[]      @relation("FeedbackMentor")
-  cube_feedback        MentorFeedback[]      @relation("FeedbackCube")
-  awarded_badges       CubeBadge[]           @relation("BadgeAwarder")
-  presentations        DemoDayPresentation[]
-  private_notes_created PrivateNote[]        @relation("NotesCreated")
-  notifications        Notification[]       @relation("UserNotifications")
-  invites              UserInvite[]         @relation("UserInvites")
-  invites_created      UserInvite[]         @relation("InvitesCreated")
-  uploaded_documents   CubeDocument[]       @relation("DocumentUploader")
-  reviewed_documents   CubeDocument[]       @relation("DocumentReviewer")
+  cube_profile          CubeProfile?          @relation("UserToCubeProfile")
+  assigned_cubes        CubeProfile[]         @relation("MentorToCube")
+  created_missions      Mission[]             @relation("MissionCreator")
+  assigned_missions     Mission[]             @relation("MissionMentor")
+  updates               Update[]
+  demo_submissions      DemoSubmission[]
+  mentor_feedback       MentorFeedback[]      @relation("FeedbackMentor")
+  cube_feedback         MentorFeedback[]      @relation("FeedbackCube")
+  awarded_badges        CubeBadge[]           @relation("BadgeAwarder")
+  presentations         DemoDayPresentation[]
+  private_notes_created PrivateNote[]         @relation("NotesCreated")
+  notifications         Notification[]        @relation("UserNotifications")
+  invites               UserInvite[]          @relation("UserInvites")
+  invites_created       UserInvite[]          @relation("InvitesCreated")
+  uploaded_documents    CubeDocument[]        @relation("DocumentUploader")
+  reviewed_documents    CubeDocument[]        @relation("DocumentReviewer")
+  uploaded_attachments  Attachment[]          @relation("AttachmentUploader")
 }
 
 model CubeProfile {
-  id                 String      @id @default(uuid())
-  user_id            String      @unique
-  user               User        @relation("UserToCubeProfile", fields: [user_id], references: [id], onDelete: Cascade)
-  cube_number        String      @unique // e.g. "001", "002"
-  cohort             String
-  university         String
-  department         String
-  github_url         String?
-  gitlab_url         String?
-  linkedin_url       String?
-  slack_handle       String?
-  phone_number       String?
-  skills             String[]
-  interests          String[]
-  current_level      CubeLevel   @default(Cube)
-  internship_status  String?
-  is_founding_cube   Boolean     @default(false)
-  avatar_url         String?
-  assigned_mentor_id String?
-  assigned_mentor    User?       @relation("MentorToCube", fields: [assigned_mentor_id], references: [id], onDelete: SetNull)
-  nda_signed         Boolean     @default(false)
-  nda_signed_at      DateTime?
-  nda_status         String      @default("not_sent")
+  id                  String    @id @default(uuid())
+  user_id             String    @unique
+  user                User      @relation("UserToCubeProfile", fields: [user_id], references: [id], onDelete: Cascade)
+  cube_number         String    @unique // e.g. "001", "002"
+  cohort              String
+  university          String
+  department          String
+  github_url          String?
+  gitlab_url          String?
+  linkedin_url        String?
+  slack_handle        String?
+  phone_number        String?
+  skills              String[]
+  interests           String[]
+  current_level       CubeLevel @default(Cube)
+  internship_status   String?
+  is_founding_cube    Boolean   @default(false)
+  avatar_url          String?
+  assigned_mentor_id  String?
+  assigned_mentor     User?     @relation("MentorToCube", fields: [assigned_mentor_id], references: [id], onDelete: SetNull)
+  nda_signed          Boolean   @default(false)
+  nda_signed_at       DateTime?
+  nda_status          String    @default("not_sent")
   /// Set by staff to publicly mark a Cube as close to Senior Cube. Cleared
   /// automatically when they are promoted.
-  is_senior_candidate Boolean    @default(false)
+  is_senior_candidate Boolean   @default(false)
   /// When the Cube first reached the Iceberger level (null for those who got
   /// there before this was recorded).
-  iceberger_at       DateTime?
+  iceberger_at        DateTime?
   /// When an Iceberger was promoted to Mentor. The profile is kept as history.
-  mentor_promoted_at DateTime?
-  created_at         DateTime    @default(now())
-  updated_at         DateTime    @updatedAt
+  mentor_promoted_at  DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
   // Relations
-  team_memberships   MissionTeamMember[]
-  mission_contributions MissionContributor[]
-  cube_badges        CubeBadge[]
-  meeting_attendance MeetingAttendance[]
-  webinar_questions  WebinarQuestion[]
-  webinar_attendance WebinarAttendance[]
-  webinar_votes      WebinarQuestionVote[]
-  offboarding_record OffboardingRecord?
-  private_notes      PrivateNote[]
-  testimonials       Testimonial[]
-  cube_quests        CubeQuest[]
-  documents          CubeDocument[]
-  quiz_attempts      QuizAttempt[]
-  peer_feedback_received PeerFeedback[]       @relation("PeerFeedbackReceived")
-  peer_signal            PeerSignal?          @relation("PeerSignalCube")
-  peer_growth_signals    PeerGrowthSignal[]   @relation("PeerGrowthCube")
-  peer_titles            PeerTitle[]          @relation("PeerTitleCube")
-  mvcubes_awards         MvcubesAward[]       @relation("MvcubesCube")
+  team_memberships       MissionTeamMember[]
+  mission_contributions  MissionContributor[]
+  cube_badges            CubeBadge[]
+  meeting_attendance     MeetingAttendance[]
+  webinar_questions      WebinarQuestion[]
+  webinar_attendance     WebinarAttendance[]
+  webinar_votes          WebinarQuestionVote[]
+  offboarding_record     OffboardingRecord?
+  private_notes          PrivateNote[]
+  testimonials           Testimonial[]
+  cube_quests            CubeQuest[]
+  documents              CubeDocument[]
+  quiz_attempts          QuizAttempt[]
+  peer_feedback_received PeerFeedback[]        @relation("PeerFeedbackReceived")
+  peer_signal            PeerSignal?           @relation("PeerSignalCube")
+  peer_growth_signals    PeerGrowthSignal[]    @relation("PeerGrowthCube")
+  peer_titles            PeerTitle[]           @relation("PeerTitleCube")
+  mvcubes_awards         MvcubesAward[]        @relation("MvcubesCube")
 
   @@index([assigned_mentor_id])
   @@index([current_level])
@@ -180,37 +181,37 @@ model CubeProfile {
 }
 
 model Mission {
-  forum_contexts ForumTopicContext[]
-  id                 String                @id @default(uuid())
-  title              String
-  description        String
-  context            String
-  problem_statement  String
-  expected_output    String
-  difficulty_level   DifficultyLevel
-  status             MissionStatus         @default(idea_pool)
-  category           String                @default("General")
-  created_by_id      String
-  created_by         User                  @relation("MissionCreator", fields: [created_by_id], references: [id])
-  mentor_id          String?
-  mentor             User?                 @relation("MissionMentor", fields: [mentor_id], references: [id])
-  slack_channel_url  String?
-  repository_url     String?
-  demo_url           String?
-  decision           MissionDecision?
-  created_at         DateTime              @default(now())
-  updated_at         DateTime              @updatedAt
+  forum_contexts    ForumTopicContext[]
+  id                String              @id @default(uuid())
+  title             String
+  description       String
+  context           String
+  problem_statement String
+  expected_output   String
+  difficulty_level  DifficultyLevel
+  status            MissionStatus       @default(idea_pool)
+  category          String              @default("General")
+  created_by_id     String
+  created_by        User                @relation("MissionCreator", fields: [created_by_id], references: [id])
+  mentor_id         String?
+  mentor            User?               @relation("MissionMentor", fields: [mentor_id], references: [id])
+  slack_channel_url String?
+  repository_url    String?
+  demo_url          String?
+  decision          MissionDecision?
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
 
   // Relations
-  teams              MissionTeam[]
-  updates            Update[]
-  demo_submissions   DemoSubmission[]
-  mentor_feedbacks   MentorFeedback[]
-  cube_badges        CubeBadge[]
-  presentations      DemoDayPresentation[]
-  contributors       MissionContributor[]
-  predecessor_links  MissionLink[]         @relation("MissionPredecessors")
-  followup_links     MissionLink[]         @relation("MissionFollowUps")
+  teams             MissionTeam[]
+  updates           Update[]
+  demo_submissions  DemoSubmission[]
+  mentor_feedbacks  MentorFeedback[]
+  cube_badges       CubeBadge[]
+  presentations     DemoDayPresentation[]
+  contributors      MissionContributor[]
+  predecessor_links MissionLink[]         @relation("MissionPredecessors")
+  followup_links    MissionLink[]         @relation("MissionFollowUps")
 
   @@index([status])
   @@index([mentor_id])
@@ -241,7 +242,7 @@ model MissionContributor {
   cube_id     String
   cube        CubeProfile    @relation(fields: [cube_id], references: [id], onDelete: Cascade)
   role        TeamMemberRole @default(Contributor)
-  team_name   String?        // team they were on, kept after the team is deleted
+  team_name   String? // team they were on, kept after the team is deleted
   assigned_at DateTime       @default(now())
   released_at DateTime?
   updated_at  DateTime       @updatedAt
@@ -251,17 +252,17 @@ model MissionContributor {
 }
 
 model MissionTeam {
-  id         String      @id @default(uuid())
+  id         String   @id @default(uuid())
   mission_id String?
-  mission    Mission?     @relation(fields: [mission_id], references: [id], onDelete: SetNull)
+  mission    Mission? @relation(fields: [mission_id], references: [id], onDelete: SetNull)
   name       String
-  created_at DateTime    @default(now())
-  updated_at DateTime    @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relations
-  members            MissionTeamMember[]
-  demo_submissions   DemoSubmission[]
-  presentations      DemoDayPresentation[]
+  members          MissionTeamMember[]
+  demo_submissions DemoSubmission[]
+  presentations    DemoDayPresentation[]
 
   @@index([mission_id])
 }
@@ -273,9 +274,9 @@ model MissionTeamMember {
   cube_id              String
   cube                 CubeProfile    @relation(fields: [cube_id], references: [id], onDelete: Cascade)
   role                 TeamMemberRole @default(Contributor)
-  what_gained          String?        // Ne aldığını
-  what_learned         String?        // Ne öğrendiğini
-  what_could_be_better String?        // Neyi daha iyi yapabileceğini
+  what_gained          String? // Ne aldığını
+  what_learned         String? // Ne öğrendiğini
+  what_could_be_better String? // Neyi daha iyi yapabileceğini
   is_submitted         Boolean        @default(false)
   submitted_at         DateTime?
   created_at           DateTime       @default(now())
@@ -297,36 +298,39 @@ model Update {
   created_at DateTime   @default(now())
   updated_at DateTime   @updatedAt
 
+  attachments Attachment[]
+
   @@index([mission_id, created_at])
   @@index([cube_id])
 }
 
 model DemoSubmission {
-  id                            String                @id @default(uuid())
-  mission_id                    String
-  mission                       Mission               @relation(fields: [mission_id], references: [id], onDelete: Cascade)
-  team_id                       String?
-  team                          MissionTeam?          @relation(fields: [team_id], references: [id], onDelete: SetNull)
-  submitted_by_id               String
-  submitted_by                  User                  @relation(fields: [submitted_by_id], references: [id])
-  title                         String
-  summary                       String
-  what_we_built                 String
-  what_we_learned               String
-  what_worked_well              String
+  id                             String       @id @default(uuid())
+  mission_id                     String
+  mission                        Mission      @relation(fields: [mission_id], references: [id], onDelete: Cascade)
+  team_id                        String?
+  team                           MissionTeam? @relation(fields: [team_id], references: [id], onDelete: SetNull)
+  submitted_by_id                String
+  submitted_by                   User         @relation(fields: [submitted_by_id], references: [id])
+  title                          String
+  summary                        String
+  what_we_built                  String
+  what_we_learned                String
+  what_worked_well               String
   what_could_we_have_done_better String
-  recommendation                String?
-  repository_url                String?
-  pull_request_url              String?
-  demo_url                      String?
-  document_url                  String?
-  video_url                     String?
-  submitted_at                  DateTime              @default(now())
-  created_at                    DateTime              @default(now())
-  updated_at                    DateTime              @updatedAt
+  recommendation                 String?
+  repository_url                 String?
+  pull_request_url               String?
+  demo_url                       String?
+  document_url                   String?
+  video_url                      String?
+  submitted_at                   DateTime     @default(now())
+  created_at                     DateTime     @default(now())
+  updated_at                     DateTime     @updatedAt
 
   // Relations
-  presentations                 DemoDayPresentation[]
+  presentations DemoDayPresentation[]
+  attachments   Attachment[]
 
   @@index([mission_id])
   @@index([submitted_by_id])
@@ -334,29 +338,29 @@ model DemoSubmission {
 }
 
 model MentorFeedback {
-  id                       String              @id @default(uuid())
-  cube_id                  String
-  cube                     User                @relation("FeedbackCube", fields: [cube_id], references: [id], onDelete: Cascade)
-  mission_id               String?
-  mission                  Mission?            @relation(fields: [mission_id], references: [id], onDelete: Cascade)
-  mentor_id                String
-  mentor                   User                @relation("FeedbackMentor", fields: [mentor_id], references: [id], onDelete: Cascade)
-  technical_ability_score  Int
-  research_ability_score   Int
-  demo_output_score        Int
-  ownership_score          Int
-  communication_score      Int
-  leadership_score         Int
-  product_thinking_score   Int
-  reliability_score        Int
-  self_reflection_score    Int
-  strengths                String
-  areas_to_improve         String
-  private_notes            String?
-  visible_to_cube          Boolean             @default(false)
-  recommended_next_step    RecommendedNextStep
-  created_at               DateTime            @default(now())
-  updated_at               DateTime            @updatedAt
+  id                      String              @id @default(uuid())
+  cube_id                 String
+  cube                    User                @relation("FeedbackCube", fields: [cube_id], references: [id], onDelete: Cascade)
+  mission_id              String?
+  mission                 Mission?            @relation(fields: [mission_id], references: [id], onDelete: Cascade)
+  mentor_id               String
+  mentor                  User                @relation("FeedbackMentor", fields: [mentor_id], references: [id], onDelete: Cascade)
+  technical_ability_score Int
+  research_ability_score  Int
+  demo_output_score       Int
+  ownership_score         Int
+  communication_score     Int
+  leadership_score        Int
+  product_thinking_score  Int
+  reliability_score       Int
+  self_reflection_score   Int
+  strengths               String
+  areas_to_improve        String
+  private_notes           String?
+  visible_to_cube         Boolean             @default(false)
+  recommended_next_step   RecommendedNextStep
+  created_at              DateTime            @default(now())
+  updated_at              DateTime            @updatedAt
 
   @@unique([cube_id, mission_id, mentor_id])
   @@index([mentor_id])
@@ -379,7 +383,7 @@ model Badge {
   id          String      @id @default(uuid())
   name        String      @unique
   description String
-  icon        String      // Icon key from the badge icon catalogue
+  icon        String // Icon key from the badge icon catalogue
   rarity      BadgeRarity @default(Common)
   /// Optional accent colour key; falls back to the rarity's own palette.
   accent      String?
@@ -414,12 +418,12 @@ model CubeBadge {
 }
 
 model DemoDay {
-  id          String                @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   date        DateTime
   description String?
-  created_at  DateTime              @default(now())
-  updated_at  DateTime              @updatedAt
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   // Relations
   presentations DemoDayPresentation[]
@@ -467,9 +471,9 @@ model CubeApplication {
   score_communication Int?
   score_ownership     Int?
   score_teamfit       Int?
-  evaluation_note     String?  @db.Text
+  evaluation_note     String?          @db.Text
   interview_at        DateTime?
-  interview_note      String?  @db.Text
+  interview_note      String?          @db.Text
 
   case ApplicationCase?
 
@@ -525,19 +529,19 @@ model ApplicationCase {
 }
 
 model Meeting {
-  id           String              @id @default(uuid())
-  title        String
-  description  String?             @db.Text
-  date         DateTime
-  is_completed Boolean             @default(false)
-  decisions    String?             @db.Text
-  summary      String?             @db.Text
-  created_at       DateTime            @default(now())
-  updated_at       DateTime            @updatedAt
+  id               String   @id @default(uuid())
+  title            String
+  description      String?  @db.Text
+  date             DateTime
+  is_completed     Boolean  @default(false)
+  decisions        String?  @db.Text
+  summary          String?  @db.Text
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
   invited_cube_ids String[]
 
   // Relations
-  attendance   MeetingAttendance[]
+  attendance MeetingAttendance[]
 }
 
 model MeetingAttendance {
@@ -563,8 +567,8 @@ model MeetingAttendance {
 // ---------------------------------------------------------------------------
 
 enum WebinarStatus {
-  Draft      // visible to staff only
-  Published  // visible to invited Cubes, questions open until the webinar starts
+  Draft // visible to staff only
+  Published // visible to invited Cubes, questions open until the webinar starts
   Completed
   Cancelled
 }
@@ -573,7 +577,7 @@ enum WebinarStatus {
 model Speaker {
   id           String   @id @default(uuid())
   name         String
-  headline     String?  /// Current role, e.g. "VP of Engineering"
+  headline     String? /// Current role, e.g. "VP of Engineering"
   company      String?
   photo_url    String?
   bio          String?  @db.Text /// Markdown
@@ -589,33 +593,33 @@ model Speaker {
 }
 
 model Webinar {
-  id                 String        @id @default(uuid())
-  title              String
-  description        String?       @db.Text /// Markdown
-  date               DateTime
-  duration_minutes   Int           @default(60)
-  meeting_url        String?
+  id                        String        @id @default(uuid())
+  title                     String
+  description               String?       @db.Text /// Markdown
+  date                      DateTime
+  duration_minutes          Int           @default(60)
+  meeting_url               String?
   /// After this moment new questions are still accepted until the webinar
   /// starts, but are marked late.
-  questions_close_at DateTime
-  status             WebinarStatus @default(Draft)
+  questions_close_at        DateTime
+  status                    WebinarStatus @default(Draft)
   /// Empty means every Cube in the programme is expected to take part.
-  invited_cube_ids   String[]
-  recording_url      String?
-  slides_url         String?
-  summary            String?       @db.Text
-  created_by_id      String?
-  published_at       DateTime?
+  invited_cube_ids          String[]
+  recording_url             String?
+  slides_url                String?
+  summary                   String?       @db.Text
+  created_by_id             String?
+  published_at              DateTime?
   /// Set when staff save attendance and close the webinar.
-  completed_at       DateTime?
+  completed_at              DateTime?
   /// AI-suggested themes: [{ title, question_ids }]. Regenerated on demand.
-  question_groups    Json?
-  question_groups_at DateTime?
+  question_groups           Json?
+  question_groups_at        DateTime?
   /// Claimed once by the reminder sweep so a reminder is never sent twice.
   deadline_reminder_sent_at DateTime?
   start_reminder_sent_at    DateTime?
-  created_at         DateTime      @default(now())
-  updated_at         DateTime      @updatedAt
+  created_at                DateTime      @default(now())
+  updated_at                DateTime      @updatedAt
 
   speakers   WebinarSpeaker[]
   questions  WebinarQuestion[]
@@ -711,7 +715,7 @@ model OffboardingRecord {
   cube_id        String      @unique
   cube           CubeProfile @relation(fields: [cube_id], references: [id], onDelete: Cascade)
   certificate_no String      @unique // e.g., "ICE-2026-000047"
-  type           String      // "success" or "participation"
+  type           String // "success" or "participation"
   mentor_name    String
   issue_date     DateTime    @default(now())
   email_text_tr  String      @db.Text
@@ -721,16 +725,16 @@ model OffboardingRecord {
 }
 
 model PrivateNote {
-  id             String      @id @default(uuid())
-  cube_id        String
-  cube           CubeProfile @relation(fields: [cube_id], references: [id], onDelete: Cascade)
-  created_by_id  String
-  created_by     User        @relation("NotesCreated", fields: [created_by_id], references: [id], onDelete: Cascade)
-  subject        String
-  note           String      @db.Text
-  score          Int?
-  created_at     DateTime    @default(now())
-  updated_at     DateTime    @updatedAt
+  id            String      @id @default(uuid())
+  cube_id       String
+  cube          CubeProfile @relation(fields: [cube_id], references: [id], onDelete: Cascade)
+  created_by_id String
+  created_by    User        @relation("NotesCreated", fields: [created_by_id], references: [id], onDelete: Cascade)
+  subject       String
+  note          String      @db.Text
+  score         Int?
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
 
   @@index([cube_id, created_at])
   @@index([created_by_id])
@@ -738,12 +742,12 @@ model PrivateNote {
 
 model Notification {
   forum_target ForumNotificationTarget?
-  id         String   @id @default(uuid())
-  user_id    String
-  user       User     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
-  message    String   @db.Text
-  created_at DateTime @default(now())
-  read_at    DateTime?
+  id           String                   @id @default(uuid())
+  user_id      String
+  user         User                     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+  message      String                   @db.Text
+  created_at   DateTime                 @default(now())
+  read_at      DateTime?
 
   @@index([user_id, created_at])
   @@index([user_id, read_at])
@@ -755,17 +759,17 @@ model Notification {
 /// created with DEFAULT_CUBE_PASSWORD keep their password_hash and can keep
 /// signing in exactly as before.
 model UserInvite {
-  id          String    @id @default(uuid())
-  user_id     String
-  user        User      @relation("UserInvites", fields: [user_id], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid())
+  user_id       String
+  user          User      @relation("UserInvites", fields: [user_id], references: [id], onDelete: Cascade)
   /// SHA-256 of the raw token. The raw value is shown to the admin once and
   /// never stored, so a database leak cannot be replayed as an invite link.
-  token_hash  String    @unique
-  expires_at  DateTime
-  accepted_at DateTime?
+  token_hash    String    @unique
+  expires_at    DateTime
+  accepted_at   DateTime?
   created_by_id String
-  created_by  User      @relation("InvitesCreated", fields: [created_by_id], references: [id], onDelete: Cascade)
-  created_at  DateTime  @default(now())
+  created_by    User      @relation("InvitesCreated", fields: [created_by_id], references: [id], onDelete: Cascade)
+  created_at    DateTime  @default(now())
 
   @@index([user_id])
   @@index([expires_at])
@@ -785,36 +789,36 @@ model Testimonial {
 }
 
 model Quest {
-  forum_contexts ForumTopicContext[]
-  id                  String      @id @default(uuid())
-  title               String
-  description         String      @db.Text
-  difficulty          BadgeRarity @default(Common)
-  criteria_type       String
-  criteria_value      Float
+  forum_contexts  ForumTopicContext[]
+  id              String              @id @default(uuid())
+  title           String
+  description     String              @db.Text
+  difficulty      BadgeRarity         @default(Common)
+  criteria_type   String
+  criteria_value  Float
   /// For "rate" criteria (average_score, meeting_attendance) only: the minimum
   /// number of underlying records (feedback entries / meetings) the rate must be
   /// computed over before the quest can complete. Without this, a Cube's very
   /// first meeting attendance is trivially "100%". Null means the service falls
   /// back to a per-difficulty default. Unused by count-based criteria types
   /// (missions_completed, etc.), where criteria_value already is the count.
-  min_sample_size     Int?
-  is_timed            Boolean     @default(false)
-  expires_at          DateTime?
+  min_sample_size Int?
+  is_timed        Boolean             @default(false)
+  expires_at      DateTime?
   /// When true the quest is assigned automatically to every eligible Cube (see
   /// ensureAutoQuestsForCube). Defaults to false, so every existing quest keeps
   /// its current manual-assignment behaviour.
-  auto_assign         Boolean     @default(false)
-  created_at          DateTime    @default(now())
-  updated_at          DateTime    @updatedAt
+  auto_assign     Boolean             @default(false)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
 
   dependency_quest_id String?
-  dependency_quest    Quest?      @relation("QuestDependency", fields: [dependency_quest_id], references: [id], onDelete: SetNull)
-  dependent_quests    Quest[]     @relation("QuestDependency")
+  dependency_quest    Quest?  @relation("QuestDependency", fields: [dependency_quest_id], references: [id], onDelete: SetNull)
+  dependent_quests    Quest[] @relation("QuestDependency")
 
   // Relations
-  rewards             Badge[]     @relation("QuestToBadge")
-  cube_quests         CubeQuest[]
+  rewards     Badge[]     @relation("QuestToBadge")
+  cube_quests CubeQuest[]
 
   @@index([difficulty])
   @@index([criteria_type])
@@ -881,22 +885,22 @@ model CubeDocument {
 }
 
 model QuizAttempt {
-  id               String       @id @default(uuid())
+  id               String      @id @default(uuid())
   cube_id          String
-  cube             CubeProfile  @relation(fields: [cube_id], references: [id], onDelete: Cascade)
-  score            Int          @default(0) // 0 - 100
-  correct_count    Int          @default(0) // 0 - 25
-  wrong_count      Int          @default(0) // 0 - 25
-  hint_penalty     Int          @default(0)
+  cube             CubeProfile @relation(fields: [cube_id], references: [id], onDelete: Cascade)
+  score            Int         @default(0) // 0 - 100
+  correct_count    Int         @default(0) // 0 - 25
+  wrong_count      Int         @default(0) // 0 - 25
+  hint_penalty     Int         @default(0)
   duration_seconds Int?
-  questions        Json         // Snapshot of questions given to the Cube (without answer key)
-  answer_key       Json         // Stored server-side correct answers & matching pairs for this attempt
-  user_answers     Json?        // Selected answers submitted by the Cube
-  hints_used       Json?        // Question indices where hint was unlocked
-  status           String       @default("in_progress") // "in_progress", "completed", "timed_out"
+  questions        Json // Snapshot of questions given to the Cube (without answer key)
+  answer_key       Json // Stored server-side correct answers & matching pairs for this attempt
+  user_answers     Json? // Selected answers submitted by the Cube
+  hints_used       Json? // Question indices where hint was unlocked
+  status           String      @default("in_progress") // "in_progress", "completed", "timed_out"
   badge_awarded_id String?
-  badge_awarded    Badge?       @relation(fields: [badge_awarded_id], references: [id], onDelete: SetNull)
-  started_at       DateTime     @default(now())
+  badge_awarded    Badge?      @relation(fields: [badge_awarded_id], references: [id], onDelete: SetNull)
+  started_at       DateTime    @default(now())
   completed_at     DateTime?
 
   @@index([cube_id])
@@ -1041,37 +1045,38 @@ model PeerReviewerStat {
 }
 
 model ForumCategory {
-  id String @id
-  name String
+  id          String       @id
+  name        String
   description String
-  position Int
-  staff_only Boolean @default(false)
-  topics ForumTopic[]
+  position    Int
+  staff_only  Boolean      @default(false)
+  topics      ForumTopic[]
 }
 
 model ForumTopic {
-  context ForumTopicContext?
+  context              ForumTopicContext?
   notification_targets ForumNotificationTarget[]
-  id String @id @default(uuid())
-  category_id String
-  category ForumCategory @relation(fields: [category_id], references: [id])
-  author_id String?
-  author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
-  title String @db.VarChar(160)
-  body String @db.Text
-  pinned Boolean @default(false)
-  locked Boolean @default(false)
-  accepted_reply_id String? @unique
-  accepted_reply ForumReply? @relation("AcceptedForumReply", fields: [accepted_reply_id], references: [id], onDelete: SetNull)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  last_activity_at DateTime @default(now())
-  deleted_at DateTime?
-  deleted_by_id String?
-  replies ForumReply[]
-  states ForumTopicState[]
-  reports ForumReport[]
-  likes ForumTopicLike[]
+  id                   String                    @id @default(uuid())
+  category_id          String
+  category             ForumCategory             @relation(fields: [category_id], references: [id])
+  author_id            String?
+  author               User?                     @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  title                String                    @db.VarChar(160)
+  body                 String                    @db.Text
+  pinned               Boolean                   @default(false)
+  locked               Boolean                   @default(false)
+  accepted_reply_id    String?                   @unique
+  accepted_reply       ForumReply?               @relation("AcceptedForumReply", fields: [accepted_reply_id], references: [id], onDelete: SetNull)
+  created_at           DateTime                  @default(now())
+  updated_at           DateTime                  @updatedAt
+  last_activity_at     DateTime                  @default(now())
+  deleted_at           DateTime?
+  deleted_by_id        String?
+  replies              ForumReply[]
+  states               ForumTopicState[]
+  reports              ForumReport[]
+  likes                ForumTopicLike[]
+
   @@index([category_id, deleted_at, last_activity_at])
   @@index([author_id])
   @@index([deleted_at, pinned, last_activity_at])
@@ -1079,47 +1084,50 @@ model ForumTopic {
 
 model ForumReply {
   notification_targets ForumNotificationTarget[]
-  id String @id @default(uuid())
-  topic_id String
-  topic ForumTopic @relation(fields: [topic_id], references: [id])
-  author_id String?
-  author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
-  body String @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  deleted_at DateTime?
-  deleted_by_id String?
-  reports ForumReport[]
-  likes ForumReplyLike[]
-  accepted_in ForumTopic? @relation("AcceptedForumReply")
+  id                   String                    @id @default(uuid())
+  topic_id             String
+  topic                ForumTopic                @relation(fields: [topic_id], references: [id])
+  author_id            String?
+  author               User?                     @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  body                 String                    @db.Text
+  created_at           DateTime                  @default(now())
+  updated_at           DateTime                  @updatedAt
+  deleted_at           DateTime?
+  deleted_by_id        String?
+  reports              ForumReport[]
+  likes                ForumReplyLike[]
+  accepted_in          ForumTopic?               @relation("AcceptedForumReply")
+
   @@index([topic_id, deleted_at, created_at])
   @@index([author_id])
 }
 
 model ForumTopicState {
-  user_id String
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  topic_id String
-  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
-  saved Boolean @default(false)
-  following Boolean @default(false)
-  read_at DateTime?
+  user_id   String
+  user      User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topic_id  String
+  topic     ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  saved     Boolean    @default(false)
+  following Boolean    @default(false)
+  read_at   DateTime?
+
   @@id([user_id, topic_id])
   @@index([topic_id])
 }
 
 model ForumReport {
-  id String @id @default(uuid())
-  reporter_id String?
-  reporter User? @relation(fields: [reporter_id], references: [id], onDelete: SetNull)
-  topic_id String
-  topic ForumTopic @relation(fields: [topic_id], references: [id])
-  reply_id String?
-  reply ForumReply? @relation(fields: [reply_id], references: [id])
-  reason String @db.VarChar(1000)
-  created_at DateTime @default(now())
-  resolved_at DateTime?
+  id             String      @id @default(uuid())
+  reporter_id    String?
+  reporter       User?       @relation(fields: [reporter_id], references: [id], onDelete: SetNull)
+  topic_id       String
+  topic          ForumTopic  @relation(fields: [topic_id], references: [id])
+  reply_id       String?
+  reply          ForumReply? @relation(fields: [reply_id], references: [id])
+  reason         String      @db.VarChar(1000)
+  created_at     DateTime    @default(now())
+  resolved_at    DateTime?
   resolved_by_id String?
+
   @@index([topic_id])
   @@index([reply_id])
   @@index([reporter_id])
@@ -1128,49 +1136,57 @@ model ForumReport {
 
 // New tables only: existing portal data stays untouched.
 model ForumProfile {
-  user_id String @id
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  signature String @default("") @db.VarChar(140)
-  badge_ids String[] @default([])
+  user_id    String   @id
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  signature  String   @default("") @db.VarChar(140)
+  badge_ids  String[] @default([])
   updated_at DateTime @updatedAt
 }
+
 model ForumTopicContext {
-  edited_at DateTime?
-  topic_id String @id
-  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
-  quest_id String?
-  quest Quest? @relation(fields: [quest_id], references: [id], onDelete: SetNull)
+  edited_at  DateTime?
+  topic_id   String     @id
+  topic      ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  quest_id   String?
+  quest      Quest?     @relation(fields: [quest_id], references: [id], onDelete: SetNull)
   mission_id String?
-  mission Mission? @relation(fields: [mission_id], references: [id], onDelete: SetNull)
+  mission    Mission?   @relation(fields: [mission_id], references: [id], onDelete: SetNull)
+
   @@index([quest_id])
   @@index([mission_id])
 }
+
 model ForumNotificationTarget {
-  notification_id String @id
-  notification Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
-  topic_id String
-  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
-  reply_id String?
-  reply ForumReply? @relation(fields: [reply_id], references: [id], onDelete: SetNull)
+  notification_id String       @id
+  notification    Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  topic_id        String
+  topic           ForumTopic   @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  reply_id        String?
+  reply           ForumReply?  @relation(fields: [reply_id], references: [id], onDelete: SetNull)
+
   @@index([topic_id])
   @@index([reply_id])
 }
+
 // One like per person per post; removing the person or the post removes the like.
 model ForumTopicLike {
-  user_id String
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  topic_id String
-  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
-  created_at DateTime @default(now())
+  user_id    String
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topic_id   String
+  topic      ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  created_at DateTime   @default(now())
+
   @@id([user_id, topic_id])
   @@index([topic_id])
 }
+
 model ForumReplyLike {
-  user_id String
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  reply_id String
-  reply ForumReply @relation(fields: [reply_id], references: [id], onDelete: Cascade)
-  created_at DateTime @default(now())
+  user_id    String
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  reply_id   String
+  reply      ForumReply @relation(fields: [reply_id], references: [id], onDelete: Cascade)
+  created_at DateTime   @default(now())
+
   @@id([user_id, reply_id])
   @@index([reply_id])
 }
@@ -1179,14 +1195,43 @@ model ForumReplyLike {
 // used the portal. A rollup, not an event log, so it stays small and holds no
 // page content. `last_path` is a normalized route such as /missions/:id.
 model UserActivityDay {
-  user_id String
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  day DateTime @db.Date
-  page_views Int @default(0)
-  active_minutes Int @default(0)
-  last_path String?
-  first_seen_at DateTime @default(now())
-  last_seen_at DateTime @default(now())
+  user_id        String
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  day            DateTime @db.Date
+  page_views     Int      @default(0)
+  active_minutes Int      @default(0)
+  last_path      String?
+  first_seen_at  DateTime @default(now())
+  last_seen_at   DateTime @default(now())
+
   @@id([user_id, day])
   @@index([day])
+}
+
+/// A file (image, PDF or DOCX) attached to a progress update or a demo
+/// submission. Uploaded first with no owner, then claimed by the update or
+/// demo it is sent with; unclaimed uploads are swept after a day. Files live
+/// in the private attachments directory and are only served after the same
+/// visibility check as the mission they belong to.
+model Attachment {
+  id                 String          @id @default(uuid())
+  update_id          String?
+  update             Update?         @relation(fields: [update_id], references: [id], onDelete: Cascade)
+  demo_submission_id String?
+  demo_submission    DemoSubmission? @relation(fields: [demo_submission_id], references: [id], onDelete: Cascade)
+  uploaded_by_id     String
+  uploaded_by        User            @relation("AttachmentUploader", fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+  /// The name the file had on the uploader's computer, shown to readers.
+  file_name          String
+  /// Random name on disk; never derived from user input.
+  stored_name        String          @unique
+  mime_type          String
+  /// image | pdf | docx — detected from the file's bytes, not its name.
+  kind               String
+  file_size          Int
+  created_at         DateTime        @default(now())
+
+  @@index([update_id])
+  @@index([demo_submission_id])
+  @@index([uploaded_by_id, created_at])
 }

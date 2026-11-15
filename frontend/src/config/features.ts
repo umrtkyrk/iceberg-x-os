@@ -6,3 +6,6 @@ export const DARK_THEME_ENABLED = import.meta.env.VITE_DARK_THEME_ENABLED === 't
 
 // Cube focus panel on the Cube dashboard: next steps, mentor, and the activity signals mentors see.
 export const CUBE_FOCUS_ENABLED = import.meta.env.VITE_CUBE_FOCUS_ENABLED === 'true';
+
+// Image, PDF and DOCX attachments on progress updates and demo submissions.
+export const ATTACHMENTS_ENABLED = import.meta.env.VITE_ATTACHMENTS_ENABLED === 'true';
