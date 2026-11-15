@@ -13,6 +13,7 @@ import { QuizScoreBadge } from '../components/QuizScoreBadge';
 import { PeerRecognition } from '../components/peer/PeerRecognition';
 import { CubeFeedbackPanel } from '../components/peer/StaffFeedback';
 import { WebinarEngagementCard } from '../components/WebinarEngagementCard';
+import { LEGACY_SCORE_ITEMS, averageLegacyScores, scorecardItems } from '../utils/scorecard';
 
 const formatExternalUrl = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -414,33 +415,9 @@ export const Profile: React.FC = () => {
   // null when there is no meeting history yet — showing 100% would be misleading
   const attendanceRate = totalMeetings > 0 ? Math.round((attendedMeetings / totalMeetings) * 100) : null;
 
-  // Calculate average scores for radar chart
-  const averageScores: { [key: string]: number } = {};
-  const skillKeys = [
-    'technical_ability_score',
-    'research_ability_score',
-    'demo_output_score',
-    'ownership_score',
-    'communication_score',
-    'leadership_score',
-    'product_thinking_score',
-    'reliability_score',
-    'self_reflection_score'
-  ];
-  skillKeys.forEach(k => {
-    averageScores[k] = 0;
-  });
-
-  if (mentorFeedback && mentorFeedback.length > 0) {
-    mentorFeedback.forEach((fb: any) => {
-      skillKeys.forEach(k => {
-        averageScores[k] += fb[k] || 0;
-      });
-    });
-    skillKeys.forEach(k => {
-      averageScores[k] = parseFloat((averageScores[k] / mentorFeedback.length).toFixed(1));
-    });
-  }
+  // Radar chart: per-column averages over the scorecards that have a value
+  // (v2 scorecards leave columns that do not apply empty).
+  const averageScores = averageLegacyScores(mentorFeedback || []);
 
   // Compute category strengths from completed missions
   const completedMissions = profile.team_memberships
@@ -504,7 +481,7 @@ export const Profile: React.FC = () => {
   let feedbackScoresCount = 0;
   if (mentorFeedback && mentorFeedback.length > 0) {
     mentorFeedback.forEach((fb: any) => {
-      skillKeys.forEach(k => {
+      LEGACY_SCORE_ITEMS.forEach(({ key: k }) => {
         if (fb[k] !== undefined && fb[k] !== null) {
           feedbackScoresSum += fb[k];
           feedbackScoresCount++;
@@ -1539,22 +1516,18 @@ export const Profile: React.FC = () => {
 
                   {/* Scores Grid */}
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 border border-gray-50 bg-gray-50/30 p-3 rounded-xl">
-                    {[
-                      { label: 'Technical', val: fb.technical_ability_score },
-                      { label: 'Research', val: fb.research_ability_score },
-                      { label: 'Demo Output', val: fb.demo_output_score },
-                      { label: 'Ownership', val: fb.ownership_score },
-                      { label: 'Comm', val: fb.communication_score },
-                      { label: 'Leadership', val: fb.leadership_score },
-                      { label: 'Product', val: fb.product_thinking_score },
-                      { label: 'Reliability', val: fb.reliability_score },
-                      { label: 'Reflection', val: fb.self_reflection_score },
-                    ].map((score) => (
+                    {scorecardItems(fb).map((item) => ({ label: item.label, val: item.value })).map((score) => (
                       <div key={score.label} className="text-center p-1 border border-gray-50 bg-white rounded-lg">
                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{score.label}</p>
                         <p className="text-sm font-extrabold mt-0.5 text-magenta flex items-center justify-center gap-0.5">
-                          <span>{score.val}</span>
-                          <Star className="w-3 h-3 fill-magenta text-magenta" />
+                          {score.val === null ? (
+                            <span className="text-gray-400" title="Not observed">—</span>
+                          ) : (
+                            <>
+                              <span>{score.val}</span>
+                              <Star className="w-3 h-3 fill-magenta text-magenta" />
+                            </>
+                          )}
                         </p>
                       </div>
                     ))}

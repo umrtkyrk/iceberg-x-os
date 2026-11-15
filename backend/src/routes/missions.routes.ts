@@ -238,7 +238,8 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         where: { mission_id: id },
         include: {
           cube: { select: { name: true, id: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });
@@ -252,7 +253,8 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         },
         include: {
           cube: { select: { name: true, id: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });
