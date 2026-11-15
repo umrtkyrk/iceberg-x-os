@@ -1,15 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Trash2, UserPlus, ArrowLeft, Mail, User, Shield, BookOpen, Key, Link2 } from 'lucide-react';
+import { ShieldAlert, Trash2, UserPlus, ArrowLeft, Mail, User, Shield, BookOpen, Key, Link2, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InviteLinkPanel } from '../components/InviteLinkPanel';
+import {
+  activityState,
+  countByStatus,
+  formatDaysAgo,
+  sortActivityRows,
+  STATUS_LABELS,
+  ACTIVE_WITHIN_DAYS,
+  SLOWING_WITHIN_DAYS,
+  type ActivitySortKey,
+  type ActivityStatus
+} from '../utils/activityStatus';
+
+const STATUS_STYLES: Record<ActivityStatus, string> = {
+  active: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+  slowing: 'bg-amber-50 border-amber-100 text-amber-700',
+  inactive: 'bg-red-50 border-red-100 text-red-600',
+  never: 'bg-gray-100 border-gray-200/60 text-gray-500'
+};
 
 export const AdminUsers: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Usage tracking view
+  const [trackingStartedAt, setTrackingStartedAt] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ActivityStatus | 'all'>('all');
+  const [sortKey, setSortKey] = useState<ActivitySortKey>('last_seen');
 
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -45,8 +68,13 @@ export const AdminUsers: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/admin/users');
+      const [res, overview] = await Promise.all([
+        api.get('/admin/users'),
+        // Non-fatal: without it the page just treats tracking as brand new.
+        api.get('/admin/activity/overview').catch(() => null)
+      ]);
       setUsers(res);
+      setTrackingStartedAt(overview?.tracking_started_at ?? null);
     } catch (err: any) {
       setError(err.message || 'Failed to load users');
     } finally {
@@ -60,6 +88,22 @@ export const AdminUsers: React.FC = () => {
 
   // Filter list of mentors for the assign mentor dropdown (includes both mentors and admins)
   const mentors = users.filter((u) => u.role === 'MENTOR' || u.role === 'ADMIN');
+
+  // Usage status per account, filtered and sorted for the table.
+  const now = new Date();
+  const allRows = users.map((item) => ({
+    item,
+    name: item?.name || '',
+    activeDays: item?.activity?.active_days ?? 0,
+    state: activityState(item, now, trackingStartedAt)
+  }));
+  const statusCounts = countByStatus(allRows.map((row) => row.state));
+  const visibleRows = sortActivityRows(
+    allRows.filter((row) => statusFilter === 'all' || row.state.status === statusFilter),
+    sortKey
+  );
+  const trackingIsNew =
+    !trackingStartedAt || now.getTime() - new Date(trackingStartedAt).getTime() < 7 * 86_400_000;
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -445,6 +489,56 @@ export const AdminUsers: React.FC = () => {
           </span>
         </div>
 
+        {/* Usage overview: who is actually using the portal */}
+        <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/40 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Activity className="w-4 h-4 text-gray-400" />
+            {(['all', 'active', 'slowing', 'inactive', 'never'] as const).map((key) => {
+              const selected = statusFilter === key;
+              const count = key === 'all' ? users.length : statusCounts[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setStatusFilter(key)}
+                  aria-pressed={selected}
+                  className={`text-xs font-bold px-3 py-1 rounded-full border transition-colors ${
+                    selected
+                      ? 'bg-gray-900 border-gray-900 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {key === 'all' ? 'All' : STATUS_LABELS[key]} · {count}
+                </button>
+              );
+            })}
+            <label className="ml-auto flex items-center gap-2 text-xs font-bold text-gray-500">
+              Sort by
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as ActivitySortKey)}
+                className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 bg-white"
+              >
+                <option value="last_seen">Least recently seen</option>
+                <option value="active_days">Fewest active days (30d)</option>
+                <option value="name">Name</option>
+              </select>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Active: seen within {ACTIVE_WITHIN_DAYS} days. Slowing: up to {SLOWING_WITHIN_DAYS} days. Inactive: longer.
+            “Seen” means opening portal pages and using them, or signing in, whichever is later.
+            {trackingIsNew && (
+              <span className="text-amber-700 font-semibold">
+                {' '}
+                {trackingStartedAt
+                  ? `Usage tracking started ${new Date(trackingStartedAt).toLocaleDateString()}. Until it has run for a week, “Slowing”, “Inactive” and “Never” may just mean the person has not opened the portal yet (marked with ?).`
+                  : 'Usage tracking has not recorded anything yet, so only sign-in dates are shown (marked with ?).'}
+              </span>
+            )}
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
@@ -452,12 +546,21 @@ export const AdminUsers: React.FC = () => {
                 <th className="px-6 py-4">User Details</th>
                 <th className="px-6 py-4">System Role</th>
                 <th className="px-6 py-4">Cube Info</th>
+                <th className="px-6 py-4">Activity</th>
+                <th className="px-6 py-4">Last 30 Days</th>
                 <th className="px-6 py-4">Assigned Mentor</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {users.map((item) => {
+              {visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-400">
+                    No accounts match this filter.
+                  </td>
+                </tr>
+              )}
+              {visibleRows.map(({ item, state }) => {
                 const isCubeUser = item.role === 'CUBE';
                 const isCurrent = currentUser?.id === item.id;
 
@@ -492,6 +595,41 @@ export const AdminUsers: React.FC = () => {
                         </div>
                       ) : (
                         <span className="text-xs text-gray-400 italic">Not Applicable</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span
+                          className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase border ${STATUS_STYLES[state.status]}`}
+                          title={
+                            state.provisional
+                              ? 'Usage tracking is new, so this may just mean they have not opened the portal yet.'
+                              : undefined
+                          }
+                        >
+                          {STATUS_LABELS[state.status]}
+                          {state.provisional && ' ?'}
+                        </span>
+                        <span
+                          className="text-xs text-gray-400 font-medium"
+                          title={state.lastSeenAt ? state.lastSeenAt.toLocaleString() : undefined}
+                        >
+                          {formatDaysAgo(state.daysAgo)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-500 font-medium">
+                      {item.activity && item.activity.active_days > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-700">
+                            {item.activity.active_days} active {item.activity.active_days === 1 ? 'day' : 'days'}
+                          </span>
+                          <span className="text-gray-400">
+                            {item.activity.page_views} views · {item.activity.active_minutes} min
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">No activity</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-gray-600 font-semibold text-xs">

@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Iceberg X</title>
+    <!--
+      Dark theme before first paint, so a dark-theme user does not see a light
+      flash on reload. Mirrors ThemeContext: same storage key, light by default,
+      public pages (landing, login, shareable profiles, certificates) stay light.
+    -->
+    <script>
+      (function () {
+        if ('%VITE_DARK_THEME_ENABLED%' !== 'true') return;
+        try {
+          var pref = localStorage.getItem('ix-theme');
+          var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var path = location.pathname;
+          var isPublic = path === '/' || /^\/(login|verify|x|certificate|offboarding\/certificate|invite|case)(\/|$)/.test(path);
+          if (dark && !isPublic) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

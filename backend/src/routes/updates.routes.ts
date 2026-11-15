@@ -7,6 +7,8 @@ import { requireAuth, isAdmin, AuthenticatedRequest } from '../middlewares/auth.
 import { sendError } from '../utils/http';
 import { UpdateType } from '@prisma/client';
 import { recalculateAllQuestsForCube } from '../services/quest.service';
+import { StorageService } from '../services/storage.service';
+import { claimAttachments, parseAttachmentIds } from '../services/attachment.service';
 
 const router = Router();
 
@@ -14,6 +16,7 @@ const router = Router();
 router.post('/updates', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { mission_id, type, content, blockers } = req.body;
+    const attachmentIds = parseAttachmentIds(req.body.attachment_ids);
 
     if (!mission_id || !type || !content) {
       return res.status(400).json({ error: 'Missing required parameters (mission_id, type, content)' });
@@ -46,14 +49,19 @@ router.post('/updates', requireAuth, async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    const newUpdate = await prisma.update.create({
-      data: {
-        cube_id: req.user.id,
-        mission_id,
-        type: type as UpdateType,
-        content,
-        blockers,
-      }
+    const userId = req.user.id;
+    const newUpdate = await prisma.$transaction(async tx => {
+      const created = await tx.update.create({
+        data: {
+          cube_id: userId,
+          mission_id,
+          type: type as UpdateType,
+          content,
+          blockers,
+        }
+      });
+      await claimAttachments(tx, attachmentIds, userId, { update_id: created.id });
+      return created;
     });
 
     // Re-evaluate update-related quests asynchronously
@@ -80,10 +88,12 @@ router.delete('/updates/:id', requireAuth, isAdmin, async (req, res) => {
     const { id } = req.params;
     const existing = await prisma.update.findUnique({
       where: { id },
-      select: { cube_id: true }
+      select: { cube_id: true, attachments: { select: { stored_name: true } } }
     });
 
     await prisma.update.delete({ where: { id } });
+    // Rows cascade with the update; the files on disk do not.
+    await StorageService.deleteAttachments(existing?.attachments.map(a => a.stored_name) || []);
 
     if (existing?.cube_id) {
       prisma.cubeProfile.findUnique({ where: { user_id: existing.cube_id }, select: { id: true } })

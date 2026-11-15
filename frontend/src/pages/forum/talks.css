@@ -472,3 +472,49 @@
 .cube-forum .talk-private-chat input[type=file] { display: none; }
 
 .cube-forum .talk-chat-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #e6007e; color: #fff; font-size: 12px; line-height: 1; font-weight: 800; vertical-align: middle; }
+/* Dark theme (html.dark is only set inside the workspace; see ThemeContext). */
+html.dark .cube-forum {
+  --talk-ink: #eef0f3;
+  --talk-text: #cfd3da;
+  --talk-muted: #9aa1ac;
+  --talk-soft: #8a919d;
+  --talk-line: #2a2e36;
+  --talk-bg: #0c0e12;
+  --talk-card: #15181e;
+  --talk-hover: #1d2027;
+  --talk-accent: #ff4da6;
+  --talk-accent-soft: #2a1520;
+  --talk-solved: #34d399;
+}
+html.dark .cube-forum .talk-btn.is-primary { background: #e6007e !important; }
+html.dark .cube-forum :is(
+  .forum-context-filter select, .forum-move select, .talk-nav button.selected, .talk-search, .talk-back,
+  .talk-sort button:hover:not(:disabled), .talk-sort button.selected, .talk-btn.is-ghost, .talk-composer,
+  .talk-filter-toggle, .forum-context-filter, .talk-mobile-nav select
+) { background: var(--talk-card) !important; }
+html.dark .cube-forum .talk-form :is(input, select, textarea:not(.markdown-editor textarea)) { background: #1a1d24; }
+html.dark .cube-forum .talk-pill:hover:not(:disabled) { background: #2a2f38 !important; }
+html.dark .cube-forum .talk-feed-card:hover { border-color: #3a404b; box-shadow: 0 8px 24px -14px rgba(0, 0, 0, .6); }
+html.dark .cube-forum :is(.talk-flair.is-unread, .talk-role) { background: #1f2240; color: #a5b4fc; }
+html.dark .cube-forum .talk-role.is-mentor { background: #10292e; color: #67e8f9; }
+html.dark .cube-forum .talk-op-tag { background: #102636; color: #7dd3fc; }
+html.dark .cube-forum .talk-flair.is-solved { background: #10291f; }
+html.dark .cube-forum .talk-comment.is-accepted .talk-comment-body { background: #10291f; }
+html.dark .cube-forum .talk-danger { border-color: #5b2124; background: #2a1517; color: #fca5a5; }
+html.dark .cube-forum .talk-empty { border-color: #3a404b; }
+html.dark .cube-forum .talk-community-head { background: #1b1f27; }
+html.dark .cube-forum .talk-nav-count { background: #2a2f38; }
+html.dark .cube-forum .talk-filter-toggle.is-on { border-color: #6b2a4c; background: var(--talk-accent-soft) !important; }
+html.dark .cube-forum .talk-filter-chips > button { color: #ff99cc; background: #2a1520; }
+html.dark .cube-forum .talk-skeleton > * { background: #23272f; }
+html.dark .cube-forum .talk-credits a { text-decoration-color: #6b2a4c; }
+html.dark .cube-forum .forum-founding { color: #fbbf24; }
+/* Author colours are picked for a white card; lift them toward white on dark. */
+html.dark .cube-forum .forum-stage { color: color-mix(in srgb, var(--author-color) 55%, #fff); }
+
+/* Private conversations use the workspace theme as well. */
+html.dark .cube-forum .talk-likers, html.dark .cube-forum .talk-private-chat input, html.dark .cube-forum .talk-private-chat textarea { background: #1a1f2a; color: #eef0f3; border-color: #394150; }
+html.dark .cube-forum .talk-chat-messages li { background: #242c38; }
+html.dark .cube-forum .talk-chat-messages li.is-own, html.dark .cube-forum .talk-chat-rooms li button.selected { background: #362338; color: #f5d3e7; }
+html.dark .cube-forum .talk-chat-file, html.dark .cube-forum .talk-chat-reply { background: #1c2330; border-color: #50596a; }
+html.dark .cube-forum .talk-chat-error { background: #39212b; border-color: #643547; }

@@ -29,7 +29,7 @@ async function main() {
     await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
     createdSchema = true;
     const current = fs.readFileSync(path.join(__dirname, '../prisma/schema.prisma'), 'utf8');
-    const baseline = current.split('model ForumCategory')[0].replace(/^  forum_\w+ .+\r?\n/gm, '');
+    const baseline = current.replace(/model Forum\w+ \{[\s\S]*?\r?\n\}/g, '').replace(/^\s+\w+\s+Forum\w+[^\r\n]*\r?\n/gm, '');
     const baselineFile = path.join(temp, 'baseline.prisma');
     fs.writeFileSync(baselineFile, baseline);
     const baselineSQL = run(['migrate', 'diff', '--from-empty', '--to-schema-datamodel', baselineFile, '--script']);

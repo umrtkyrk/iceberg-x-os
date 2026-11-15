@@ -1,37 +1,23 @@
+import { brandColors, inkColors, themedPalette, themePalettePlugin } from './tailwind.palette.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Dark mode is a class on <html>, set by ThemeProvider. Most colours switch
+  // through the themed palette (see tailwind.palette.js); `dark:` is for the
+  // exceptions.
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
-      colors: {
-        magenta: {
-          DEFAULT: '#e6007e',
-          hover: '#ff4da6',
-          light: '#ff99cc',
-          100: '#fdf2f8',
-          200: '#fce7f3',
-          600: '#db2777',
-          700: '#be185d',
-        },
-        ice: {
-          light: '#f0f9ff',
-          DEFAULT: '#e0f2fe',
-          dark: '#bae6fd',
-        },
-        dark: {
-          DEFAULT: '#111111',
-          card: '#1a1a1a',
-          bg: '#161618',
-        },
-        grey: {
-          bg: '#f6f6f8',
-          text: '#6b7280',
-          border: 'rgba(17, 17, 17, 0.06)'
-        }
-      },
+      colors: { ...brandColors, ink: inkColors },
+      backgroundColor: themedPalette.backgroundColor,
+      textColor: themedPalette.textColor,
+      borderColor: themedPalette.borderColor,
+      ringColor: themedPalette.ringColor,
+      ringOffsetColor: themedPalette.ringOffsetColor,
       fontFamily: {
         sans: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
         serif: ['"Instrument Serif"', 'Georgia', 'serif'],
@@ -54,5 +40,5 @@ export default {
       }
     },
   },
-  plugins: [],
+  plugins: [themePalettePlugin],
 }

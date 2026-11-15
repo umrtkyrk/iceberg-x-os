@@ -1028,7 +1028,8 @@ router.get('/cubes/:id', requireAuth, async (req: AuthenticatedRequest, res) => 
         where: { cube_id: profile.user_id },
         include: {
           mission: { select: { title: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });
@@ -1040,7 +1041,8 @@ router.get('/cubes/:id', requireAuth, async (req: AuthenticatedRequest, res) => 
         },
         include: {
           mission: { select: { title: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });

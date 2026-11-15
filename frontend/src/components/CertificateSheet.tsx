@@ -339,7 +339,8 @@ export const ScaledCertificatePreview: React.FC<CertificateSheetProps> = (props)
   return (
     <div
       ref={containerRef}
-      className="w-full relative overflow-hidden rounded-xl shadow-md flex items-center justify-center"
+      // The certificate is a printed document: same colours in both themes.
+      className="theme-fixed w-full relative overflow-hidden rounded-xl shadow-md flex items-center justify-center"
       style={{ height: Math.round(594 * scale) }}
     >
       <div

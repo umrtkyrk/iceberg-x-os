@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, ArrowLeft, Save, Sparkles, Link2 } from 'lucide-react';
 import { MarkdownEditor } from '../components/MarkdownEditor';
 import { LinkedMissionsPicker, LinkedMissionRef } from '../components/LinkedMissionsPicker';
+import { SCORING_V2_ENABLED } from '../config/features';
 
 // Heading that marks the AI-written block inside Context, so it can be refreshed without touching the rest
 const PREV_HEADING = '### Previous missions';
@@ -34,6 +35,9 @@ export const MissionCreateEdit: React.FC = () => {
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [demoUrl, setDemoUrl] = useState('');
   const [category, setCategory] = useState('General');
+  // Scoring v2: which discipline's scorecard criteria apply. '' = not set.
+  const [disciplineId, setDisciplineId] = useState('');
+  const [disciplines, setDisciplines] = useState<{ id: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [notify, setNotify] = useState(false);
   const [predecessors, setPredecessors] = useState<LinkedMissionRef[]>([]);
@@ -57,6 +61,7 @@ export const MissionCreateEdit: React.FC = () => {
           setRepositoryUrl(m.repository_url || '');
           setDemoUrl(m.demo_url || '');
           setCategory(m.category || 'General');
+          setDisciplineId(m.discipline_id || '');
           setPredecessors((res.predecessors || []).map((p: any) => ({ id: p.id, title: p.title, status: p.status })));
         } catch (err: any) {
           setError(err.message || 'Failed to fetch mission details');
@@ -92,6 +97,9 @@ export const MissionCreateEdit: React.FC = () => {
       }
     };
     fetchMentors();
+    if (SCORING_V2_ENABLED) {
+      api.get('/disciplines').then(setDisciplines).catch(() => setDisciplines([]));
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,6 +121,7 @@ export const MissionCreateEdit: React.FC = () => {
       difficulty_level: difficultyLevel,
       status,
       category,
+      ...(SCORING_V2_ENABLED ? { discipline_id: disciplineId || null } : {}),
       mentor_id: mentorId || null,
       slack_channel_url: slackChannelUrl || null,
       repository_url: repositoryUrl || null,
@@ -347,6 +356,24 @@ export const MissionCreateEdit: React.FC = () => {
               <option value="General">General</option>
             </select>
           </div>
+
+          {SCORING_V2_ENABLED && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider pl-1">Discipline</label>
+              <select
+                value={disciplineId}
+                onChange={(e) => setDisciplineId(e.target.value)}
+                disabled={submitting}
+                className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none text-xs font-bold"
+              >
+                <option value="">Not set</option>
+                {disciplines.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <p className="pl-1 text-[11px] font-medium text-gray-400">Decides which scorecard criteria apply to this mission.</p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">

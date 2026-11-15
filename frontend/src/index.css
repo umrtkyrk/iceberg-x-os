@@ -596,3 +596,50 @@ body {
 @keyframes forum-sig-border { 0%, 100% { background-position: 0% 50%, 0% 50%; } 50% { background-position: 0% 50%, 100% 50%; } }
 @keyframes forum-sig-text { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes forum-sig-sheen { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+/* ==========================================================================
+   Dark theme
+   --------------------------------------------------------------------------
+   Tailwind colour utilities switch through tailwind.palette.js. These rules
+   cover the hand-written CSS above. `html.dark` is only set inside the
+   workspace (ThemeContext).
+   ========================================================================== */
+html.dark body {
+  background-color: #0c0e12;
+  color: #eef0f3;
+}
+html.dark .workspace-header {
+  border-color: rgba(255, 255, 255, 0.07);
+  background: #171a22;
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.6);
+}
+html.dark .workspace-content table th {
+  background: #1a1d24;
+  color: #a0a7b2;
+}
+html.dark .workspace-content table tbody tr { border-color: #23272f; }
+html.dark .markdown-body h1 { color: #f6f7f9; }
+html.dark .markdown-body h2 { color: #eef0f3; }
+html.dark .markdown-body h3 { color: #e1e4e9; }
+html.dark .markdown-body code {
+  background-color: rgba(255, 77, 166, 0.12);
+  color: #ff4da6;
+}
+html.dark .markdown-body pre {
+  background-color: #1a1d24;
+  border-color: #2d323b;
+}
+html.dark .markdown-body pre code { color: inherit; background-color: transparent; }
+html.dark .markdown-body blockquote {
+  border-left-color: rgba(255, 77, 166, 0.35);
+  color: #a0a7b2;
+}
+html.dark .markdown-body a { color: #ff4da6; }
+html.dark .markdown-body a:hover { color: #ff99cc; }
+html.dark ::selection { background: rgba(255, 77, 166, 0.35); }
+
+/* Print is always light. */
+@media print {
+  html.dark { color-scheme: light; }
+  html.dark body { background-color: #fff; color: #111; }
+}

@@ -22,6 +22,8 @@ import { UserAvatar } from '../components/UserAvatar';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
 import { ForumPulse } from '../components/dashboard/ForumPulse';
 import { peerApi } from '../utils/peer';
+import { MyCubesPanel } from '../components/dashboard/MyCubesPanel';
+import { MENTOR_CUBES_ENABLED } from '../config/features';
 
 const MAX_CUBES = 8;
 const MAX_UPDATES = 5;
@@ -240,7 +242,7 @@ export const MentorDashboard: React.FC = () => {
         {signals && signals.gems > 0 && (
           <Link
             to="/radar"
-            className="group flex items-center gap-3 rounded-2xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white px-5 py-3.5 transition hover:border-cyan-300"
+            className="group flex items-center gap-3 rounded-2xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white dark:bg-none dark:bg-cyan-50 px-5 py-3.5 transition hover:border-cyan-300"
           >
             <Gem className="h-5 w-5 shrink-0 text-cyan-500" />
             <span className="flex-1 text-xs font-bold text-cyan-900">
@@ -250,6 +252,8 @@ export const MentorDashboard: React.FC = () => {
           </Link>
         )}
       </section>
+
+      {MENTOR_CUBES_ENABLED && <MyCubesPanel />}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Missions + updates */}
@@ -360,8 +364,9 @@ export const MentorDashboard: React.FC = () => {
           </section>
         </div>
 
-        {/* My Cubes */}
+        {/* My Cubes (the simple list; replaced by MyCubesPanel above when that is on) */}
         <aside className="flex flex-col gap-4">
+          {!MENTOR_CUBES_ENABLED && (<>
           <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-gray-900">
             <Users className="h-5 w-5 text-magenta" /> My Cubes
             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-black text-gray-500">{cubes.length}</span>
@@ -405,8 +410,9 @@ export const MentorDashboard: React.FC = () => {
               )}
             </div>
           )}
+          </>)}
 
-          <div className="mt-4">
+          <div className={MENTOR_CUBES_ENABLED ? '' : 'mt-4'}>
             <ForumPulse />
           </div>
         </aside>

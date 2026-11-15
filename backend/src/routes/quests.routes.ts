@@ -210,7 +210,8 @@ router.get('/quests', requireAuth, async (req: AuthenticatedRequest, res) => {
 
       // Fetch assigned quests with progress
       const cubeQuests = await prisma.cubeQuest.findMany({
-        where: { cube_id: cubeProfileId },
+        // Retired quests (scoring v2) are hidden; their badges stay on the profile.
+        where: { cube_id: cubeProfileId, quest: { retired_at: null } },
         include: {
           quest: {
             include: { rewards: true }

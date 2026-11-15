@@ -67,7 +67,7 @@ async function main() {
     const current = fs.readFileSync(path.join(backend, 'prisma/schema.prisma'), 'utf8');
     const baseline = path.join(temp, 'baseline.prisma');
     const sql = path.join(temp, 'baseline.sql');
-    fs.writeFileSync(baseline, current.split('model ForumCategory')[0].replace(/^  forum_\w+ .+\r?\n/gm, ''));
+    fs.writeFileSync(baseline, current.replace(/model Forum\w+ \{[\s\S]*?\r?\n\}/g, '').replace(/^\s+\w+\s+Forum\w+[^\r\n]*\r?\n/gm, ''));
     prisma(['migrate', 'diff', '--from-empty', '--to-schema-datamodel', baseline, '--script', '--output', sql], older.url);
     prisma(['db', 'execute', '--file', sql, '--schema', baseline], older.url);
     prisma(['db', 'execute', '--file', path.join(backend, 'prisma/migrations', original, 'migration.sql'), '--schema', baseline], older.url);

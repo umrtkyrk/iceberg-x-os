@@ -71,7 +71,7 @@ const SpeakerProfile: React.FC<{ speaker: Speaker }> = ({ speaker }) => {
           {(speaker?.expertise || []).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {(speaker.expertise || []).map(tag => (
-                <span key={tag} className="text-[11px] font-bold bg-[#e6007e]/10 text-[#b0005f] px-2 py-1 rounded-lg">
+                <span key={tag} className="text-[11px] font-bold bg-magenta/10 text-magenta-deep px-2 py-1 rounded-lg">
                   {tag}
                 </span>
               ))}
@@ -94,7 +94,7 @@ const SpeakerProfile: React.FC<{ speaker: Speaker }> = ({ speaker }) => {
             <ol className="relative border-l-2 border-gray-100 ml-1.5 flex flex-col gap-4">
               {career.map((item, i) => (
                 <li key={i} className="pl-4 relative">
-                  <span className={`absolute -left-[7px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${i === 0 ? 'bg-[#e6007e]' : 'bg-gray-300'}`} />
+                  <span className={`absolute -left-[7px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${i === 0 ? 'bg-magenta' : 'bg-gray-300'}`} />
                   <p className="text-sm font-bold text-gray-900">{item?.title || ''}</p>
                   <p className="text-xs text-gray-600">
                     {[item?.company, item?.period].filter(Boolean).join(' · ')}
@@ -873,7 +873,7 @@ const StaffAttendance: React.FC<{ webinar: Webinar; reload: () => Promise<void> 
             onClick={() => save(true)}
             disabled={busy || unmarked > 0}
             title={unmarked > 0 ? 'Mark every Cube first' : undefined}
-            className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#e6007e] text-white px-4 py-2 rounded-lg disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 text-xs font-bold bg-magenta text-white px-4 py-2 rounded-lg disabled:opacity-40"
           >
             <CheckCircle2 size={14} /> Save & close webinar
           </button>
@@ -1056,17 +1056,17 @@ export const WebinarDetail: React.FC = () => {
             <p className="flex items-center gap-2 text-gray-700"><Clock size={15} className="text-gray-400" /> {webinar.duration_minutes} minutes</p>
             <p className="flex items-center gap-2 text-gray-700"><Send size={15} className="text-gray-400" /> Questions close {formatWebinarDate(webinar.questions_close_at)}</p>
             {webinar.meeting_url && (
-              <a href={webinar.meeting_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 font-bold bg-[#e6007e] text-white px-4 py-2.5 rounded-xl hover:bg-[#c9006e]">
+              <a href={webinar.meeting_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 font-bold bg-magenta text-white px-4 py-2.5 rounded-xl hover:bg-[#c9006e]">
                 <Video size={16} /> Join the webinar <ExternalLink size={13} />
               </a>
             )}
             {webinar.recording_url && (
-              <a href={webinar.recording_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-bold text-gray-700 hover:text-[#e6007e]">
+              <a href={webinar.recording_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-bold text-gray-700 hover:text-magenta">
                 <PlayCircle size={16} /> Watch the recording
               </a>
             )}
             {webinar.slides_url && (
-              <a href={webinar.slides_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-bold text-gray-700 hover:text-[#e6007e]">
+              <a href={webinar.slides_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-bold text-gray-700 hover:text-magenta">
                 <Presentation size={16} /> Slides
               </a>
             )}

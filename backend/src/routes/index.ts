@@ -6,6 +6,10 @@ import cubesRoutes from './cubes.routes';
 import missionsRoutes from './missions.routes';
 import teamsRoutes from './teams.routes';
 import updatesRoutes from './updates.routes';
+import attachmentsRoutes from './attachments.routes';
+import disciplinesRoutes from './disciplines.routes';
+import rubricsRoutes from './rubrics.routes';
+import scoringRoutes from './scoring.routes';
 import demosRoutes from './demos.routes';
 import feedbackRoutes from './feedback.routes';
 import badgesRoutes from './badges.routes';
@@ -28,6 +32,7 @@ import radarRoutes from './radar.routes';
 import mvcubesRoutes from './mvcubes.routes';
 import hallOfFameRoutes from './hallOfFame.routes';
 import webinarsRoutes from './webinars.routes';
+import activityRoutes from './activity.routes';
 
 const router = Router();
 
@@ -46,6 +51,10 @@ router.use(cubesRoutes);
 router.use(teamsRoutes);
 router.use(missionsRoutes);
 router.use(updatesRoutes);
+router.use(attachmentsRoutes);
+router.use(disciplinesRoutes);
+router.use(rubricsRoutes);
+router.use(scoringRoutes);
 router.use(demosRoutes);
 router.use(feedbackRoutes);
 router.use(badgesRoutes);
@@ -68,5 +77,6 @@ router.use(radarRoutes);
 router.use(mvcubesRoutes);
 router.use(hallOfFameRoutes);
 router.use(webinarsRoutes);
+router.use(activityRoutes);
 
 export default router;
