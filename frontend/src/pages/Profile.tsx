@@ -558,7 +558,7 @@ export const Profile: React.FC = () => {
         {/* Core Info Card */}
         <div className={`rounded-2xl p-6 flex flex-col gap-5 relative overflow-hidden ${
           profile.is_founding_cube
-            ? 'bg-gradient-to-br from-amber-50/20 via-white to-white border-2 border-amber-400/80 shadow-[0_0_15px_rgba(245,158,11,0.08)]'
+            ? 'bg-gradient-to-br from-amber-50/20 via-white to-white dark:bg-none dark:bg-white border-2 border-amber-400/80 shadow-[0_0_15px_rgba(245,158,11,0.08)]'
             : 'bg-white border border-gray-100 shadow-subtle'
         }`}>
           <div className="flex justify-between items-start">
