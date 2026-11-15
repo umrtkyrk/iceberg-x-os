@@ -3,6 +3,7 @@
  */
 import { Router } from 'express';
 import { ATTACHMENT_PUBLIC_SELECT, canSeeMissionFiles } from '../services/attachment.service';
+import { resolveDisciplineId } from '../services/discipline.service';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { TERMINAL_MISSION_STATUSES } from '../config/constants';
@@ -135,6 +136,7 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
       notify,
       predecessor_ids
     } = req.body;
+    const disciplineId = await resolveDisciplineId(req.body.discipline_id);
 
     if (!title || !description || !context || !problem_statement || !expected_output || !difficulty_level) {
       return res.status(400).json({ error: 'Missing required mission parameters' });
@@ -156,6 +158,7 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
         difficulty_level: difficulty_level as DifficultyLevel,
         status: assertInitialStatus(status),
         category: category || 'General',
+        discipline_id: disciplineId ?? null,
         created_by_id: creatorId,
         mentor_id: mentor_id || null,
         slack_channel_url,
@@ -324,6 +327,8 @@ router.put('/missions/:id', requireAuth, isMentorOrAdmin, async (req: Authentica
       });
     }
     if (category) updateData.category = category;
+    const disciplineId = await resolveDisciplineId(req.body.discipline_id);
+    if (disciplineId !== undefined) updateData.discipline_id = disciplineId;
     if (mentor_id !== undefined) updateData.mentor_id = mentor_id || null;
     if (slack_channel_url !== undefined) updateData.slack_channel_url = slack_channel_url;
     if (repository_url !== undefined) updateData.repository_url = repository_url;

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { FORUM_ENABLED } from './config/features';
+import { FORUM_ENABLED, SCORING_V2_ENABLED } from './config/features';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
@@ -21,6 +21,7 @@ import { Badges } from './pages/Badges';
 import { CubeVault } from './pages/CubeVault';
 import { DemoDays } from './pages/DemoDays';
 import { AdminUsers } from './pages/AdminUsers';
+import { AdminDisciplines } from './pages/AdminDisciplines';
 import { AdminApplications } from './pages/AdminApplications';
 import { Recruitment } from './pages/Recruitment';
 import { CaseForm } from './pages/CaseForm';
@@ -238,6 +239,17 @@ function App() {
                 </RouteGuard>
               }
             />
+
+            {SCORING_V2_ENABLED && (
+              <Route
+                path="admin/disciplines"
+                element={
+                  <RouteGuard allowedRoles={['ADMIN']}>
+                    <AdminDisciplines />
+                  </RouteGuard>
+                }
+              />
+            )}
 
             {/* Admin-only User Administration */}
             <Route

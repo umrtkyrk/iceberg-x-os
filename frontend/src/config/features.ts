@@ -12,3 +12,6 @@ export const ATTACHMENTS_ENABLED = import.meta.env.VITE_ATTACHMENTS_ENABLED === 
 
 // Mentor dashboard "My Cubes" panel built on the Cube signals (status, reasons, activity).
 export const MENTOR_CUBES_ENABLED = import.meta.env.VITE_MENTOR_CUBES_ENABLED === 'true';
+
+// Scoring v2 (docs/scoring-v2.md): disciplines and, later, rubrics and the new score. Admin screens only for now.
+export const SCORING_V2_ENABLED = import.meta.env.VITE_SCORING_V2_ENABLED === 'true';

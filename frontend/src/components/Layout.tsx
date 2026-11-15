@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { FORUM_ENABLED } from '../config/features';
+import { FORUM_ENABLED, SCORING_V2_ENABLED } from '../config/features';
 import { useAuth } from '../context/AuthContext';
 import { useActivityTracking } from '../utils/useActivityTracking';
 import {
@@ -31,6 +31,7 @@ import {
   UserPlus,
   Mic,
   MessagesSquare,
+  Layers,
   type LucideIcon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
@@ -130,7 +131,10 @@ const buildManage = (isAdmin: boolean): NavGroup => ({
           ? [
               { path: '/admin/recruitment', label: 'Recruitment', hint: 'Pipeline, scoring and decisions', icon: UserPlus },
               { path: '/admin/users', label: 'Users Admin', hint: 'Accounts and roles', icon: Users },
-              { path: '/admin/quests', label: 'Quests Admin', hint: 'Create and assign quests', icon: Trophy }
+              { path: '/admin/quests', label: 'Quests Admin', hint: 'Create and assign quests', icon: Trophy },
+              ...(SCORING_V2_ENABLED
+                ? [{ path: '/admin/disciplines', label: 'Disciplines', hint: 'Scoring v2: disciplines for Cubes and missions', icon: Layers }]
+                : [])
             ]
           : [])
       ]
