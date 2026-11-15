@@ -49,6 +49,33 @@ export const Review: React.FC = () => {
   const [profileDetails, setProfileDetails] = useState<any | null>(null);
   const [cubeFeedback, setCubeFeedback] = useState<any[]>([]);
 
+  // Scoring v2: criteria for the mission's (or else the Cube's) discipline.
+  const [criteria, setCriteria] = useState<RubricCriterion[]>([]);
+  const [ratings, setRatings] = useState<RatingState>({});
+  const [criteriaError, setCriteriaError] = useState<string | null>(null);
+  const selectedMission = missions.find((m: any) => m.id === missionId);
+  const selectedCube = cubes.find((c: any) => c.user?.id === cubeId);
+  const disciplineId: string = selectedMission?.discipline_id || selectedCube?.discipline_id || '';
+  const disciplineSource = selectedMission?.discipline_id ? 'the mission' : selectedCube?.discipline_id ? 'the Cube' : null;
+
+  useEffect(() => {
+    if (!SCORING_V2_ENABLED) return;
+    let cancelled = false;
+    setCriteriaError(null);
+    api
+      .get<RubricCriterion[]>(`/scoring/criteria${disciplineId ? `?discipline_id=${disciplineId}` : ''}`)
+      .then(list => {
+        if (cancelled) return;
+        setCriteria(list);
+        setRatings({});
+      })
+      .catch((err: any) => !cancelled && setCriteriaError(err.message || 'Could not load the scorecard criteria.'));
+    return () => {
+      cancelled = true;
+    };
+  }, [disciplineId]);
+  const unanswered = criteria.filter(c => !(c.id in ratings));
+
   useEffect(() => {
     const fetchProfileDetails = async () => {
       const selectedProfile = cubes.find((c: any) => c.user.id === cubeId);
@@ -71,33 +98,8 @@ export const Review: React.FC = () => {
     }
   }, [cubeId, cubes]);
 
-  // Calculate average scores for selected Cube's radar chart
-  const averageScores: { [key: string]: number } = {};
-  const skillKeys = [
-    'technical_ability_score',
-    'research_ability_score',
-    'demo_output_score',
-    'ownership_score',
-    'communication_score',
-    'leadership_score',
-    'product_thinking_score',
-    'reliability_score',
-    'self_reflection_score'
-  ];
-  skillKeys.forEach(k => {
-    averageScores[k] = 0;
-  });
-
-  if (cubeFeedback && cubeFeedback.length > 0) {
-    cubeFeedback.forEach((fb: any) => {
-      skillKeys.forEach(k => {
-        averageScores[k] += fb[k] || 0;
-      });
-    });
-    skillKeys.forEach(k => {
-      averageScores[k] = parseFloat((averageScores[k] / cubeFeedback.length).toFixed(1));
-    });
-  }
+  // Radar chart for the selected Cube: per-column averages that skip empty values.
+  const averageScores = averageLegacyScores(cubeFeedback);
 
   useEffect(() => {
     const initializePageData = async () => {
@@ -133,17 +135,35 @@ export const Review: React.FC = () => {
     setAiLoading(true);
     setAiDraft(null);
 
-    const scores = {
-      technical,
-      research,
-      demoOutput,
-      ownership,
-      communication,
-      leadership,
-      productThinking,
-      reliability,
-      selfReflection
+    // v2: the AI draft still speaks the legacy names; send the ratings that map to them.
+    const LEGACY_TO_AI: Record<string, string> = {
+      technical_ability_score: 'technical',
+      research_ability_score: 'research',
+      demo_output_score: 'demoOutput',
+      ownership_score: 'ownership',
+      communication_score: 'communication',
+      leadership_score: 'leadership',
+      product_thinking_score: 'productThinking',
+      reliability_score: 'reliability',
+      self_reflection_score: 'selfReflection'
     };
+    const scores = SCORING_V2_ENABLED
+      ? Object.fromEntries(
+          criteria
+            .filter(c => c.legacy_key && typeof ratings[c.id] === 'number')
+            .map(c => [LEGACY_TO_AI[c.legacy_key!], ratings[c.id]])
+        )
+      : {
+          technical,
+          research,
+          demoOutput,
+          ownership,
+          communication,
+          leadership,
+          productThinking,
+          reliability,
+          selfReflection
+        };
 
     try {
       const res = await api.post('/ai/feedback-draft', {
@@ -176,6 +196,17 @@ export const Review: React.FC = () => {
       return;
     }
 
+    if (SCORING_V2_ENABLED) {
+      if (unanswered.length > 0) {
+        setError(`Rate or mark as not observed: ${unanswered.map(c => c.name).join(', ')}.`);
+        return;
+      }
+      if (criteria.every(c => ratings[c.id] === null)) {
+        setError('Rate at least one criterion.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -185,18 +216,23 @@ export const Review: React.FC = () => {
     // Actually, in the frontend cubes directory, we have cube.user.id. Let's make sure we select the User ID!
     // In the dropdown: `c.user.id` is the value, so cubeId represents the User ID. This aligns perfectly with the backend!
 
+    const scorePayload = SCORING_V2_ENABLED
+      ? { ratings: criteria.map(c => ({ criterion_id: c.id, value: ratings[c.id] })) }
+      : {
+          technical_ability_score: technical,
+          research_ability_score: research,
+          demo_output_score: demoOutput,
+          ownership_score: ownership,
+          communication_score: communication,
+          leadership_score: leadership,
+          product_thinking_score: productThinking,
+          reliability_score: reliability,
+          self_reflection_score: selfReflection
+        };
     const payload = {
       cube_id: cubeId,
       mission_id: missionId || null,
-      technical_ability_score: technical,
-      research_ability_score: research,
-      demo_output_score: demoOutput,
-      ownership_score: ownership,
-      communication_score: communication,
-      leadership_score: leadership,
-      product_thinking_score: productThinking,
-      reliability_score: reliability,
-      self_reflection_score: selfReflection,
+      ...scorePayload,
       strengths,
       areas_to_improve: areasToImprove,
       private_notes: privateNotes || null,
@@ -282,6 +318,29 @@ export const Review: React.FC = () => {
           </div>
 
           {/* Scores Panel */}
+          {SCORING_V2_ENABLED ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Ratings</h3>
+                <p className="text-[11px] font-semibold text-gray-400">
+                  {disciplineSource
+                    ? `Criteria for the discipline of ${disciplineSource}`
+                    : 'No discipline set for this mission or Cube: core criteria only'}
+                  {criteria.length > 0 && ` · ${criteria.length - unanswered.length}/${criteria.length} answered`}
+                </p>
+              </div>
+              {criteriaError ? (
+                <p className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs font-semibold text-red-600">{criteriaError}</p>
+              ) : (
+                <RubricRatings
+                  criteria={criteria}
+                  value={ratings}
+                  onRate={(criterionId, level) => setRatings(prev => ({ ...prev, [criterionId]: level }))}
+                  disabled={submitting}
+                />
+              )}
+            </div>
+          ) : (
           <div>
             <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3.5">Ratings (1 to 5)</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -314,6 +373,7 @@ export const Review: React.FC = () => {
               ))}
             </div>
           </div>
+          )}
 
           {/* Written evaluations */}
           <div className="flex flex-col gap-4">
@@ -522,3 +582,6 @@ export const Review: React.FC = () => {
   );
 };
 import { PageHeader } from '../components/PageHeader';
+import { averageLegacyScores } from '../utils/scorecard';
+import { SCORING_V2_ENABLED } from '../config/features';
+import { RubricRatings, type RatingState, type RubricCriterion } from '../components/RubricRatings';

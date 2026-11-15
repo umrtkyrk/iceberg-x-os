@@ -149,7 +149,7 @@ const SpeakerForm: React.FC<{
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className={labelClass}>Career (most recent first)</label>
-              <button type="button" onClick={() => setCareer(prev => [...prev, emptyCareer()])} className="text-xs font-bold text-[#e6007e] flex items-center gap-1">
+              <button type="button" onClick={() => setCareer(prev => [...prev, emptyCareer()])} className="text-xs font-bold text-magenta flex items-center gap-1">
                 <Plus size={14} /> Add role
               </button>
             </div>
@@ -168,7 +168,7 @@ const SpeakerForm: React.FC<{
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="text-sm font-bold text-gray-500 px-4 py-2 rounded-xl hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={saving} className="text-sm font-bold bg-[#e6007e] text-white px-5 py-2 rounded-xl hover:bg-[#c9006e] disabled:opacity-50">
+            <button type="submit" disabled={saving} className="text-sm font-bold bg-magenta text-white px-5 py-2 rounded-xl hover:bg-[#c9006e] disabled:opacity-50">
               {saving ? 'Saving…' : 'Save speaker'}
             </button>
           </div>
@@ -248,7 +248,7 @@ export const WebinarSpeakers: React.FC = () => {
                     {s._count?.webinars || 0} webinar(s)
                   </span>
                   {s.linkedin_url && (
-                    <a href={s.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-[#0a66c2]" title="LinkedIn">
+                    <a href={s.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-[#0a66c2] dark:text-sky-400" title="LinkedIn">
                       <Linkedin size={14} />
                     </a>
                   )}

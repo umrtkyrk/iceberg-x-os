@@ -8,6 +8,24 @@ COPY frontend/ ./
 # together with FORUM_ENABLED=true on the backend to open the Cube Forum.
 ARG VITE_CUBE_FORUM_ENABLED=false
 ENV VITE_CUBE_FORUM_ENABLED=$VITE_CUBE_FORUM_ENABLED
+# Pass --build-arg VITE_DARK_THEME_ENABLED=true to show the light/dark theme toggle.
+ARG VITE_DARK_THEME_ENABLED=false
+ENV VITE_DARK_THEME_ENABLED=$VITE_DARK_THEME_ENABLED
+# Pass --build-arg VITE_CUBE_FOCUS_ENABLED=true to show the Cube focus panel.
+ARG VITE_CUBE_FOCUS_ENABLED=false
+ENV VITE_CUBE_FOCUS_ENABLED=$VITE_CUBE_FOCUS_ENABLED
+# Pass --build-arg VITE_ATTACHMENTS_ENABLED=true to allow files on updates and demos.
+ARG VITE_ATTACHMENTS_ENABLED=false
+ENV VITE_ATTACHMENTS_ENABLED=$VITE_ATTACHMENTS_ENABLED
+# Pass --build-arg VITE_MENTOR_CUBES_ENABLED=true to show the mentor's My Cubes signals panel.
+ARG VITE_MENTOR_CUBES_ENABLED=false
+ENV VITE_MENTOR_CUBES_ENABLED=$VITE_MENTOR_CUBES_ENABLED
+# Pass --build-arg VITE_SCORING_V2_ENABLED=true to show the scoring v2 admin screens.
+ARG VITE_SCORING_V2_ENABLED=false
+ENV VITE_SCORING_V2_ENABLED=$VITE_SCORING_V2_ENABLED
+# Pass --build-arg VITE_SCORING_V2_LIVE=true (with SCORING_V2_LIVE=true on the backend) to show Cubes their v2 score.
+ARG VITE_SCORING_V2_LIVE=false
+ENV VITE_SCORING_V2_LIVE=$VITE_SCORING_V2_LIVE
 RUN npm run build
 
 # Stage 2: Build Backend

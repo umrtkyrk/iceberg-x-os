@@ -2,6 +2,8 @@
  * Missions, reflections and lifecycle transitions.
  */
 import { Router } from 'express';
+import { ATTACHMENT_PUBLIC_SELECT, canSeeMissionFiles } from '../services/attachment.service';
+import { resolveDisciplineId } from '../services/discipline.service';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { TERMINAL_MISSION_STATUSES } from '../config/constants';
@@ -134,6 +136,7 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
       notify,
       predecessor_ids
     } = req.body;
+    const disciplineId = await resolveDisciplineId(req.body.discipline_id);
 
     if (!title || !description || !context || !problem_statement || !expected_output || !difficulty_level) {
       return res.status(400).json({ error: 'Missing required mission parameters' });
@@ -155,6 +158,7 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
         difficulty_level: difficulty_level as DifficultyLevel,
         status: assertInitialStatus(status),
         category: category || 'General',
+        discipline_id: disciplineId ?? null,
         created_by_id: creatorId,
         mentor_id: mentor_id || null,
         slack_channel_url,
@@ -199,14 +203,16 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         },
         updates: {
           include: {
-            cube: { select: { name: true } }
+            cube: { select: { name: true } },
+            attachments: { select: ATTACHMENT_PUBLIC_SELECT, orderBy: { created_at: 'asc' } }
           },
           orderBy: { created_at: 'desc' }
         },
         demo_submissions: {
           include: {
             submitted_by: { select: { name: true } },
-            team: { select: { name: true } }
+            team: { select: { name: true } },
+            attachments: { select: ATTACHMENT_PUBLIC_SELECT, orderBy: { created_at: 'asc' } }
           },
           orderBy: { created_at: 'desc' }
         }
@@ -232,7 +238,8 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         where: { mission_id: id },
         include: {
           cube: { select: { name: true, id: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });
@@ -246,7 +253,8 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         },
         include: {
           cube: { select: { name: true, id: true } },
-          mentor: { select: { name: true } }
+          mentor: { select: { name: true } },
+          ratings: { select: { value: true, criterion: { select: { key: true, name: true, sort_order: true } } }, orderBy: { criterion: { sort_order: 'asc' } } }
         },
         orderBy: { created_at: 'desc' }
       });
@@ -254,6 +262,12 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         const { private_notes, ...rest } = item;
         return rest;
       });
+    }
+
+    // Files are for staff and the mission's own Cubes; others see the text only.
+    if (req.user && !(await canSeeMissionFiles(req.user, id))) {
+      for (const update of mission.updates) update.attachments = [];
+      for (const demo of mission.demo_submissions) demo.attachments = [];
     }
 
     const contributors = (await listContributors([id])).get(id) || [];
@@ -315,6 +329,8 @@ router.put('/missions/:id', requireAuth, isMentorOrAdmin, async (req: Authentica
       });
     }
     if (category) updateData.category = category;
+    const disciplineId = await resolveDisciplineId(req.body.discipline_id);
+    if (disciplineId !== undefined) updateData.discipline_id = disciplineId;
     if (mentor_id !== undefined) updateData.mentor_id = mentor_id || null;
     if (slack_channel_url !== undefined) updateData.slack_channel_url = slack_channel_url;
     if (repository_url !== undefined) updateData.repository_url = repository_url;

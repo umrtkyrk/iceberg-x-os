@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET ||= 'portal-unit-tests-only-not-a-real-secret';
 const path = require('node:path');
 
 // The frontend package is ESM; load its pure helpers through the CJS test runner.
@@ -10,3 +12,12 @@ require('./directory.test.ts');
 require('./notificationRead.test.ts');
 require('./caseEvaluation.test.ts');
 require('./webinar.test.ts');
+require('./activity.test.ts');
+require('./activityStatus.test.ts');
+require('./cubeSignals.test.ts');
+require('./mentorCubes.test.ts');
+require('./discipline.test.ts');
+require('./rubric.test.ts');
+require('./scorecard.test.ts');
+require('./scoreV2.test.ts');
+require('./attachment.test.ts');

@@ -29,6 +29,9 @@ import { QuestBoard } from '../components/dashboard/QuestBoard';
 import { peerApi } from '../utils/peer';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
 import { ForumPulse } from '../components/dashboard/ForumPulse';
+import { FocusPanel } from '../components/dashboard/FocusPanel';
+import { CUBE_FOCUS_ENABLED } from '../config/features';
+import { AttachmentPicker } from '../components/Attachments';
 
 export const CubeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -44,6 +47,10 @@ export const CubeDashboard: React.FC = () => {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSubmitting, setUpdateSubmitting] = useState(false);
+  // Attachments for the update form: uploaded ids, a reset counter, and whether any are still uploading.
+  const [updateAttachmentIds, setUpdateAttachmentIds] = useState<string[]>([]);
+  const [updateAttachmentsKey, setUpdateAttachmentsKey] = useState(0);
+  const [updateAttachmentsBusy, setUpdateAttachmentsBusy] = useState(false);
 
   // Testimonial States
   const [testimonialContent, setTestimonialContent] = useState('');
@@ -56,8 +63,11 @@ export const CubeDashboard: React.FC = () => {
 
   const [quests, setQuests] = useState<any[]>([]);
   const [kudos, setKudos] = useState<any[]>([]);
+  // Bumped on every refetch so the focus panel follows the rest of the page.
+  const [focusKey, setFocusKey] = useState(0);
 
   const fetchDashboardData = async () => {
+    setFocusKey(key => key + 1);
     try {
       const [res, questsRes] = await Promise.all([
         api.get('/cube/dashboard'),
@@ -107,11 +117,13 @@ export const CubeDashboard: React.FC = () => {
         mission_id: missionId,
         type: updateType,
         content: updateContent.trim(),
-        blockers: updateBlockers.trim() || undefined
+        blockers: updateBlockers.trim() || undefined,
+        attachment_ids: updateAttachmentIds
       });
       setUpdateSuccess(true);
       setUpdateContent('');
       setUpdateBlockers('');
+      setUpdateAttachmentsKey(key => key + 1);
       setTimeout(() => {
         setActiveUpdateMissionId(null);
         setUpdateSuccess(false);
@@ -193,6 +205,14 @@ export const CubeDashboard: React.FC = () => {
     setActiveUpdateMissionId(missionId);
     setUpdateSuccess(false);
     setUpdateError(null);
+  };
+
+  /** From the focus panel: open the form on that mission's card and bring it into view. */
+  const openUpdateFromFocus = (missionId: string) => {
+    openUpdate(missionId);
+    requestAnimationFrame(() =>
+      document.getElementById(`mission-card-${missionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
   };
 
   return (
@@ -277,6 +297,8 @@ export const CubeDashboard: React.FC = () => {
         </div>
       </header>
 
+      {CUBE_FOCUS_ENABLED && <FocusPanel onPostUpdate={openUpdateFromFocus} refreshKey={focusKey} />}
+
       {/* The star of the page: where every quest stands */}
       <QuestBoard quests={quests} />
 
@@ -305,7 +327,7 @@ export const CubeDashboard: React.FC = () => {
               const isUpdateOpen = activeUpdateMissionId === m.id;
 
               return (
-                <article key={m.id} className="flex flex-col gap-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">
+                <article key={m.id} id={`mission-card-${m.id}`} className="scroll-mt-28 flex flex-col gap-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-subtle">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -436,6 +458,12 @@ export const CubeDashboard: React.FC = () => {
                         />
                       </div>
 
+                      <AttachmentPicker
+                        onChange={setUpdateAttachmentIds}
+                        onBusyChange={setUpdateAttachmentsBusy}
+                        resetKey={updateAttachmentsKey}
+                      />
+
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
@@ -447,7 +475,7 @@ export const CubeDashboard: React.FC = () => {
                         </button>
                         <button
                           type="submit"
-                          disabled={updateSubmitting || !updateContent.trim()}
+                          disabled={updateSubmitting || updateAttachmentsBusy || !updateContent.trim()}
                           className="rounded-lg bg-magenta px-4 py-1.5 text-xs font-bold text-white transition-colors hover:bg-magenta-hover disabled:opacity-75"
                         >
                           {updateSubmitting ? 'Submitting...' : 'Send update'}
@@ -545,7 +573,7 @@ export const CubeDashboard: React.FC = () => {
               <>
                 <ul className="flex flex-col gap-3">
                   {kudos.slice(0, 2).map((k: any) => (
-                    <li key={k.id} className="rounded-2xl bg-gradient-to-br from-slate-50 to-white p-3.5 ring-1 ring-gray-100">
+                    <li key={k.id} className="rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:bg-none dark:bg-gray-50 p-3.5 ring-1 ring-gray-100">
                       <p className="line-clamp-3 text-xs font-medium italic leading-relaxed text-gray-700">
                         {k.note ? `“${k.note}”` : 'Recognised without a note.'}
                       </p>
