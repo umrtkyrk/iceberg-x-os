@@ -1262,4 +1262,42 @@ model Discipline {
 
   cubes    CubeProfile[]
   missions Mission[]
+  criteria Criterion[]
+}
+
+/// Scoring v2: a scorecard criterion. Core criteria (no discipline) apply to
+/// every Cube; the rest belong to one discipline. Never deleted, only
+/// deactivated, so past ratings keep their meaning.
+model Criterion {
+  id            String      @id @default(uuid())
+  /// Stable identifier, e.g. "ownership".
+  key           String      @unique
+  name          String
+  description   String?
+  /// Null for core criteria.
+  discipline_id String?
+  discipline    Discipline? @relation(fields: [discipline_id], references: [id], onDelete: Restrict)
+  /// The MentorFeedback column this criterion reads for legacy scorecards.
+  legacy_key    String?     @unique
+  active        Boolean     @default(true)
+  sort_order    Int         @default(0)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+
+  levels RubricLevel[]
+
+  @@index([discipline_id])
+}
+
+/// What a rating of 1-5 means for one criterion. Edited by admins.
+model RubricLevel {
+  id            String    @id @default(uuid())
+  criterion_id  String
+  criterion     Criterion @relation(fields: [criterion_id], references: [id], onDelete: Cascade)
+  level         Int
+  description   String
+  updated_by_id String?
+  updated_at    DateTime  @updatedAt
+
+  @@unique([criterion_id, level])
 }

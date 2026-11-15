@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, Plus, Sparkles } from 'lucide-react';
 import { api } from '../utils/api';
 import { PageHeader } from '../components/PageHeader';
@@ -118,7 +119,9 @@ export const AdminDisciplines: React.FC = () => {
         eyebrow="Scoring v2"
         title="Disciplines"
         description="Every Cube and mission belongs to a discipline, which decides the scorecard criteria. Suggestions are only applied when you save."
-      />
+      >
+        <Link to="/admin/rubrics" className="workspace-secondary-action">Rubrics</Link>
+      </PageHeader>
 
       <div role="tablist" className="flex flex-wrap gap-2">
         {([
