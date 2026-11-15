@@ -22,6 +22,8 @@ import { UserAvatar } from '../components/UserAvatar';
 import { MissionStepper } from '../components/dashboard/MissionStepper';
 import { ForumPulse } from '../components/dashboard/ForumPulse';
 import { peerApi } from '../utils/peer';
+import { MyCubesPanel } from '../components/dashboard/MyCubesPanel';
+import { MENTOR_CUBES_ENABLED } from '../config/features';
 
 const MAX_CUBES = 8;
 const MAX_UPDATES = 5;
@@ -251,6 +253,8 @@ export const MentorDashboard: React.FC = () => {
         )}
       </section>
 
+      {MENTOR_CUBES_ENABLED && <MyCubesPanel />}
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Missions + updates */}
         <div className="flex flex-col gap-8 lg:col-span-2">
@@ -360,8 +364,9 @@ export const MentorDashboard: React.FC = () => {
           </section>
         </div>
 
-        {/* My Cubes */}
+        {/* My Cubes (the simple list; replaced by MyCubesPanel above when that is on) */}
         <aside className="flex flex-col gap-4">
+          {!MENTOR_CUBES_ENABLED && (<>
           <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-gray-900">
             <Users className="h-5 w-5 text-magenta" /> My Cubes
             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-black text-gray-500">{cubes.length}</span>
@@ -405,8 +410,9 @@ export const MentorDashboard: React.FC = () => {
               )}
             </div>
           )}
+          </>)}
 
-          <div className="mt-4">
+          <div className={MENTOR_CUBES_ENABLED ? '' : 'mt-4'}>
             <ForumPulse />
           </div>
         </aside>
