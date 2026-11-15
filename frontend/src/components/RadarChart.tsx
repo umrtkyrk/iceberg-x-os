@@ -76,6 +76,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ scores, feedbackCount, s
                 points={path}
                 fill="none"
                 stroke="#e2e8f0"
+                className="dark:stroke-[#2d323b]"
                 strokeWidth="1"
                 strokeDasharray="2,2"
               />
@@ -126,6 +127,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ scores, feedbackCount, s
                     x2={outerPoint.x}
                     y2={outerPoint.y}
                     stroke="#f1f5f9"
+                    className="dark:stroke-[#23272f]"
                     strokeWidth="1.5"
                   />
                   {/* Axis Label */}
@@ -134,7 +136,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ scores, feedbackCount, s
                     y={ly}
                     dy={dy}
                     textAnchor={textAnchor}
-                    className="fill-gray-500 font-extrabold text-[9px] tracking-tight select-none"
+                    className="fill-gray-500 dark:fill-[#a0a7b2] font-extrabold text-[9px] tracking-tight select-none"
                   >
                     {s.label}
                   </text>
@@ -158,7 +160,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ scores, feedbackCount, s
                   cx={p.x}
                   cy={p.y}
                   r="3.5"
-                  className="fill-white stroke-magenta stroke-2 transition-all duration-300 hover:r-5 hover:fill-magenta"
+                  className="fill-white dark:fill-[#15181e] stroke-magenta stroke-2 transition-all duration-300 hover:r-5 hover:fill-magenta"
                 />
                 <title>{p.label}: {p.value}</title>
               </g>

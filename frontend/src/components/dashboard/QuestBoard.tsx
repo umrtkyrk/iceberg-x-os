@@ -37,7 +37,7 @@ const Ring: React.FC<{ percent: number; size?: number; stroke?: number; light?: 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className={light ? 'stroke-white/15' : 'stroke-slate-100'} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className={light ? 'stroke-white/15' : 'stroke-slate-100 dark:stroke-[#2a2f38]'} />
         <circle
           cx={size / 2}
           cy={size / 2}
