@@ -3,7 +3,7 @@
  * admins edit them. See services/rubric.service.ts.
  */
 import { Router } from 'express';
-import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { requireAuth, isAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { badRequest, sendError } from '../utils/http';
 import {
   createCriterion,
@@ -15,8 +15,11 @@ import {
 
 const router = Router();
 
-/** Criteria and rubric for one discipline (core + its own); `?discipline_id=` optional. */
-router.get('/scoring/criteria', requireAuth, isMentorOrAdmin, async (req, res) => {
+/**
+ * Criteria and rubric for one discipline (core + its own); `?discipline_id=` optional.
+ * Any signed-in user: mentors score with it, Cubes rate themselves with it.
+ */
+router.get('/scoring/criteria', requireAuth, async (req, res) => {
   try {
     const disciplineId = req.query.discipline_id;
     if (disciplineId !== undefined && typeof disciplineId !== 'string') throw badRequest('discipline_id must be an id.');

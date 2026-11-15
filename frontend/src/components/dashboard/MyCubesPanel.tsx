@@ -12,6 +12,7 @@ import {
   type SignalStatus,
 } from '../../utils/cubeSignals';
 import { UserAvatar } from '../UserAvatar';
+import { SCORING_V2_ENABLED } from '../../config/features';
 
 interface MentorCubesResponse {
   scope: 'mine' | 'all';
@@ -188,6 +189,11 @@ const CubeRow: React.FC<{ cube: CubeSignals; open: boolean; onToggle: () => void
                 <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                 {status.label}
               </span>
+              {cube.checkin_due && (
+                <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-extrabold text-sky-700" title="No scorecard or check-in for 6 weeks on an active mission">
+                  Check-in due
+                </span>
+              )}
             </span>
             <span className="mt-1 block text-xs font-medium text-gray-500">
               {reasons.length === 0 ? (
@@ -251,6 +257,14 @@ const CubeRow: React.FC<{ cube: CubeSignals; open: boolean; onToggle: () => void
             >
               Profile <ArrowRight className="h-3 w-3" />
             </Link>
+            {SCORING_V2_ENABLED && (
+              <Link
+                to={`/cubes/${cube.cube_profile_id}?checkin=1`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-extrabold text-gray-700 hover:border-gray-300"
+              >
+                Check in <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
             {mission && (
               <Link
                 to={`/missions/${mission.id}`}

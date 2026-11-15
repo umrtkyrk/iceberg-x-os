@@ -15,3 +15,6 @@ export const MENTOR_CUBES_ENABLED = import.meta.env.VITE_MENTOR_CUBES_ENABLED ==
 
 // Scoring v2 (docs/scoring-v2.md): disciplines and, later, rubrics and the new score. Admin screens only for now.
 export const SCORING_V2_ENABLED = import.meta.env.VITE_SCORING_V2_ENABLED === 'true';
+
+// Scoring v2 go-live: Cubes see their v2 score and can rate themselves. Pair with SCORING_V2_LIVE=true on the backend.
+export const SCORING_V2_LIVE = import.meta.env.VITE_SCORING_V2_LIVE === 'true';

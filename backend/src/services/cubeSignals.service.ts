@@ -19,6 +19,8 @@ export const QUIET_DAYS = 7;
 export const WEBINAR_DUE_DAYS = 3;
 /** A blocker in the latest update stops counting as open after this many days. */
 export const BLOCKER_OPEN_DAYS = 14;
+/** Scoring v2: a check-in is due when an active mission has gone this long without an assessment. */
+export const CHECKIN_DUE_DAYS = 42;
 
 const DAY_MS = 86_400_000;
 const CLOSED_MISSION_STATUSES = ['completed', 'reviewed', 'promoted_to_product_backlog', 'archived', 'cancelled'];
@@ -58,6 +60,10 @@ export interface CubeSignals {
   next_meeting: { id: string; title: string; date: string } | null;
   next_webinar: { id: string; title: string; date: string; questions_close_at: string; has_question: boolean } | null;
   last_feedback_at: string | null;
+  /** Latest scorecard or check-in, by any mentor. */
+  last_assessed_at: string | null;
+  /** Mentor-side only: an active mission has gone CHECKIN_DUE_DAYS without an assessment. */
+  checkin_due: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +218,8 @@ export async function loadCubeSignals(
     feedback,
     meetings,
     webinars,
+    allAssessments,
+    checkins,
   ] = await Promise.all([
     prisma.missionTeamMember.findMany({
       where: { cube_id: { in: profileIds }, team: { mission: { status: { notIn: CLOSED_MISSION_STATUSES as any } } } },
@@ -276,6 +284,8 @@ export async function loadCubeSignals(
       orderBy: { date: 'asc' },
       take: 20,
     }),
+    prisma.mentorFeedback.groupBy({ by: ['cube_id'], where: { cube_id: { in: userIds } }, _max: { created_at: true } }),
+    prisma.checkIn.groupBy({ by: ['cube_id'], where: { cube_id: { in: profileIds }, kind: 'checkin' }, _max: { created_at: true } }),
   ]);
 
   const webinarIds = webinars.map(w => w.id);
@@ -307,6 +317,8 @@ export async function loadCubeSignals(
   const questionAt = new Map(lastQuestions.map(r => [r.cube_id, r._max.created_at]));
   const attendedAt = new Map(lastAttendance.map(r => [r.cube_id, r.meeting.date]));
   const feedbackAt = new Map(feedback.map(r => [r.cube_id, r._max.created_at]));
+  const scorecardAt = new Map(allAssessments.map(r => [r.cube_id, r._max.created_at]));
+  const checkinAt = new Map(checkins.map(r => [r.cube_id, r._max.created_at]));
 
   return profiles.map(profile => {
     const invitedTo = (list: string[]) => list.length === 0 || list.includes(profile.id);
@@ -362,6 +374,11 @@ export async function loadCubeSignals(
       ) || null;
     const nextMeeting = meetings.find(m => invitedTo(m.invited_cube_ids)) || null;
 
+    const lastAssessed = maxDate(scorecardAt.get(profile.user_id), checkinAt.get(profile.id));
+    const firstJoined = missions.length ? missions.reduce((a, m) => (m.joined < a ? m.joined : a), missions[0].joined) : null;
+    const checkinReference = maxDate(lastAssessed, firstJoined);
+    const checkinDue = Boolean(checkinReference) && daysBetween(checkinReference!, now) >= CHECKIN_DUE_DAYS;
+
     const items = deriveSignalItems({
       now,
       account_created_at: profile.user.created_at,
@@ -415,6 +432,8 @@ export async function loadCubeSignals(
           }
         : null,
       last_feedback_at: iso(feedbackAt.get(profile.user_id) || null),
+      last_assessed_at: iso(lastAssessed),
+      checkin_due: checkinDue,
     };
   });
 }

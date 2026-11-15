@@ -23,6 +23,9 @@ ENV VITE_MENTOR_CUBES_ENABLED=$VITE_MENTOR_CUBES_ENABLED
 # Pass --build-arg VITE_SCORING_V2_ENABLED=true to show the scoring v2 admin screens.
 ARG VITE_SCORING_V2_ENABLED=false
 ENV VITE_SCORING_V2_ENABLED=$VITE_SCORING_V2_ENABLED
+# Pass --build-arg VITE_SCORING_V2_LIVE=true (with SCORING_V2_LIVE=true on the backend) to show Cubes their v2 score.
+ARG VITE_SCORING_V2_LIVE=false
+ENV VITE_SCORING_V2_LIVE=$VITE_SCORING_V2_LIVE
 RUN npm run build
 
 # Stage 2: Build Backend

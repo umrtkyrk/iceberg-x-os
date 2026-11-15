@@ -822,6 +822,10 @@ model Quest {
   /// ensureAutoQuestsForCube). Defaults to false, so every existing quest keeps
   /// its current manual-assignment behaviour.
   auto_assign     Boolean             @default(false)
+  /// Scoring v2: set when a quest is retired (e.g. the old average-score
+  /// quests). Hidden from lists, takes no progress, never auto-assigned;
+  /// badges already earned stay.
+  retired_at      DateTime?
   created_at      DateTime            @default(now())
   updated_at      DateTime            @updatedAt
 
@@ -1288,8 +1292,9 @@ model Criterion {
   created_at    DateTime    @default(now())
   updated_at    DateTime    @updatedAt
 
-  levels  RubricLevel[]
-  ratings ScorecardRating[]
+  levels          RubricLevel[]
+  ratings         ScorecardRating[]
+  checkin_ratings CheckInRating[]
 
   @@index([discipline_id])
 }
@@ -1320,4 +1325,72 @@ model ScorecardRating {
 
   @@unique([feedback_id, criterion_id])
   @@index([criterion_id])
+}
+
+/// Scoring v2: a Cube's score as of one week, computed from the raw records by
+/// a formula version. Rebuilt (never edited) when the formula changes, so the
+/// growth line exists from the Cube's first week. See docs/scoring-v2.md.
+model ScoreSnapshot {
+  id              String   @id @default(uuid())
+  cube_id         String
+  /// Monday 00:00 UTC of the week.
+  week_start      DateTime
+  formula_version String
+  overall         Float?
+  mentor          Float?
+  delivery        Float?
+  private_effect  Float?
+  band            String?
+  provisional     Boolean  @default(true)
+  /// Pillar parts and evidence counts, as computed.
+  detail          Json
+  computed_at     DateTime @default(now())
+
+  @@unique([cube_id, week_start, formula_version])
+  @@index([formula_version, week_start])
+}
+
+/// Scoring v2: a lighter rating on the rubric between scorecards. `checkin`
+/// is written by a mentor during a mission and counts at half the weight of a
+/// scorecard; `self` is the Cube rating themselves, which never counts towards
+/// the score and is shown next to the mentor's view.
+model CheckIn {
+  id         String          @id @default(uuid())
+  /// CubeProfile id.
+  cube_id    String
+  mission_id String?
+  author_id  String
+  kind       String
+  note       String?         @db.Text
+  created_at DateTime        @default(now())
+  ratings    CheckInRating[]
+
+  @@index([cube_id, kind, created_at])
+  @@index([author_id])
+}
+
+model CheckInRating {
+  id           String    @id @default(uuid())
+  check_in_id  String
+  check_in     CheckIn   @relation(fields: [check_in_id], references: [id], onDelete: Cascade)
+  criterion_id String
+  criterion    Criterion @relation(fields: [criterion_id], references: [id], onDelete: Restrict)
+  value        Int?
+
+  @@unique([check_in_id, criterion_id])
+}
+
+/// One run of an admin operation from /admin/ops (e.g. rebuilding the score
+/// history). Kept as an audit trail of who ran what and what it did.
+model OpsRun {
+  id          String    @id @default(uuid())
+  operation   String
+  started_by  String
+  status      String
+  result      Json?
+  error       String?
+  started_at  DateTime  @default(now())
+  finished_at DateTime?
+
+  @@index([operation, started_at])
 }

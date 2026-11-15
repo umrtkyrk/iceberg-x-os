@@ -33,6 +33,7 @@ import {
   MessagesSquare,
   Layers,
   ListChecks,
+  Gauge,
   type LucideIcon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
@@ -136,7 +137,8 @@ const buildManage = (isAdmin: boolean): NavGroup => ({
               ...(SCORING_V2_ENABLED
                 ? [
                     { path: '/admin/disciplines', label: 'Disciplines', hint: 'Scoring v2: disciplines for Cubes and missions', icon: Layers },
-                    { path: '/admin/rubrics', label: 'Rubrics', hint: 'Scoring v2: criteria and what 1-5 means', icon: ListChecks }
+                    { path: '/admin/rubrics', label: 'Rubrics', hint: 'Scoring v2: criteria and what 1-5 means', icon: ListChecks },
+                    { path: '/admin/scoring', label: 'Scoring', hint: 'Scoring v2: shadow mode and calibration', icon: Gauge }
                   ]
                 : [])
             ]
