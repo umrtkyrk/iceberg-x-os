@@ -342,3 +342,14 @@ export async function resolveForumReport(actor: ForumActor, id: string) {
   if (!result.count) throw notFound('Open report not found.');
   return { ok: true };
 }
+
+export async function forumPostLikers(topicId: string, replyId: string | undefined, page: number) {
+  return prisma.$transaction(async tx => {
+    if (!await tx.forumTopic.findFirst({ where: { id: topicId, deleted_at: null }, select: { id: true } })) throw notFound('Topic not found.');
+    if (replyId && !await tx.forumReply.findFirst({ where: { id: replyId, topic_id: topicId, deleted_at: null }, select: { id: true } })) throw notFound('Reply not found.');
+    const args = { orderBy: [{ created_at: 'desc' as const }, { user_id: 'asc' as const }], skip: (page - 1) * 20, take: 20, select: { user: { select: author } } };
+    const total = replyId ? await tx.forumReplyLike.count({ where: { reply_id: replyId } }) : await tx.forumTopicLike.count({ where: { topic_id: topicId } });
+    const rows = replyId ? await tx.forumReplyLike.findMany({ ...args, where: { reply_id: replyId } }) : await tx.forumTopicLike.findMany({ ...args, where: { topic_id: topicId } });
+    return { people: rows.map(row => publicForumAuthor(row.user)), total, page, pageSize: 20 };
+  });
+}

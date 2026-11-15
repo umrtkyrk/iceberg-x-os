@@ -72,7 +72,7 @@ async function main() {
     prisma(['db', 'execute', '--file', sql, '--schema', baseline], older.url);
     prisma(['db', 'execute', '--file', path.join(backend, 'prisma/migrations', original, 'migration.sql'), '--schema', baseline], older.url);
     await admin.$executeRawUnsafe(`CREATE TABLE "${names[1]}"."_prisma_migrations" (LIKE "${names[0]}"."_prisma_migrations" INCLUDING ALL)`);
-    const pending = [integration, ...labels, defaults, likes];
+    const pending = [integration, ...labels, defaults, likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor'];
     await admin.$executeRawUnsafe(`INSERT INTO "${names[1]}"."_prisma_migrations" SELECT * FROM "${names[0]}"."_prisma_migrations" WHERE NOT (migration_name = ANY($1::text[]))`, pending);
     const user = await older.db.user.create({ data: { name: 'Local migration sentinel', email: `${randomUUID()}@example.invalid`, password_hash: 'unusable-test-only', role: 'ADMIN' } });
     await older.db.forumCategory.update({ where: { id: 'help' }, data: { name: 'Admin-owned title', description: 'Admin-owned description', position: 42 } });

@@ -16,7 +16,7 @@ const likes = '20261111120000_forum_likes';
 const baselineLast = '20261106120000_webinar_attendance_votes';
 // Additive forum migrations newer than the baseline. A fresh install already gets their tables from
 // the current schema, so --init-empty records them as applied instead of running them.
-const additive = new Set([likes]);
+const additive = new Set([likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor']);
 // These two historical files contain label-only UPDATEs, not schema changes.
 // Resolve them without executing them, but only if their reviewed contents match.
 const labelOnly = new Map([

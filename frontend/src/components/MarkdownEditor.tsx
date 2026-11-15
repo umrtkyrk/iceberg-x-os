@@ -6,7 +6,7 @@ import { MentionAwareLink, decodeMentions, encodeMentions, type MentionMap } fro
 import { FORUM_IMAGE_TYPES, ForumImage, imageParts, isForumImage, joinImages, splitImages } from '../utils/forumImages';
 import { getAssetUrl } from '../utils/assets';
 
-const EMOJIS = [
+export const EMOJIS = [
   ['😀', 'Grinning face'], ['😊', 'Smiling face'], ['😂', 'Laughing'], ['😍', 'Heart eyes'],
   ['😎', 'Sunglasses'], ['🤔', 'Thinking'], ['😅', 'Nervous laugh'], ['🥳', 'Party face'],
   ['👍', 'Thumbs up'], ['👏', 'Clapping'], ['🙌', 'Celebration hands'], ['🙏', 'Thanks'],
