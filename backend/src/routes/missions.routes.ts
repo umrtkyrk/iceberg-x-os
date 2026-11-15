@@ -2,6 +2,7 @@
  * Missions, reflections and lifecycle transitions.
  */
 import { Router } from 'express';
+import { ATTACHMENT_PUBLIC_SELECT, canSeeMissionFiles } from '../services/attachment.service';
 import prisma from '../services/prisma';
 import { requireAuth, isAdmin, isMentorOrAdmin, AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { TERMINAL_MISSION_STATUSES } from '../config/constants';
@@ -199,14 +200,16 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         },
         updates: {
           include: {
-            cube: { select: { name: true } }
+            cube: { select: { name: true } },
+            attachments: { select: ATTACHMENT_PUBLIC_SELECT, orderBy: { created_at: 'asc' } }
           },
           orderBy: { created_at: 'desc' }
         },
         demo_submissions: {
           include: {
             submitted_by: { select: { name: true } },
-            team: { select: { name: true } }
+            team: { select: { name: true } },
+            attachments: { select: ATTACHMENT_PUBLIC_SELECT, orderBy: { created_at: 'asc' } }
           },
           orderBy: { created_at: 'desc' }
         }
@@ -254,6 +257,12 @@ router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) 
         const { private_notes, ...rest } = item;
         return rest;
       });
+    }
+
+    // Files are for staff and the mission's own Cubes; others see the text only.
+    if (req.user && !(await canSeeMissionFiles(req.user, id))) {
+      for (const update of mission.updates) update.attachments = [];
+      for (const demo of mission.demo_submissions) demo.attachments = [];
     }
 
     const contributors = (await listContributors([id])).get(id) || [];

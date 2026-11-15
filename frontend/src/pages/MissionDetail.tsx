@@ -8,6 +8,7 @@ import { getStatusMeta } from '../utils/missionMeta';
 import { MissionPeoplePanel } from '../components/MissionPeoplePanel';
 import { MissionLineage } from '../components/MissionLineage';
 import { QuickStatusSelect } from '../components/QuickStatusSelect';
+import { AttachmentList, AttachmentPicker } from '../components/Attachments';
 
 export const MissionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Mission ID
@@ -52,6 +53,10 @@ export const MissionDetail: React.FC = () => {
   const [updateType, setUpdateType] = useState<string>('daily');
   const [updateContent, setUpdateContent] = useState('');
   const [updateBlockers, setUpdateBlockers] = useState('');
+  // Attachments for the update form: uploaded ids, a reset counter, and whether any are still uploading.
+  const [updateAttachmentIds, setUpdateAttachmentIds] = useState<string[]>([]);
+  const [updateAttachmentsKey, setUpdateAttachmentsKey] = useState(0);
+  const [updateAttachmentsBusy, setUpdateAttachmentsBusy] = useState(false);
   const [updateSubmitting, setUpdateSubmitting] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
@@ -168,11 +173,13 @@ export const MissionDetail: React.FC = () => {
         mission_id: id,
         type: updateType,
         content: updateContent.trim(),
-        blockers: updateBlockers.trim() || undefined
+        blockers: updateBlockers.trim() || undefined,
+        attachment_ids: updateAttachmentIds
       });
       setUpdateSuccess(true);
       setUpdateContent('');
       setUpdateBlockers('');
+      setUpdateAttachmentsKey(key => key + 1);
       await fetchMissionDetails();
       setTimeout(() => {
         setShowUpdateForm(false);
@@ -519,6 +526,8 @@ ${mission.description || 'No description provided.'}
                     )}
                   </div>
                   
+                  <AttachmentList attachments={demo.attachments} />
+
                   {/* Submission Links */}
                   <div className="flex flex-wrap gap-2.5 border-t border-gray-50 pt-3 mt-1 text-[10px] font-bold text-gray-500">
                     {demo.repository_url && (
@@ -796,6 +805,12 @@ ${mission.description || 'No description provided.'}
                 />
               </div>
 
+              <AttachmentPicker
+                onChange={setUpdateAttachmentIds}
+                onBusyChange={setUpdateAttachmentsBusy}
+                resetKey={updateAttachmentsKey}
+              />
+
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -807,7 +822,7 @@ ${mission.description || 'No description provided.'}
                 </button>
                 <button
                   type="submit"
-                  disabled={updateSubmitting || !updateContent.trim()}
+                  disabled={updateSubmitting || updateAttachmentsBusy || !updateContent.trim()}
                   className="flex items-center gap-1.5 px-4 py-1.5 bg-magenta text-white font-bold text-xs rounded-lg hover:bg-magenta-hover transition-colors shadow-sm disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -846,6 +861,7 @@ ${mission.description || 'No description provided.'}
                       ⚠️ Blocker: {update.blockers}
                     </p>
                   )}
+                  <AttachmentList attachments={update.attachments} className="mt-1.5" />
                   <span className="text-[10px] text-gray-400 mt-1">{new Date(update.created_at).toLocaleString()}</span>
                 </div>
               ))}

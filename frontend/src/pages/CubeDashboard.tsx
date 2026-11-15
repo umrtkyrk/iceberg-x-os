@@ -31,6 +31,7 @@ import { MissionStepper } from '../components/dashboard/MissionStepper';
 import { ForumPulse } from '../components/dashboard/ForumPulse';
 import { FocusPanel } from '../components/dashboard/FocusPanel';
 import { CUBE_FOCUS_ENABLED } from '../config/features';
+import { AttachmentPicker } from '../components/Attachments';
 
 export const CubeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -46,6 +47,10 @@ export const CubeDashboard: React.FC = () => {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSubmitting, setUpdateSubmitting] = useState(false);
+  // Attachments for the update form: uploaded ids, a reset counter, and whether any are still uploading.
+  const [updateAttachmentIds, setUpdateAttachmentIds] = useState<string[]>([]);
+  const [updateAttachmentsKey, setUpdateAttachmentsKey] = useState(0);
+  const [updateAttachmentsBusy, setUpdateAttachmentsBusy] = useState(false);
 
   // Testimonial States
   const [testimonialContent, setTestimonialContent] = useState('');
@@ -112,11 +117,13 @@ export const CubeDashboard: React.FC = () => {
         mission_id: missionId,
         type: updateType,
         content: updateContent.trim(),
-        blockers: updateBlockers.trim() || undefined
+        blockers: updateBlockers.trim() || undefined,
+        attachment_ids: updateAttachmentIds
       });
       setUpdateSuccess(true);
       setUpdateContent('');
       setUpdateBlockers('');
+      setUpdateAttachmentsKey(key => key + 1);
       setTimeout(() => {
         setActiveUpdateMissionId(null);
         setUpdateSuccess(false);
@@ -451,6 +458,12 @@ export const CubeDashboard: React.FC = () => {
                         />
                       </div>
 
+                      <AttachmentPicker
+                        onChange={setUpdateAttachmentIds}
+                        onBusyChange={setUpdateAttachmentsBusy}
+                        resetKey={updateAttachmentsKey}
+                      />
+
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
@@ -462,7 +475,7 @@ export const CubeDashboard: React.FC = () => {
                         </button>
                         <button
                           type="submit"
-                          disabled={updateSubmitting || !updateContent.trim()}
+                          disabled={updateSubmitting || updateAttachmentsBusy || !updateContent.trim()}
                           className="rounded-lg bg-magenta px-4 py-1.5 text-xs font-bold text-white transition-colors hover:bg-magenta-hover disabled:opacity-75"
                         >
                           {updateSubmitting ? 'Submitting...' : 'Send update'}
