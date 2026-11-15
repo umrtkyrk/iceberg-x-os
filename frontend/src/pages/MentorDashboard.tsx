@@ -242,7 +242,7 @@ export const MentorDashboard: React.FC = () => {
         {signals && signals.gems > 0 && (
           <Link
             to="/radar"
-            className="group flex items-center gap-3 rounded-2xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white px-5 py-3.5 transition hover:border-cyan-300"
+            className="group flex items-center gap-3 rounded-2xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white dark:bg-none dark:bg-cyan-50 px-5 py-3.5 transition hover:border-cyan-300"
           >
             <Gem className="h-5 w-5 shrink-0 text-cyan-500" />
             <span className="flex-1 text-xs font-bold text-cyan-900">

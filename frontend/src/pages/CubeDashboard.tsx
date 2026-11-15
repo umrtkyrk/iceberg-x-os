@@ -573,7 +573,7 @@ export const CubeDashboard: React.FC = () => {
               <>
                 <ul className="flex flex-col gap-3">
                   {kudos.slice(0, 2).map((k: any) => (
-                    <li key={k.id} className="rounded-2xl bg-gradient-to-br from-slate-50 to-white p-3.5 ring-1 ring-gray-100">
+                    <li key={k.id} className="rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:bg-none dark:bg-gray-50 p-3.5 ring-1 ring-gray-100">
                       <p className="line-clamp-3 text-xs font-medium italic leading-relaxed text-gray-700">
                         {k.note ? `“${k.note}”` : 'Recognised without a note.'}
                       </p>

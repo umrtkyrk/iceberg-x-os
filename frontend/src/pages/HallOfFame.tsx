@@ -271,7 +271,7 @@ export const HallOfFame: React.FC = () => {
 
       {/* Admin: promote */}
       {isAdmin && (
-        <section className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-6 shadow-subtle">
+        <section className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white dark:bg-none dark:bg-amber-50 p-6 shadow-subtle">
           <h3 className="flex items-center gap-2 text-base font-extrabold text-amber-900">
             <ShieldCheck className="h-4 w-4" /> Promote Icebergers to Mentors
           </h3>

@@ -114,7 +114,7 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
 
       {/* Growth indicator: calm, supportive, category only */}
       {isSelf && self?.growth_indicator && (
-        <div className="peer-soft-pulse relative mt-5 flex gap-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
+        <div className="peer-soft-pulse relative mt-5 flex gap-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white dark:bg-none dark:bg-amber-50 p-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
             <Lightbulb className="h-5 w-5" />
           </span>
@@ -181,7 +181,7 @@ export const PeerRecognition: React.FC<Props> = ({ cubeId, isSelf, name, avatarU
           </p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {pinned.map(p => (
-              <figure key={p.id} className="relative rounded-2xl bg-gradient-to-br from-slate-50 to-white p-4 ring-1 ring-gray-100">
+              <figure key={p.id} className="relative rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:bg-none dark:bg-gray-50 p-4 ring-1 ring-gray-100">
                 <Quote className="absolute right-3 top-3 h-5 w-5 text-magenta/20" />
                 <blockquote className="text-sm font-medium italic leading-relaxed text-slate-700">“{p.note}”</blockquote>
                 <figcaption className="mt-3 flex flex-wrap items-center gap-1.5">
