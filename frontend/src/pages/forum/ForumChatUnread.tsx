@@ -29,5 +29,5 @@ export function ChatUnreadBadge({ count }: { count: number }) {
 }
 export function PrivateRoomsButton({ userId, onClick }: { userId: string; onClick: () => void }) {
   const unread = useChatUnread(userId);
-  return <button type="button" className="talk-btn is-ghost" onClick={onClick}><LockKeyhole size={16}/>Private rooms <ChatUnreadBadge count={unread.total}/></button>;
+  return <button type="button" className="talk-btn is-ghost" onClick={onClick}><LockKeyhole size={16}/>Groups <ChatUnreadBadge count={unread.total}/></button>;
 }

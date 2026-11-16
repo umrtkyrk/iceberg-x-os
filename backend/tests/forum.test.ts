@@ -108,21 +108,45 @@ test('reply and activity update share a transaction; notifications exclude self 
   const original = prisma.$transaction;
   let recipientQuery: any, notification: any, activity: any, stateUpsert: any;
   const created = new Date();
-  const tx = { $queryRaw: async () => [], forumTopic: { findFirst: async () => ({ title: 'Topic', locked: false }), update: async (args: any) => { activity = args; } },
+  const tx = { $queryRaw: async () => [], forumTopic: { findFirst: async () => ({ title: 'Topic', locked: false }), findUnique: async () => ({ visibility: 'PUBLIC', audience_room_id: null }), update: async (args: any) => { activity = args; } },
     forumReply: { create: async () => ({ id: 'reply', created_at: created }) },
     forumTopicState: { findMany: async () => [{ user_id: 'other' }], upsert: async (args: any) => { stateUpsert = args; return {}; } },
-    user: { findMany: async (args: any) => { recipientQuery = args; return [{ id: 'other' }]; } },
+    user: { findMany: async (args: any) => { recipientQuery = args; return [{ id: 'other' }]; }, findUnique: async () => ({ name: 'Yunus Altanay' }) },
     notification: { create: async (args: any) => { notification = args; } } };
   prisma.$transaction = (async (fn: any) => fn(tx)) as typeof original;
   try {
     await createForumReply(cube, 'topic', { body: 'Helpful reply' });
+    assert.equal(notification.data.message, 'Yunus Altanay commented on “Topic”: “Helpful reply”');
     assert.equal(activity.data.last_activity_at, created);
     assert.equal(stateUpsert.update.read_at, created);
     assert.equal(stateUpsert.create.read_at, created);
-    assert.equal(recipientQuery.where.AND[1].id.not, cube.id);
+    assert.deepEqual(recipientQuery.where.AND[1], {}); // a public post may reach anyone
+    assert.equal(recipientQuery.where.AND[2].id.not, cube.id);
     assert.deepEqual(recipientQuery.where.AND[0].OR[1].cube_profile.is.current_level.notIn, ['Alumni', 'Former_Cube']);
     assert.equal(notification.data.user_id, 'other');
     assert.equal(notification.data.forum_target.create.reply_id, 'reply');
+  } finally { prisma.$transaction = original; }
+});
+
+test('a reply to a reply joins the top-level thread and tells the person replied to what was said', async () => {
+  const original = prisma.$transaction;
+  let createdReply: any;
+  const notifications: any[] = [];
+  const created = new Date();
+  const tx = { $queryRaw: async () => [], forumTopic: { findFirst: async () => ({ id: 'topic', title: 'Topic', locked: false, author_id: null }), findUnique: async () => ({ visibility: 'PUBLIC', audience_room_id: null }), update: async () => ({}) },
+    forumReply: { findFirst: async (args: any) => args.where.id === 'child' ? { id: 'child', parent_id: 'root', author_id: 'medine' } : null,
+      create: async (args: any) => { createdReply = args; return { id: 'reply', created_at: created }; } },
+    forumTopicState: { findMany: async () => [], upsert: async () => ({}) },
+    user: { findMany: async () => [{ id: 'medine', cube_profile: null }], findUnique: async () => ({ name: 'Yunus Altanay' }) },
+    notification: { create: async (args: any) => { notifications.push(args); } } };
+  prisma.$transaction = (async (fn: any) => fn(tx)) as typeof original;
+  try {
+    await createForumReply(cube, 'topic', { body: '[@Medine Kaynak](@cube-018) ne o', parent_id: 'child' });
+    assert.equal(createdReply.data.parent_id, 'root');
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].data.user_id, 'medine');
+    assert.equal(notifications[0].data.message, 'Yunus Altanay replied to your comment in “Topic”: “ne o”');
+    await assert.rejects(createForumReply(cube, 'topic', { body: 'Hello', parent_id: 'gone' }), isStatus(404));
   } finally { prisma.$transaction = original; }
 });
 
@@ -165,9 +189,10 @@ test('reading a topic never takes the row lock that writers wait on', async () =
   let locks = 0;
   const tx = {
     $queryRaw: async () => { locks++; return []; },
-    forumTopic: { findFirst: async () => ({ id: 'topic', accepted_reply_id: null, last_activity_at: new Date(), author: null, context: null }) },
+    forumTopic: { findFirst: async () => ({ id: 'topic', accepted_reply_id: null, last_activity_at: new Date(), author: null, context: null, reposts: [], poll: null }) },
     forumReply: { count: async () => 0, findMany: async () => [], findFirst: async () => null },
     forumTopicState: { upsert: async () => ({}) },
+    forumTopicRepost: { findMany: async () => [] },
   };
   prisma.$transaction = (async (fn: any) => fn(tx)) as typeof original;
   try {

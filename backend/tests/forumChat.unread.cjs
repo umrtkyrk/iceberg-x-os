@@ -49,7 +49,7 @@ module.exports = async ({ db, chat, outsiderAdmin }) => {
     const denied = await fetch(url + '?user_id=' + reader.id, { headers: { Authorization: 'Bearer ' + jwt.sign(outsiderAdmin, process.env.JWT_SECRET) } });
     assert.deepEqual(await denied.json(), { total: 0, rooms: [] });
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
-  await chat.changeChatMember(sender, b.id, reader.id, true);
+  await chat.removeChatMember(sender, b.id, reader.id);
   assert.deepEqual(await chat.chatUnread(reader), { total: 0, rooms: [] });
   console.log('PASS: unread totals/per-room counts, own/deleted message exclusion, attachment-only messages, exact timestamp ties, monotonic read cursors, authenticated private counts and membership revocation.');
 };
