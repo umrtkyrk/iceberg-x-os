@@ -545,7 +545,7 @@ html.dark .cube-forum .talk-thread-toggle:hover { background: #0c2a3d; }
 
 .cube-forum .talk-room-workspace { display: grid; grid-template-columns: min(var(--room-left, 270px), 26%) 14px minmax(0, 1fr) 14px min(var(--room-right, 300px), 28%); gap: 2px; min-height: 480px; }
 .cube-forum .talk-room-resizer { position: relative; cursor: col-resize; touch-action: none; border-radius: 999px; outline: none; }
-body.is-resizing-pane { cursor: col-resize; user-select: none; }
+.cube-forum.is-resizing-pane { cursor: col-resize; user-select: none; }
 .cube-forum .talk-room-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow: auto; scrollbar-width: thin; }
 .cube-forum .talk-room-panel { background: var(--talk-card); border: 1px solid var(--talk-line); border-radius: 18px; padding: 16px; min-width: 0; }
 .cube-forum .talk-room-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }

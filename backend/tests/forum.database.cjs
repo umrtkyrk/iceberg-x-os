@@ -455,6 +455,7 @@ async function main() {
     await require('./forumReposts.cjs')({ db, forum, cube, other, staff });
     await require('./forumChatPins.cjs')({ db, chat, room, cube, other, adminActor });
     await require('./forumVisibility.cjs')({ db, forum, room, cube, other, staff, adminActor });
+    await require('./forumReviewFixes.cjs')({ db, forum, chat, cube, other, staff });
     console.log('PASS: private room roles, API isolation, revocation races, cross-room isolation, history, pagination, safe identities and topic/reply liker lists.');
     // Forum history must not break the portal's existing account-deletion flow.
     await db.user.delete({ where: { id: other.id } });

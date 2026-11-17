@@ -182,7 +182,7 @@ test('mentionOverhead is the stored characters mention links add beyond the visi
 
 test('forum CSS cannot style portal Markdown or controls outside the forum', () => {
   const css = postcss.parse(readFileSync(new URL('../src/pages/forum/talks.css', import.meta.url), 'utf8'));
-  css.walkRules(rule => { for (const selector of rule.selectors) assert.ok(selector.startsWith('html.dark .cube-forum') || selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
+  css.walkRules(rule => { if (rule.parent?.type === 'atrule' && /keyframes$/i.test(rule.parent.name)) return; for (const selector of rule.selectors) assert.ok(selector.startsWith('html.dark .cube-forum') || selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
 });
 
 const imagesSource = 'const api = {}; const getAssetUrl = value => "https://cdn.example" + value;\n' +

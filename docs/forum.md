@@ -121,3 +121,12 @@ Both database suites require localhost and create/delete only random disposable 
 ## Upstream refresh (11 November 2026)
 
 This fork incorporates upstream main through `1c78ca1`, including recruitment, webinars, forum quest criteria, dashboard activity and signature frames. Fork-only likes, emoji composition, notification fixes, contributor links and workflow documents are retained. The empty-local-schema installer includes the reviewed recruitment/webinar schema; an existing local portal with pending non-forum migrations still requires a separate reviewed upgrade. This refresh does not run migrations or deploy either repository.
+
+
+## Review fixes for private posts and room integrations
+
+Moderation lists, dashboard report counts and report resolution respect the moderator’s post audience access. Report membership does not bypass a private post’s audience.
+
+Room GitHub activity supports publicly accessible repositories only. It uses anonymous requests and never forwards a server-wide GITHUB_TOKEN for a user-selected repository. Private repository activity requires a future per-user authorization flow; room membership alone cannot grant GitHub permissions.
+
+The chat encryption backfill uses conditional field writes: a value is converted only if it still matches its snapshot. Concurrent message edits/deletions and metadata changes are preserved. Rerun the idempotent script to pick up changed legacy values. Back up FORUM_CHAT_KEY and the database/files before any production operation. These tests use local synthetic data only.

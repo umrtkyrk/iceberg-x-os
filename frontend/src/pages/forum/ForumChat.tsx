@@ -40,10 +40,10 @@ function PaneResizer({ side, width, setWidth, otherWidth, container }: { side: P
     if (e.button !== 0) return;
     e.preventDefault();
     const handle = e.currentTarget, startX = e.clientX, startWidth = width;
-    handle.setPointerCapture(e.pointerId); document.body.classList.add('is-resizing-pane');
+    handle.setPointerCapture(e.pointerId); document.querySelector('.cube-forum')?.classList.add('is-resizing-pane');
     let last = startWidth;
     const move = (ev: PointerEvent) => { last = clamp(startWidth + (side === 'left' ? ev.clientX - startX : startX - ev.clientX)); setWidth(last); };
-    const stop = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', stop); handle.removeEventListener('pointercancel', stop); document.body.classList.remove('is-resizing-pane'); save(last); };
+    const stop = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', stop); handle.removeEventListener('pointercancel', stop); document.querySelector('.cube-forum')?.classList.remove('is-resizing-pane'); save(last); };
     handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', stop); handle.addEventListener('pointercancel', stop);
   };
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {

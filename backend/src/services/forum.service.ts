@@ -138,7 +138,7 @@ export async function forumDashboard(actor: ForumActor) {
     prisma.forumReply.count({ where: { ...liveReply, created_at: { gte: weekAgo } } }),
     prisma.$queryRaw<Array<{ count: bigint }>>`SELECT count(*) AS count FROM "ForumTopicState" s JOIN "ForumTopic" t ON t.id = s.topic_id
       WHERE s.user_id = ${actor.id} AND s.following AND t.deleted_at IS NULL AND (s.read_at IS NULL OR s.read_at < t.last_activity_at)`,
-    staff ? prisma.forumReport.count({ where: { resolved_at: null } }) : Promise.resolve(null),
+    staff ? prisma.forumReport.count({ where: { resolved_at: null, topic: { AND: [visibleTopicWhere(actor)] } } }) : Promise.resolve(null),
   ]);
   return {
     recent: recent.map(({ states, ...topic }) => ({ ...projectPost(topic), read_at: states[0]?.read_at ?? null })),
@@ -473,7 +473,7 @@ export async function reportForumPost(actor: ForumActor, id: string, input: Reco
 
 export async function listForumReports(actor: ForumActor, page: number) {
   if (!isForumStaff(actor)) throw forbidden('Moderation permission is required.');
-  const where = { resolved_at: null };
+  const where = { resolved_at: null, topic: { AND: [visibleTopicWhere(actor)] } };
   const [total, reports] = await prisma.$transaction([
     prisma.forumReport.count({ where }),
     prisma.forumReport.findMany({ where, orderBy: [{ created_at: 'asc' }, { id: 'asc' }], skip: (page - 1) * pageSize, take: pageSize,
@@ -484,7 +484,7 @@ export async function listForumReports(actor: ForumActor, page: number) {
 
 export async function resolveForumReport(actor: ForumActor, id: string) {
   if (!isForumStaff(actor)) throw forbidden('Moderation permission is required.');
-  const result = await prisma.forumReport.updateMany({ where: { id, resolved_at: null }, data: { resolved_at: new Date(), resolved_by_id: actor.id } });
+  const result = await prisma.forumReport.updateMany({ where: { id, resolved_at: null, topic: { AND: [visibleTopicWhere(actor)] } }, data: { resolved_at: new Date(), resolved_by_id: actor.id } });
   if (!result.count) throw notFound('Open report not found.');
   return { ok: true };
 }
