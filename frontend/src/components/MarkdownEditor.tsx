@@ -30,6 +30,8 @@ interface MarkdownEditorProps {
   emojiPicker?: boolean;
   /** Enables the image button and pasting images; returns the Markdown to insert. */
   onUploadImage?: (file: File) => Promise<string>;
+  /** Extra toolbar buttons after the image button, such as the forum's poll button. */
+  extraTools?: React.ReactNode;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -43,7 +45,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   maxLength,
   mentions = false,
   emojiPicker = false,
-  onUploadImage
+  onUploadImage,
+  extraTools
 }) => {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const [linkOpen, setLinkOpen] = useState(false);
@@ -276,6 +279,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void addImage(file); }}
             />
           </>}
+          {extraTools}
         </div>
 
         {/* Tab Selector */}

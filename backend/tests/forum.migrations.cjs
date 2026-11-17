@@ -72,19 +72,24 @@ async function main() {
     prisma(['db', 'execute', '--file', sql, '--schema', baseline], older.url);
     prisma(['db', 'execute', '--file', path.join(backend, 'prisma/migrations', original, 'migration.sql'), '--schema', baseline], older.url);
     await admin.$executeRawUnsafe(`CREATE TABLE "${names[1]}"."_prisma_migrations" (LIKE "${names[0]}"."_prisma_migrations" INCLUDING ALL)`);
-    const pending = [integration, ...labels, defaults, likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor'];
+    const pending = [integration, ...labels, defaults, likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor', '20261116190000_forum_threads_rooms', '20261117120000_forum_private_groups', '20261117160000_forum_polls', '20261117170000_forum_poll_anonymous', '20261117180000_forum_reposts', '20261117190000_forum_reply_polls', '20261117200000_forum_chat_pins', '20261117210000_forum_post_visibility'];
     await admin.$executeRawUnsafe(`INSERT INTO "${names[1]}"."_prisma_migrations" SELECT * FROM "${names[0]}"."_prisma_migrations" WHERE NOT (migration_name = ANY($1::text[]))`, pending);
     const user = await older.db.user.create({ data: { name: 'Local migration sentinel', email: `${randomUUID()}@example.invalid`, password_hash: 'unusable-test-only', role: 'ADMIN' } });
     await older.db.forumCategory.update({ where: { id: 'help' }, data: { name: 'Admin-owned title', description: 'Admin-owned description', position: 42 } });
     await older.db.forumCategory.delete({ where: { id: 'resources' } });
-    const topic = await older.db.forumTopic.create({ data: { title: 'Preserve this topic', body: 'Original stored content', category_id: 'help', author_id: user.id } });
+    const legacyTopicSelect = { id: true, title: true, body: true, category_id: true, author_id: true, created_at: true, updated_at: true };
+    // Seed only baseline columns: the current Prisma create also inserts newer default fields.
+    const topicId = randomUUID();
+    await older.db.$executeRaw`INSERT INTO "ForumTopic" (id, title, body, category_id, author_id, updated_at)
+      VALUES (${topicId}, 'Preserve this topic', 'Original stored content', 'help', ${user.id}, CURRENT_TIMESTAMP)`;
+    const topic = await older.db.forumTopic.findUnique({ where: { id: topicId }, select: legacyTopicSelect });
     const categories = await older.db.forumCategory.findMany({ orderBy: { id: 'asc' } });
     const beforeHistory = await older.db.$queryRawUnsafe('SELECT count(*)::int AS count FROM "_prisma_migrations"');
     passed(invoke('--plan', older.url));
     assert.deepEqual(await older.db.$queryRawUnsafe('SELECT count(*)::int AS count FROM "_prisma_migrations"'), beforeHistory);
     passed(invoke('--apply', older.url));
     for (const category of categories) assert.deepEqual(await older.db.forumCategory.findUnique({ where: { id: category.id } }), category);
-    assert.deepEqual(await older.db.forumTopic.findUnique({ where: { id: topic.id } }), topic);
+    assert.deepEqual(await older.db.forumTopic.findUnique({ where: { id: topic.id }, select: legacyTopicSelect }), topic);
     assert.deepEqual(await older.db.user.findUnique({ where: { id: user.id } }), user);
     assert.equal(await older.db.forumProfile.count(), 0);
     assert.equal(await older.db.forumCategory.count(), categories.length + 1); // integration adds Ideas
@@ -97,7 +102,7 @@ async function main() {
     const portalName = folders.filter(name => name < original).sort()[0];
     await older.db.$executeRawUnsafe('DELETE FROM "_prisma_migrations" WHERE migration_name = $1', portalName);
     rejected(invoke('--apply', older.url), /Portal migrations need a separate reviewed upgrade/);
-    assert.deepEqual(await older.db.forumTopic.findUnique({ where: { id: topic.id } }), topic);
+    assert.deepEqual(await older.db.forumTopic.findUnique({ where: { id: topic.id }, select: legacyTopicSelect }), topic);
     console.log('PASS: unknown portal upgrade refused without changing forum data.');
   } finally {
     for (const client of clients) await client.$disconnect();

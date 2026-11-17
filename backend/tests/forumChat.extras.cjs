@@ -47,12 +47,17 @@ module.exports = async ({ db, chat, room, secondRoom, cube, other, adminActor, o
     const exact = await upload(Buffer.alloc(files.CHAT_FILE_MAX_BYTES), '../boundary.bin');
     assert.equal(exact.byte_size, 10 * 1024 * 1024); assert.equal(exact.original_name, 'boundary.bin');
     assert.equal('storage_key' in exact, false);
-    const exactPath = (await files.chatFile(cube, room.id, exact.id)).path;
-    assert.equal((await fs.stat(exactPath)).size, files.CHAT_FILE_MAX_BYTES);
+    const chatDirectory = require('node:path').resolve(require('../dist/config/env').STORAGE_PATH, 'private-chat');
+    const exactPath = require('node:path').join(chatDirectory, (await db.forumChatAttachment.findUnique({ where: { id: exact.id } })).storage_key);
+    assert.equal((await fs.stat(exactPath)).size, files.CHAT_FILE_MAX_BYTES + 36); // magic header, IV and tag around the ciphertext
+    assert.equal((await files.chatFile(cube, room.id, exact.id)).data.length, files.CHAT_FILE_MAX_BYTES);
     await files.discardChatFile(cube, room.id, exact.id);
     await assert.rejects(fs.stat(exactPath), e => e.code === 'ENOENT');
     const file = await upload(Buffer.from('PrivateAttachmentSentinel'), '..\\private.txt');
     assert.equal(file.original_name, 'private.txt');
+    const storedFile = await db.forumChatAttachment.findUnique({ where: { id: file.id } });
+    assert.match(storedFile.original_name, /^enc:v1:/);
+    assert.doesNotMatch((await fs.readFile(require('node:path').join(chatDirectory, storedFile.storage_key))).toString('latin1'), /PrivateAttachmentSentinel/);
     await assert.rejects(files.chatFile(adminActor, room.id, file.id), e => e.status === 404); // staged file is uploader-only
     await assert.rejects(chat.sendChatMessage(adminActor, room.id, { body: '', attachment_ids: [file.id] }), e => e.status === 400);
     const fileMessage = await chat.sendChatMessage(cube, room.id, { body: '', attachment_ids: [file.id], reply_to_id: original.id });
@@ -89,9 +94,9 @@ module.exports = async ({ db, chat, room, secondRoom, cube, other, adminActor, o
       const form = new FormData(); form.append('file', new Blob([Buffer.alloc(files.CHAT_FILE_MAX_BYTES + 1)]), 'oversize.bin');
       const rejected = await fetch(root + '/api/forum/chat/rooms/' + room.id + '/files', { method: 'POST', headers: headers(cube), body: form });
       assert.equal(rejected.status, 413); assert.match(await rejected.text(), /10 MB/);
-      await chat.changeChatMember(adminActor, room.id, cube.id, true);
+      await chat.removeChatMember(adminActor, room.id, cube.id);
       assert.equal((await fetch(url, { headers: headers(cube) })).status, 404);
-      await chat.changeChatMember(adminActor, room.id, cube.id, false);
+      await chat.addChatMembers(adminActor, room.id, { user_ids: [cube.id] });
       await chat.editChatMessage(cube, room.id, fileMessage.id, {}, true);
       assert.equal((await fetch(url, { headers: headers(cube) })).status, 404);
     } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

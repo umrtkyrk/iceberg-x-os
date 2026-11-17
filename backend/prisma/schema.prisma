@@ -103,6 +103,9 @@ model User {
   forum_chat_messages ForumChatMessage[]
   forum_chat_attachments ForumChatAttachment[]
   forum_chat_reactions ForumChatReaction[]
+  forum_poll_votes ForumPollVote[]
+  forum_topic_reposts ForumTopicRepost[]
+  forum_topic_audiences ForumTopicAudience[]
 
   // Relations
   cube_profile          CubeProfile?          @relation("UserToCubeProfile")
@@ -122,6 +125,8 @@ model User {
   uploaded_documents    CubeDocument[]        @relation("DocumentUploader")
   reviewed_documents    CubeDocument[]        @relation("DocumentReviewer")
   uploaded_attachments  Attachment[]          @relation("AttachmentUploader")
+  forum_chat_tasks ForumChatTask[] @relation("ForumChatTaskCreator")
+  forum_chat_links ForumChatLink[] @relation("ForumChatLinkCreator")
 }
 
 model CubeProfile {
@@ -1098,6 +1103,13 @@ model ForumTopic {
   states               ForumTopicState[]
   reports              ForumReport[]
   likes                ForumTopicLike[]
+  poll                 ForumPoll?
+  reposts              ForumTopicRepost[]
+  /// PUBLIC (everyone), GROUP (members of audience_room) or PRIVATE (the author plus the people in `audience`).
+  visibility           String                    @default("PUBLIC")
+  audience_room_id     String?
+  audience_room        ForumChatRoom?            @relation(fields: [audience_room_id], references: [id], onDelete: SetNull)
+  audience             ForumTopicAudience[]
 
   @@index([category_id, deleted_at, last_activity_at])
   @@index([author_id])
@@ -1109,6 +1121,10 @@ model ForumReply {
   id                   String                    @id @default(uuid())
   topic_id             String
   topic                ForumTopic                @relation(fields: [topic_id], references: [id])
+  /// Top-level comment this reply belongs to (one level deep, like YouTube). Null for top-level comments.
+  parent_id            String?
+  parent               ForumReply?               @relation("ForumReplyThread", fields: [parent_id], references: [id], onDelete: SetNull)
+  children             ForumReply[]              @relation("ForumReplyThread")
   author_id            String?
   author               User?                     @relation(fields: [author_id], references: [id], onDelete: SetNull)
   body                 String                    @db.Text
@@ -1118,9 +1134,11 @@ model ForumReply {
   deleted_by_id        String?
   reports              ForumReport[]
   likes                ForumReplyLike[]
+  poll                 ForumPoll?
   accepted_in          ForumTopic?               @relation("AcceptedForumReply")
 
   @@index([topic_id, deleted_at, created_at])
+  @@index([parent_id, created_at])
   @@index([author_id])
 }
 
@@ -1408,9 +1426,19 @@ model ForumChatRoom {
   updated_at DateTime @default(now())
   created_by_id String?
   creator User? @relation("ForumChatCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  /// Encrypted (see forumChatCrypto.service): name, description, github_repo and all room content.
+  description String?
+  /// GitHub repositories shown in the room's activity panel: one "owner/name" or a JSON list of up to five.
+  github_repo String?
+  /// WhatsApp-style group settings: who may edit the group info, and who may send messages.
+  only_admins_edit Boolean @default(false)
+  only_admins_send Boolean @default(false)
+  tasks ForumChatTask[]
+  links ForumChatLink[]
   members ForumChatMember[]
   messages ForumChatMessage[]
   attachments ForumChatAttachment[]
+  audience_topics ForumTopic[]
 }
 model ForumChatMember {
   room_id String
@@ -1418,6 +1446,8 @@ model ForumChatMember {
   room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   joined_at DateTime @default(now())
+  /// ADMIN (group admin) or MEMBER.
+  role String @default("MEMBER")
   read_at DateTime?
   read_message_id String?
   typing_until DateTime?
@@ -1436,6 +1466,10 @@ model ForumChatMessage {
   replies ForumChatMessage[] @relation("ChatReply")
   attachments ForumChatAttachment[]
   reactions ForumChatReaction[]
+  poll ForumPoll?
+  /// Pinned to the top of the group by a group admin (WhatsApp keeps up to three).
+  pinned_at DateTime?
+  pinned_by_id String?
   created_at DateTime @default(now())
   room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
@@ -1465,5 +1499,93 @@ model ForumChatReaction {
   message ForumChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   @@id([message_id, user_id])
+  @@index([user_id])
+}
+
+/// A room's shared to-do board: TODO, DOING or DONE.
+model ForumChatTask {
+  id String @id @default(uuid())
+  room_id String
+  title String
+  status String @default("TODO")
+  created_by_id String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  creator User? @relation("ForumChatTaskCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  @@index([room_id, status, created_at])
+}
+
+/// Links pinned in a room, such as the project repository or a design file.
+model ForumChatLink {
+  id String @id @default(uuid())
+  room_id String
+  title String
+  url String
+  created_by_id String?
+  created_at DateTime @default(now())
+  room ForumChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  creator User? @relation("ForumChatLinkCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  @@index([room_id, created_at])
+}
+
+/// A WhatsApp-style poll attached to a forum topic, a forum comment or a private chat message (exactly one of them).
+/// Chat poll questions and options are encrypted with the room key, like the rest of the room content.
+model ForumPoll {
+  id String @id @default(uuid())
+  topic_id String? @unique
+  message_id String? @unique
+  reply_id String? @unique
+  question String
+  allow_multiple Boolean @default(false)
+  /// Anonymous poll: totals are shown, but not who chose which option.
+  hide_voters Boolean @default(false)
+  created_at DateTime @default(now())
+  topic ForumTopic? @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  message ForumChatMessage? @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  reply ForumReply? @relation(fields: [reply_id], references: [id], onDelete: Cascade)
+  options ForumPollOption[]
+  votes ForumPollVote[]
+}
+model ForumPollOption {
+  id String @id @default(uuid())
+  poll_id String
+  position Int
+  text String
+  poll ForumPoll @relation(fields: [poll_id], references: [id], onDelete: Cascade)
+  votes ForumPollVote[]
+  @@unique([poll_id, position])
+}
+model ForumPollVote {
+  poll_id String
+  option_id String
+  user_id String
+  created_at DateTime @default(now())
+  poll ForumPoll @relation(fields: [poll_id], references: [id], onDelete: Cascade)
+  option ForumPollOption @relation(fields: [option_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@id([option_id, user_id])
+  @@index([poll_id, user_id])
+  @@index([user_id])
+}
+
+/// A Cube sharing someone else's post with the community ("Ayşe reposted").
+model ForumTopicRepost {
+  user_id String
+  topic_id String
+  created_at DateTime @default(now())
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  @@id([user_id, topic_id])
+  @@index([topic_id, created_at])
+}
+
+/// The people a PRIVATE forum post is shared with (besides its author).
+model ForumTopicAudience {
+  topic_id String
+  user_id String
+  topic ForumTopic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@id([topic_id, user_id])
   @@index([user_id])
 }

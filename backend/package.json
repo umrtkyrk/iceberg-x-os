@@ -17,7 +17,9 @@
     "test:forum:migrations": "node tests/forum.migrations.cjs",
     "db:forum:plan": "node scripts/forum-migrate.cjs --plan",
     "db:forum:migrate": "node scripts/forum-migrate.cjs --apply",
-    "db:forum:init": "node scripts/forum-migrate.cjs --init-empty"
+    "db:forum:init": "node scripts/forum-migrate.cjs --init-empty",
+    "db:forum:demo": "node scripts/forum-rooms-demo.cjs",
+    "db:forum:encrypt-chat": "node scripts/forum-encrypt-chat.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

@@ -45,6 +45,14 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113120000_forum_private_chat/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113160000_forum_chat_extras/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261113190000_forum_chat_unread_cursor/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261116190000_forum_threads_rooms/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117120000_forum_private_groups/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117160000_forum_polls/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117170000_forum_poll_anonymous/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117180000_forum_reposts/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117190000_forum_reply_polls/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117200000_forum_chat_pins/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117210000_forum_post_visibility/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };
@@ -121,13 +129,29 @@ async function main() {
     const remainingPage = await forum.readForumTopic(staff, topic.id, 2);
     assert.equal(remainingPage.page, 1);
     assert.equal(remainingPage.replies[0].id, reply.id);
+    // YouTube-style threads: a reply to a reply joins the top-level comment, and its author is told what was said.
+    const child = await forum.createForumReply(other, topic.id, { body: 'First answer', parent_id: reply.id });
+    const grandChild = await forum.createForumReply(cube, topic.id, { body: '[@Integration test](@cube-102) ne o', parent_id: child.id });
+    assert.equal((await db.forumReply.findUnique({ where: { id: grandChild.id } })).parent_id, reply.id);
+    const threaded = await forum.readForumTopic(staff, topic.id, 1, grandChild.id);
+    assert.equal(threaded.replies.find(r => r.id === reply.id).replies.length, 2);
+    assert.equal(threaded.replies.some(r => r.id === child.id), false);
+    assert.equal(threaded.comment_count, threaded.total + 2);
+    const told = await db.notification.findFirst({ where: { user_id: other.id, forum_target: { is: { reply_id: grandChild.id } } } });
+    assert.match(told.message, /^Integration test replied to your comment in “A real persistence test”: “ne o”$/);
+    await assert.rejects(forum.createForumReply(cube, topic.id, { body: 'Late', parent_id: 'missing' }), e => e.status === 404);
+    await forum.changeForumReply(other, topic.id, child.id, {}, true);
+    await forum.changeForumReply(cube, topic.id, grandChild.id, {}, true);
     await forum.acceptForumAnswer(cube, topic.id, { reply_id: reply.id });
     assert.equal((await forum.forumStats()).solved, 1);
     assert.equal((await forum.listForumTopics(cube, { view: 'solved', category: 'help', page: 1 })).topics[0].id, topic.id);
     assert.equal((await forum.listForumTopics(cube, { view: 'solved', category: 'showcase', page: 1 })).total, 0);
-    await forum.moderateForumTopic(staff, topic.id, { pinned: true, locked: false, category_id: 'help' });
+    // Only portal Admins pin; Mentors can still lock and move.
+    const pinAdmin = { id: staff.id, role: 'ADMIN' };
+    await assert.rejects(forum.moderateForumTopic(staff, topic.id, { pinned: true, locked: false }), e => e.status === 403);
+    await forum.moderateForumTopic(pinAdmin, topic.id, { pinned: true, locked: false, category_id: 'help' });
     assert.equal((await forum.readForumTopic(cube, topic.id, 1)).topic.accepted_reply_id, reply.id);
-    await forum.moderateForumTopic(staff, topic.id, { pinned: false, locked: false, category_id: 'ideas' });
+    await forum.moderateForumTopic(pinAdmin, topic.id, { pinned: false, locked: false, category_id: 'ideas' });
     const moved = await forum.readForumTopic(cube, topic.id, 1);
     assert.equal(moved.topic.category_id, 'ideas');
     assert.equal(moved.topic.accepted_reply_id, null);
@@ -142,7 +166,7 @@ async function main() {
     assert.equal((await forum.readForumTopic(cube, topic.id, 1)).topic.edited, false);
     await forum.changeForumTopic(cube, topic.id, { title: 'A real persistence test', body: 'A sufficiently long original post.' });
     assert.equal((await forum.readForumTopic(cube, topic.id, 1)).topic.edited, true);
-    await forum.moderateForumTopic(staff, topic.id, { pinned: true, locked: true });
+    await forum.moderateForumTopic(pinAdmin, topic.id, { pinned: true, locked: true });
     await assert.rejects(forum.createForumReply(other, topic.id, { body: 'Blocked reply' }), e => e.status === 403);
     const report = await forum.reportForumPost(cube, topic.id, { reply_id: reply.id, reason: 'Please review this reply.' });
     assert.equal((await forum.listForumReports(staff, 1)).total, 1);
@@ -285,22 +309,75 @@ async function main() {
     const adminActor = { id: randomUUID(), role: 'ADMIN' };
     const outsiderAdmin = { id: randomUUID(), role: 'ADMIN' };
     for (const actor of [adminActor, outsiderAdmin]) await db.user.create({ data: { ...actor, name: 'Room admin', email: actor.id + '@example.invalid', password_hash: 'unusable-test-only' } });
-    await assert.rejects(chat.createChatRoom(cube, { name: 'No', member_ids: [] }), e => e.status === 403);
-    await assert.rejects(chat.createChatRoom(staff, { name: 'No', member_ids: [] }), e => e.status === 403);
-    await assert.rejects(chat.chatPeople(cube, '', 1), e => e.status === 403);
+    // WhatsApp-style groups: anyone may start one and becomes its group admin. Portal Admins and Mentors get no
+    // access to groups they are not in, and everything said in a group is stored encrypted.
+    assert.ok((await chat.chatPeople(cube, '', 1)).total >= 3);
+    const cubeGroup = await chat.createChatRoom(cube, { name: 'Cube group', description: 'Started by a Cube', member_ids: [other.id] });
+    const cubeGroupInfo = await chat.chatRoomDetails(cube, cubeGroup.id);
+    assert.equal(cubeGroupInfo.my_role, 'ADMIN'); assert.equal(cubeGroupInfo.name, 'Cube group'); assert.equal(cubeGroupInfo.description, 'Started by a Cube');
+    assert.equal((await chat.chatRoomDetails(other, cubeGroup.id)).my_role, 'MEMBER');
+    await assert.rejects(chat.chatRoomDetails(adminActor, cubeGroup.id), e => e.status === 404);
+    await assert.rejects(chat.chatMessages(staff, cubeGroup.id, 1), e => e.status === 404);
+    const storedGroup = await db.forumChatRoom.findUnique({ where: { id: cubeGroup.id } });
+    assert.match(storedGroup.name, /^enc:v1:/); assert.match(storedGroup.description, /^enc:v1:/);
+    await assert.rejects(chat.addChatMembers(other, cubeGroup.id, { user_ids: [staff.id] }), e => e.status === 403);
+    await assert.rejects(chat.removeChatMember(other, cubeGroup.id, cube.id), e => e.status === 403);
+    await assert.rejects(chat.setChatMemberRole(other, cubeGroup.id, other.id, { role: 'ADMIN' }), e => e.status === 403);
+    await assert.rejects(chat.deleteChatRoom(other, cubeGroup.id), e => e.status === 403);
+    await chat.updateChatRoom(other, cubeGroup.id, { name: 'Renamed by a member' });
+    assert.equal((await chat.listChatRooms(cube, 1)).rooms.find(row => row.id === cubeGroup.id).name, 'Renamed by a member');
+    await chat.updateChatRoom(cube, cubeGroup.id, { only_admins_edit: true, only_admins_send: true });
+    await assert.rejects(chat.updateChatRoom(other, cubeGroup.id, { name: 'Blocked' }), e => e.status === 403);
+    await assert.rejects(chat.updateChatRoom(other, cubeGroup.id, { only_admins_send: false }), e => e.status === 403);
+    await assert.rejects(chat.sendChatMessage(other, cubeGroup.id, { body: 'Members cannot send' }), e => e.status === 403);
+    const adminOnly = await chat.sendChatMessage(cube, cubeGroup.id, { body: 'GroupSecretSentinel' });
+    assert.equal(await db.forumChatMessage.count({ where: { body: { contains: 'GroupSecretSentinel' } } }), 0);
+    assert.equal((await chat.chatMessages(other, cubeGroup.id, 1, 'groupsecret')).total, 1);
+    // Seen by everyone flips once every member who was in the group at send time has read the message.
+    assert.equal((await chat.chatMessages(cube, cubeGroup.id, 1)).messages[0].read_all, false);
+    await chat.chatPresence(other, cubeGroup.id, { typing: false, read_message_id: adminOnly.id });
+    assert.equal((await chat.chatMessages(cube, cubeGroup.id, 1)).messages[0].read_all, true);
+    await chat.addChatMembers(cube, cubeGroup.id, { user_ids: [staff.id, other.id] });
+    assert.equal((await chat.chatMessages(cube, cubeGroup.id, 1)).messages[0].read_all, true); // later joiners do not count
+    await chat.setChatMemberRole(cube, cubeGroup.id, other.id, { role: 'ADMIN' });
+    await chat.sendChatMessage(other, cubeGroup.id, { body: 'Now an admin' });
+    // The last admin leaving hands the group over; the last member leaving deletes it.
+    await chat.setChatMemberRole(other, cubeGroup.id, other.id, { role: 'MEMBER' });
+    await chat.removeChatMember(cube, cubeGroup.id, cube.id);
+    assert.equal((await chat.chatRoomDetails(other, cubeGroup.id)).my_role, 'ADMIN');
+    await chat.removeChatMember(other, cubeGroup.id, staff.id);
+    await chat.removeChatMember(other, cubeGroup.id, other.id);
+    assert.equal(await db.forumChatRoom.count({ where: { id: cubeGroup.id } }), 0);
+    const doomed = await chat.createChatRoom(cube, { name: 'Doomed', member_ids: [other.id] });
+    await chat.deleteChatRoom(cube, doomed.id);
+    await assert.rejects(chat.chatRoomDetails(other, doomed.id), e => e.status === 404);
     await assert.rejects(chat.createChatRoom(adminActor, { name: 'No', member_ids: ['missing'] }), e => e.status === 400);
     const room = await chat.createChatRoom(adminActor, { name: 'SecretRoomSentinel', member_ids: [cube.id, cube.id] });
     assert.equal(room._count.members, 2);
     assert.equal((await chat.listChatRooms(cube, 1)).total, 1);
+    // Room workspace: board, pinned links and repository are members-only and validated.
+    const task = await chat.addChatTask(cube, room.id, { title: 'Ship threads' });
+    assert.equal((await chat.changeChatTask(cube, room.id, task.id, { status: 'DOING' })).status, 'DOING');
+    await assert.rejects(chat.changeChatTask(cube, room.id, task.id, { status: 'LATER' }), e => e.status === 400);
+    await assert.rejects(chat.addChatTask(other, room.id, { title: 'Intruder' }), e => e.status === 404);
+    const link = await chat.addChatLink(cube, room.id, { url: 'github.com/acme/app' });
+    assert.equal(link.url, 'https://github.com/acme/app'); assert.equal(link.title, 'github.com');
+    await assert.rejects(chat.addChatLink(cube, room.id, { url: 'javascript:alert(1)' }), e => e.status === 400);
+    assert.deepEqual(await chat.setChatRepo(cube, room.id, { repo: 'https://github.com/acme/app.git' }), { github_repo: 'acme/app', github_repos: ['acme/app'] });
+    await assert.rejects(chat.setChatRepo(cube, room.id, { repo: 'not a repo' }), e => e.status === 400);
+    const workspace = await chat.chatRoomDetails(cube, room.id);
+    assert.equal(workspace.tasks.length, 1); assert.equal(workspace.links.length, 1); assert.equal(workspace.github_repo, 'acme/app');
+    assert.match((await db.forumChatTask.findFirst({ where: { room_id: room.id } })).title, /^enc:v1:/);
+    assert.match((await db.forumChatLink.findFirst({ where: { room_id: room.id } })).url, /^enc:v1:/);
+    await chat.removeChatLink(cube, room.id, link.id); await chat.changeChatTask(cube, room.id, task.id, {}, true);
+    await chat.setChatRepo(cube, room.id, { repo: null });
     assert.equal((await chat.listChatRooms(other, 1)).total, 0);
     assert.equal((await chat.listChatRooms(outsiderAdmin, 1)).total, 0);
-    await assert.rejects(chat.listChatRooms(cube, 1, true), e => e.status === 403);
-    assert.equal((await chat.listChatRooms(outsiderAdmin, 1, true)).total, 1);
     await assert.rejects(chat.chatRoomDetails(other, room.id), e => e.status === 404);
     await assert.rejects(chat.chatMessages(other, room.id, 1), e => e.status === 404);
     await assert.rejects(chat.chatMessages(outsiderAdmin, room.id, 1), e => e.status === 404);
     await assert.rejects(chat.sendChatMessage(other, room.id, { body: 'Intruder' }), e => e.status === 404);
-    await assert.rejects(chat.changeChatMember(cube, room.id, other.id, false), e => e.status === 403);
+    await assert.rejects(chat.addChatMembers(cube, room.id, { user_ids: [other.id] }), e => e.status === 403);
     await assert.rejects(chat.sendChatMessage(cube, room.id, { body: ' '.repeat(5) }), e => e.status === 400);
     await assert.rejects(chat.sendChatMessage(cube, room.id, { body: 'x'.repeat(5001) }), e => e.status === 400);
     await chat.sendChatMessage(cube, room.id, { body: 'PrivateBodySentinel' });
@@ -310,11 +387,11 @@ async function main() {
     assert.equal((await forum.listForumTopics(cube, { query: 'PrivateBodySentinel', page: 1 })).total, 0);
     assert.doesNotMatch(JSON.stringify(await forum.forumStats()), /SecretRoomSentinel|PrivateBodySentinel/);
     assert.equal(await db.notification.count({ where: { message: { contains: 'PrivateBodySentinel' } } }), 0);
-    await chat.changeChatMember(adminActor, room.id, other.id, false);
-    await chat.changeChatMember(adminActor, room.id, other.id, false); // idempotent add
+    await chat.addChatMembers(adminActor, room.id, { user_ids: [other.id] });
+    await chat.addChatMembers(adminActor, room.id, { user_ids: [other.id] }); // idempotent add
     assert.equal((await chat.chatRoomDetails(other, room.id)).members.length, 3);
     assert.equal((await chat.chatMessages(other, room.id, 1)).total, 1); // new member sees history
-    await chat.changeChatMember(adminActor, room.id, other.id, true);
+    await chat.removeChatMember(adminActor, room.id, other.id);
     await assert.rejects(chat.chatMessages(other, room.id, 1), e => e.status === 404);
     await assert.rejects(chat.sendChatMessage(other, room.id, { body: 'After removal' }), e => e.status === 404);
     assert.equal((await chat.listChatRooms(other, 1)).total, 0);
@@ -332,7 +409,7 @@ async function main() {
     const racingSend = assert.rejects(chat.sendChatMessage(cube, room.id, { body: 'RevocationRaceSentinel' }), e => e.status === 404);
     unlockRemoval(); await Promise.all([removing, racingRead, racingSend]);
     assert.equal(await db.forumChatMessage.count({ where: { body: 'RevocationRaceSentinel' } }), 0);
-    await chat.changeChatMember(adminActor, room.id, cube.id, false);
+    await chat.addChatMembers(adminActor, room.id, { user_ids: [cube.id] });
     const secondRoom = await chat.createChatRoom(adminActor, { name: 'Other room', member_ids: [staff.id] });
     await chat.sendChatMessage(staff, secondRoom.id, { body: 'SecondRoomOnlySentinel' });
     assert.doesNotMatch(JSON.stringify(await chat.chatMessages(cube, room.id, 1)), /SecondRoomOnlySentinel/);
@@ -348,7 +425,7 @@ async function main() {
       const denied = await request(other, '/chat/rooms/' + room.id + '/messages');
       assert.equal(denied.status, 404); assert.match(denied.headers.get('cache-control'), /no-store/);
       assert.doesNotMatch(await denied.text(), /PrivateBodySentinel|SecretRoomSentinel/);
-      assert.equal((await request(other, '/chat/admin/rooms')).status, 403);
+      assert.equal((await request(other, '/chat/people')).status, 200);
       assert.equal((await request(outsiderAdmin, '/chat/rooms/' + room.id + '/messages')).status, 404);
       assert.equal((await request(other, '/chat/rooms/' + room.id + '/messages', { method: 'POST', body: JSON.stringify({ body: 'Direct request' }) })).status, 404);
       assert.equal((await request(cube, '/chat/rooms/' + room.id + '/messages')).status, 200);
@@ -362,18 +439,23 @@ async function main() {
     const likeReply = await forum.createForumReply(other, likeTopic.id, { body: 'A public reply.' });
     await forum.likeForumPost(other, likeTopic.id, undefined, { liked: true });
     await forum.likeForumPost(staff, likeTopic.id, likeReply.id, { liked: true });
-    const postLikers = await forum.forumPostLikers(likeTopic.id, undefined, 1);
+    const postLikers = await forum.forumPostLikers(cube, likeTopic.id, undefined, 1);
     assert.deepEqual(postLikers.people.map(person => person.id), [other.id]);
-    assert.deepEqual((await forum.forumPostLikers(likeTopic.id, likeReply.id, 1)).people.map(person => person.id), [staff.id]);
+    assert.deepEqual((await forum.forumPostLikers(cube, likeTopic.id, likeReply.id, 1)).people.map(person => person.id), [staff.id]);
     assert.doesNotMatch(JSON.stringify(postLikers), /password_hash|@example|nda_status/);
-    assert.equal((await forum.forumPostLikers(likeTopic.id, undefined, 2)).people.length, 0);
-    await assert.rejects(forum.forumPostLikers(likeTopic.id, 'missing', 1), e => e.status === 404);
+    assert.equal((await forum.forumPostLikers(cube, likeTopic.id, undefined, 2)).people.length, 0);
+    await assert.rejects(forum.forumPostLikers(cube, likeTopic.id, 'missing', 1), e => e.status === 404);
     await forum.changeForumReply(other, likeTopic.id, likeReply.id, {}, true);
-    await assert.rejects(forum.forumPostLikers(likeTopic.id, likeReply.id, 1), e => e.status === 404);
+    await assert.rejects(forum.forumPostLikers(cube, likeTopic.id, likeReply.id, 1), e => e.status === 404);
     await forum.changeForumTopic(cube, likeTopic.id, {}, true);
-    await assert.rejects(forum.forumPostLikers(likeTopic.id, undefined, 1), e => e.status === 404);
+    await assert.rejects(forum.forumPostLikers(cube, likeTopic.id, undefined, 1), e => e.status === 404);
     await require('./forumChat.extras.cjs')({ db, chat, room, secondRoom, cube, other, adminActor, outsiderAdmin });
     await require('./forumChat.unread.cjs')({ db, chat, outsiderAdmin });
+    await require('./forumPolls.cjs')({ db, forum, chat, room, cube, other, staff, adminActor });
+    await require('./forumReposts.cjs')({ db, forum, cube, other, staff });
+    await require('./forumChatPins.cjs')({ db, chat, room, cube, other, adminActor });
+    await require('./forumVisibility.cjs')({ db, forum, room, cube, other, staff, adminActor });
+    await require('./forumReviewFixes.cjs')({ db, forum, chat, cube, other, staff });
     console.log('PASS: private room roles, API isolation, revocation races, cross-room isolation, history, pagination, safe identities and topic/reply liker lists.');
     // Forum history must not break the portal's existing account-deletion flow.
     await db.user.delete({ where: { id: other.id } });
