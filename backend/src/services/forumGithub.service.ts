@@ -4,7 +4,7 @@ import { badRequest } from '../utils/http';
  * Recent activity of a GitHub repository for a private room's side panel: pull requests, commits on the
  * default branch and pushes. Only api.github.com is ever contacted, with the repository path validated
  * and encoded. Results are cached per repository so polling rooms stay well under GitHub's rate limits.
- * Set GITHUB_TOKEN to read private repositories or to raise the limit (60 requests/hour without it).
+ * Only public activity is exposed. Never use the server token for user-selected repositories.
  */
 const REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
 const CACHE_MS = 60_000, ERROR_CACHE_MS = 30_000;
@@ -30,10 +30,9 @@ export function parseGithubRepo(value: unknown): string | null {
 const cache = new Map<string, { until: number; data: GithubActivity }>();
 
 async function github<T>(path: string): Promise<T> {
-  const token = process.env.GITHUB_TOKEN?.trim();
   const response = await fetch(`https://api.github.com${path}`, {
     headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'iceberg-x-portal',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    },
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw Object.assign(new Error('GitHub request failed'), { status: response.status });
@@ -67,7 +66,7 @@ export async function githubActivity(repo: string): Promise<GithubActivity> {
   } catch (error) {
     const status = (error as { status?: number }).status;
     // Raw GitHub responses are never passed to the client.
-    data = { ...base, error: status === 404 ? 'Repository not found, or it is private and the portal has no access to it.'
+    data = { ...base, error: status === 404 ? 'Only publicly accessible GitHub repositories are supported.'
       : status === 403 || status === 429 ? 'GitHub rate limit reached. Activity will refresh in a few minutes.'
         : 'GitHub activity is unavailable right now.' };
   }
