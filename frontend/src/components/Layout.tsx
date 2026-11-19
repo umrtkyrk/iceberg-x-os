@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { FORUM_ENABLED } from '../config/features';
+import { FORUM_ENABLED, SCORING_V2_ENABLED } from '../config/features';
 import { useAuth } from '../context/AuthContext';
+import { useActivityTracking } from '../utils/useActivityTracking';
 import {
   Menu,
   X,
@@ -30,11 +31,16 @@ import {
   UserPlus,
   Mic,
   MessagesSquare,
+  Layers,
+  ListChecks,
+  Gauge,
   type LucideIcon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { UserAvatar } from './UserAvatar';
 import { AvatarUploadModal } from './AvatarUploadModal';
+import { ThemeSwitcher } from './ThemeSwitcher';
+import { useApplyTheme } from '../context/ThemeContext';
 
 interface NavItem {
   path: string;
@@ -127,7 +133,14 @@ const buildManage = (isAdmin: boolean): NavGroup => ({
           ? [
               { path: '/admin/recruitment', label: 'Recruitment', hint: 'Pipeline, scoring and decisions', icon: UserPlus },
               { path: '/admin/users', label: 'Users Admin', hint: 'Accounts and roles', icon: Users },
-              { path: '/admin/quests', label: 'Quests Admin', hint: 'Create and assign quests', icon: Trophy }
+              { path: '/admin/quests', label: 'Quests Admin', hint: 'Create and assign quests', icon: Trophy },
+              ...(SCORING_V2_ENABLED
+                ? [
+                    { path: '/admin/disciplines', label: 'Disciplines', hint: 'Scoring v2: disciplines for Cubes and missions', icon: Layers },
+                    { path: '/admin/rubrics', label: 'Rubrics', hint: 'Scoring v2: criteria and what 1-5 means', icon: ListChecks },
+                    { path: '/admin/scoring', label: 'Scoring', hint: 'Scoring v2: shadow mode and calibration', icon: Gauge }
+                  ]
+                : [])
             ]
           : [])
       ]
@@ -139,6 +152,8 @@ export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  useActivityTracking(Boolean(user));
+  useApplyTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   /** Which header dropdown is open: a group key, 'user', or null. */
@@ -191,7 +206,7 @@ export const Layout: React.FC = () => {
   const toggle = (key: string) => setOpenMenu(current => (current === key ? null : key));
 
   return (
-    <div className="min-h-screen bg-slate-50 text-dark flex flex-col font-sans">
+    <div className="min-h-screen bg-page text-dark flex flex-col font-sans">
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm no-print">
         <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -335,6 +350,7 @@ export const Layout: React.FC = () => {
                       <MenuLink to="/change-password" icon={KeyRound}>Change password</MenuLink>
                       <MenuButton icon={LogOut} onClick={handleLogout}>Sign out</MenuButton>
                     </div>
+                    <ThemeSwitcher className="mt-1 border-t border-gray-50 px-1 pb-1 pt-2.5" />
                   </div>
                 )}
               </div>
@@ -389,6 +405,8 @@ export const Layout: React.FC = () => {
                 })}
               </div>
             ))}
+
+            <ThemeSwitcher className="mt-5 border-t border-gray-100 px-3 pt-4" />
 
             <div className="mt-5 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
               {user.role === 'CUBE' && user.cubeProfileId ? (

@@ -34,23 +34,41 @@ export async function forumMentionPeople(query: string) {
   return users.map(user => ({ id: user.id, name: user.name, handle: forumMentionHandle(user) }));
 }
 
-export async function notifyForumEvent(tx: Prisma.TransactionClient, actor: ForumActor, topic: { id: string; title: string; author_id: string | null }, body: string, replyId?: string) {
+// A reply that starts by mentioning the person it answers ("@Yunus ne o") is quoted without that mention.
+const LEADING_MENTION = /^\s*\[@[^\]\n]{1,80}\]\(@[^)\s]+\)\s*/;
+
+/**
+ * Notifications name who acted and quote what they wrote, e.g. `Yunus Altanay replied to your comment
+ * in “Topic”: “ne o”`. Each recipient gets one row per event: the person replied to, else the post owner
+ * (as a running summary), else a mention, else a follower update.
+ */
+export async function notifyForumEvent(tx: Prisma.TransactionClient, actor: ForumActor, topic: { id: string; title: string; author_id: string | null }, body: string, replyId?: string, repliedToId?: string | null) {
   const handles = forumMentionHandles(body);
   const users = handles.filter(h => h.startsWith('user-')).map(h => h.slice(5));
   const numbers = handles.filter(h => h.startsWith('cube-')).map(h => h.slice(5).padStart(3, '0'));
   const followed = replyId ? await tx.forumTopicState.findMany({ where: { topic_id: topic.id, following: true }, select: { user_id: true } }) : [];
-  const ids = [...new Set([...followed.map(f => f.user_id), ...(replyId && topic.author_id ? [topic.author_id] : []), ...users])];
+  const ids = [...new Set([...followed.map(f => f.user_id), ...(replyId && topic.author_id ? [topic.author_id] : []), ...(replyId && repliedToId ? [repliedToId] : []), ...users])];
   if (!ids.length && !numbers.length) return;
-  const recipients = await tx.user.findMany({ where: { AND: [eligible, { id: { not: actor.id } }, { OR: [
+  const scope = await tx.forumTopic.findUnique({ where: { id: topic.id }, select: { visibility: true, audience_room_id: true } });
+  const canSee: Prisma.UserWhereInput = scope?.visibility === 'GROUP'
+    ? { OR: [{ id: topic.author_id || '' }, ...(scope.audience_room_id ? [{ forum_chat_memberships: { some: { room_id: scope.audience_room_id } } }] : [])] }
+    : scope?.visibility === 'PRIVATE' ? { OR: [{ id: topic.author_id || '' }, { forum_topic_audiences: { some: { topic_id: topic.id } } }] } : {};
+  const recipients = await tx.user.findMany({ where: { AND: [eligible, canSee, { id: { not: actor.id } }, { OR: [
     { id: { in: ids } }, { cube_profile: { is: { cube_number: { in: numbers } } } },
-  ] }] }, select: { id: true } });
-  // One row per recipient/event even when owner, follower and mention overlap.
+  ] }] }, select: { id: true, cube_profile: { select: { cube_number: true } } } });
+  if (!recipients.length) return;
+  const name = (await tx.user.findUnique({ where: { id: actor.id }, select: { name: true } }))?.name?.trim() || 'A Cube';
+  const snippet = forumNotificationSnippet(body.replace(LEADING_MENTION, ''));
+  const quote = snippet ? `: “${snippet}”` : '.';
+  const mentioned = (recipient: typeof recipients[number]) => users.includes(recipient.id) || (!!recipient.cube_profile && numbers.includes(recipient.cube_profile.cube_number));
   for (const recipient of recipients) {
-    if (replyId && recipient.id === topic.author_id) { await notifyTopicOwner(tx, recipient.id, topic); continue; }
-    await tx.notification.create({ data: {
-    user_id: recipient.id, message: `${replyId ? 'New reply or mention' : 'You were mentioned'} in “${topic.title}”.`,
-    forum_target: { create: { topic_id: topic.id, ...(replyId ? { reply_id: replyId } : {}) } },
-    } });
+    let message: string;
+    if (replyId && repliedToId && recipient.id === repliedToId) message = `${name} replied to your comment in “${topic.title}”${quote}`;
+    else if (replyId && recipient.id === topic.author_id) { await notifyTopicOwner(tx, recipient.id, topic); continue; }
+    else if (mentioned(recipient)) message = `${name} mentioned you in “${topic.title}”${quote}`;
+    else message = `${name} commented on “${topic.title}”${quote}`;
+    await tx.notification.create({ data: { user_id: recipient.id, message,
+      forum_target: { create: { topic_id: topic.id, ...(replyId ? { reply_id: replyId } : {}) } } } });
   }
 }
 
@@ -159,6 +177,28 @@ export async function syncForumLikeNotification(tx: ForumTx, actor: ForumActor, 
     if (refreshed.count) return;
   }
   if (!liked || !await tx.user.findFirst({ where: { AND: [eligible, { id: ownerId }] }, select: { id: true } })) return;
+  await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: target } } });
+}
+
+const REPOSTED = 'reposted your post';
+/** One unread "X and Y reposted your post" notification per topic, kept in step with reposts and un-reposts. */
+export async function syncForumRepostNotification(tx: ForumTx, actor: ForumActor, reposted: boolean, topic: NotifiedTopic) {
+  const ownerId = topic.author_id;
+  if (!ownerId || ownerId === actor.id) return;
+  const target = { topic_id: topic.id, reply_id: null };
+  const existing = await tx.notification.findFirst({ where: { user_id: ownerId, read_at: null, message: { contains: REPOSTED }, forum_target: { is: target } },
+    orderBy: { created_at: 'desc' }, select: { id: true } });
+  const people = await tx.forumTopicRepost.findMany({ where: { topic_id: topic.id, user_id: { not: ownerId } }, orderBy: { created_at: 'desc' }, take: 50, select: { user: { select: { name: true } } } });
+  if (!people.length) {
+    if (existing) await tx.notification.deleteMany({ where: { id: existing.id, read_at: null } });
+    return;
+  }
+  const message = `${forumPeopleList([...new Set(people.map(row => row.user?.name?.trim() || 'A Cube'))])} ${REPOSTED} “${topic.title}”.`;
+  if (existing) {
+    const refreshed = await tx.notification.updateMany({ where: { id: existing.id, read_at: null }, data: { message, ...(reposted ? { created_at: new Date() } : {}) } });
+    if (refreshed.count) return;
+  }
+  if (!reposted || !await tx.user.findFirst({ where: { AND: [eligible, { id: ownerId }] }, select: { id: true } })) return;
   await tx.notification.create({ data: { user_id: ownerId, message, forum_target: { create: target } } });
 }
 

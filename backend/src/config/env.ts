@@ -101,3 +101,14 @@ export const STORAGE_PATH = process.env.STORAGE_PATH
 
 // Roll out the API independently from the frontend.
 export const FORUM_ENABLED = process.env.FORUM_ENABLED === 'true';
+
+// Private forum rooms are stored encrypted with FORUM_CHAT_KEY (32 bytes, base64). A production
+// server with the forum enabled refuses to start without a valid key instead of storing plaintext.
+{
+  const key = process.env.FORUM_CHAT_KEY?.trim();
+  const problem = !key ? 'FORUM_CHAT_KEY is not set.' : Buffer.from(key, 'base64').length !== 32 ? 'FORUM_CHAT_KEY must be 32 bytes encoded as base64.' : null;
+  if (FORUM_ENABLED && problem) {
+    console.error(`[config] ${problem} Private forum rooms cannot be stored encrypted.`);
+    if (IS_PROD) process.exit(1);
+  }
+}

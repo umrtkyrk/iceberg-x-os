@@ -8,6 +8,7 @@ import { IN_PROGRAMME_CUBE_LEVELS } from '../config/constants';
 import { loadAdminDashboard } from '../services/adminDashboard.service';
 import { getAdminBriefing } from '../services/adminBriefing.service';
 import { sendError } from '../utils/http';
+import { loadCubeSignals } from '../services/cubeSignals.service';
 
 const router = Router();
 
@@ -122,6 +123,49 @@ router.get('/mentor/dashboard', requireAuth, isMentorOrAdmin, async (req: Authen
       cubesNeedingFeedback
     });
   } catch (error: any) {
+    return sendError(res, error);
+  }
+});
+
+/**
+ * The Cube's focus panel: what they are on, what to do next, and the same
+ * activity signals their mentor sees. Feedback is limited to what is already
+ * visible to the Cube; private notes are never read.
+ */
+router.get('/cube/focus', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user || req.user.role !== 'CUBE' || !req.user.cubeProfileId) {
+      return res.status(403).json({ error: 'Only Cubes can access this view' });
+    }
+    const [signals] = await loadCubeSignals([req.user.cubeProfileId], { audience: 'cube' });
+    if (!signals) return res.status(404).json({ error: 'Profile not found' });
+    return res.json(signals);
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+/**
+ * The mentor's view of their Cubes, from the same signals the Cubes see on
+ * their focus panel. Mentors get the Cubes assigned to them; admins get
+ * theirs, or every Cube in the programme with `?scope=all` (the default when
+ * they have none assigned).
+ */
+router.get('/mentor/cubes', requireAuth, isMentorOrAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const user = req.user!;
+    const inProgramme = { current_level: { in: IN_PROGRAMME_CUBE_LEVELS } };
+    const mine = await prisma.cubeProfile.findMany({
+      where: { ...inProgramme, assigned_mentor_id: user.id },
+      select: { id: true },
+    });
+    const wantsAll = user.role === 'ADMIN' && (req.query.scope === 'all' || (req.query.scope !== 'mine' && mine.length === 0));
+    const ids = wantsAll
+      ? (await prisma.cubeProfile.findMany({ where: inProgramme, select: { id: true } })).map(c => c.id)
+      : mine.map(c => c.id);
+    const cubes = await loadCubeSignals(ids, { audience: 'staff' });
+    return res.json({ scope: wantsAll ? 'all' : 'mine', can_view_all: user.role === 'ADMIN', assigned_count: mine.length, cubes });
+  } catch (error) {
     return sendError(res, error);
   }
 });

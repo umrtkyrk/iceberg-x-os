@@ -2,12 +2,14 @@ import { Router, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { AuthenticatedRequest, requireAuth } from '../middlewares/auth.middleware';
 import { FORUM_ENABLED } from '../config/env';
-import { badRequest, sendError } from '../utils/http';
+import { badRequest, sendError, notFound, HttpError } from '../utils/http';
 import { forumPage, forumText } from '../services/forumPolicy';
 import { forumViewer, saveForumProfile, assertForumPosting } from '../services/forumIdentity.service';
 import { forumContext } from '../services/forumContext.service';
 import { forumMentionPeople } from '../services/forumNotifications.service';
 import { manageForumCategory } from '../services/forumCategory.service';
+import * as chatFiles from '../services/forumChatFiles.service';
+import * as chat from '../services/forumChat.service';
 import * as forum from '../services/forum.service';
 import { StorageService } from '../services/storage.service';
 
@@ -18,10 +20,11 @@ timer.unref();
 router.use('/forum', (_req, res, next) => FORUM_ENABLED ? next() : res.status(404).json({ error: 'The forum is not enabled yet.' }), requireAuth);
 router.use('/forum', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   if (req.method === 'GET') return next();
-  const id = req.user!.id, now = Date.now(), old = buckets.get(id);
+  const presence = req.method === 'PUT' && /^\/(?:forum\/)?chat\/rooms\/[^/]+\/presence$/.test(req.path);
+  const id = (presence ? 'presence:' : '') + req.user!.id, now = Date.now(), old = buckets.get(id);
   const bucket = old && old.until > now ? old : { count: 0, until: now + 60000 };
   bucket.count++; buckets.set(id, bucket);
-  if (bucket.count > 20) { res.setHeader('Retry-After', Math.ceil((bucket.until - now) / 1000)); return res.status(429).json({ error: 'You are posting too fast. Please wait a moment.' }); }
+  if (bucket.count > (presence ? 60 : 20)) { res.setHeader('Retry-After', Math.ceil((bucket.until - now) / 1000)); return res.status(429).json({ error: 'You are posting too fast. Please wait a moment.' }); }
   next();
 });
 type Handler = (req: AuthenticatedRequest) => Promise<unknown>;
@@ -99,6 +102,10 @@ router.patch('/forum/topics/:id/moderation', handle(req => forum.moderateForumTo
 router.put('/forum/topics/:id/state', handle(req => forum.setForumState(req.user!, req.params.id, body(req))));
 router.put('/forum/topics/:id/like', handle(posting(req => forum.likeForumPost(req.user!, req.params.id, undefined, body(req)))));
 router.put('/forum/topics/:id/replies/:replyId/like', handle(posting(req => forum.likeForumPost(req.user!, req.params.id, req.params.replyId, body(req)))));
+router.get('/forum/topics/:id/preview', handle(req => forum.forumTopicPreview(req.user!, req.params.id)));
+router.put('/forum/topics/:id/repost', handle(posting(req => forum.repostForumTopic(req.user!, req.params.id, body(req)))));
+router.put('/forum/topics/:id/replies/:replyId/poll/vote', handle(posting(req => forum.voteForumReplyPoll(req.user!, req.params.id, req.params.replyId, body(req)))));
+router.put('/forum/topics/:id/poll/vote', handle(posting(req => forum.voteForumPoll(req.user!, req.params.id, body(req)))));
 router.put('/forum/topics/:id/answer', handle(posting(req => forum.acceptForumAnswer(req.user!, req.params.id, body(req)))));
 router.post('/forum/topics/:id/replies', handle(posting(req => forum.createForumReply(req.user!, req.params.id, body(req))), 201));
 router.patch('/forum/topics/:id/replies/:replyId', handle(posting(req => forum.changeForumReply(req.user!, req.params.id, req.params.replyId, body(req)))));
@@ -106,4 +113,58 @@ router.delete('/forum/topics/:id/replies/:replyId', handle(req => forum.changeFo
 router.post('/forum/topics/:id/reports', handle(req => forum.reportForumPost(req.user!, req.params.id, body(req)), 201));
 router.get('/forum/reports', handle(req => forum.listForumReports(req.user!, forumPage(req.query.page))));
 router.patch('/forum/reports/:id', handle(req => forum.resolveForumReport(req.user!, req.params.id)));
+// Private chat endpoints share forum auth, feature flag, and write rate limiting.
+router.use('/forum/chat', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+router.get('/forum/chat/unread', handle(req => chat.chatUnread(req.user!)));
+router.get('/forum/chat/rooms', handle(req => chat.listChatRooms(req.user!, forumPage(req.query.page))));
+router.get('/forum/chat/people', handle(req => chat.chatPeople(req.user!, req.query.q === undefined ? '' : forumText(req.query.q, 'Search', 1, 80), forumPage(req.query.page))));
+router.post('/forum/chat/rooms', handle(req => chat.createChatRoom(req.user!, body(req)), 201));
+router.get('/forum/chat/rooms/:id', handle(req => chat.chatRoomDetails(req.user!, req.params.id)));
+router.patch('/forum/chat/rooms/:id', handle(req => chat.updateChatRoom(req.user!, req.params.id, body(req))));
+router.delete('/forum/chat/rooms/:id', handle(req => chat.deleteChatRoom(req.user!, req.params.id)));
+router.post('/forum/chat/rooms/:id/members', handle(req => chat.addChatMembers(req.user!, req.params.id, body(req)), 201));
+router.patch('/forum/chat/rooms/:id/members/:userId', handle(req => chat.setChatMemberRole(req.user!, req.params.id, req.params.userId, body(req))));
+router.delete('/forum/chat/rooms/:id/members/:userId', handle(req => chat.removeChatMember(req.user!, req.params.id, req.params.userId)));
+router.get('/forum/chat/rooms/:id/messages', handle(req => chat.chatMessages(req.user!, req.params.id, forumPage(req.query.page), req.query.q === undefined ? '' : forumText(req.query.q, 'Search', 1, 100))));
+router.post('/forum/chat/rooms/:id/messages', handle(req => chat.sendChatMessage(req.user!, req.params.id, body(req)), 201));
+const chatUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: chatFiles.CHAT_FILE_MAX_BYTES, files: 1 } });
+router.post('/forum/chat/rooms/:id/files', async (req: AuthenticatedRequest, res: Response) => {
+  try { await chat.withChatMember(req.user!, req.params.id, async () => undefined); }
+  catch (error) { return sendError(res, error); }
+  chatUpload.single('file')(req, res, async error => {
+    try {
+      if (error instanceof multer.MulterError) throw new HttpError(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, error.code === 'LIMIT_FILE_SIZE' ? 'Files can be up to 10 MB each.' : 'Upload one file at a time.');
+      if (error) throw error;
+      if (!req.file) throw badRequest('Choose a file.');
+      res.status(201).json(await chatFiles.uploadChatFile(req.user!, req.params.id, req.file));
+    } catch (caught) { sendError(res, caught); }
+  });
+});
+router.get('/forum/chat/rooms/:id/files/:fileId', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const file = await chatFiles.chatFile(req.user!, req.params.id, req.params.fileId);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.type('application/octet-stream');
+    res.attachment(file.name);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(file.data);
+  } catch (error) { sendError(res, error); }
+});
+router.delete('/forum/chat/rooms/:id/files/:fileId', handle(req => chatFiles.discardChatFile(req.user!, req.params.id, req.params.fileId)));
+router.patch('/forum/chat/rooms/:id/messages/:messageId', handle(req => chat.editChatMessage(req.user!, req.params.id, req.params.messageId, body(req))));
+router.delete('/forum/chat/rooms/:id/messages/:messageId', handle(req => chat.editChatMessage(req.user!, req.params.id, req.params.messageId, {}, true)));
+router.put('/forum/chat/rooms/:id/messages/:messageId/poll/vote', handle(req => chat.voteChatPoll(req.user!, req.params.id, req.params.messageId, body(req))));
+router.put('/forum/chat/rooms/:id/messages/:messageId/reaction', handle(req => chat.reactToChatMessage(req.user!, req.params.id, req.params.messageId, body(req))));
+router.get('/forum/chat/rooms/:id/github', handle(req => chat.chatGithub(req.user!, req.params.id, req.query.repo === undefined ? undefined : forumText(req.query.repo, 'Repository', 1, 200))));
+router.put('/forum/chat/rooms/:id/messages/:messageId/pin', handle(req => chat.pinChatMessage(req.user!, req.params.id, req.params.messageId, body(req))));
+router.put('/forum/chat/rooms/:id/repo', handle(req => chat.setChatRepo(req.user!, req.params.id, body(req))));
+router.post('/forum/chat/rooms/:id/tasks', handle(req => chat.addChatTask(req.user!, req.params.id, body(req)), 201));
+router.patch('/forum/chat/rooms/:id/tasks/:taskId', handle(req => chat.changeChatTask(req.user!, req.params.id, req.params.taskId, body(req))));
+router.delete('/forum/chat/rooms/:id/tasks/:taskId', handle(req => chat.changeChatTask(req.user!, req.params.id, req.params.taskId, {}, true)));
+router.post('/forum/chat/rooms/:id/links', handle(req => chat.addChatLink(req.user!, req.params.id, body(req)), 201));
+router.delete('/forum/chat/rooms/:id/links/:linkId', handle(req => chat.removeChatLink(req.user!, req.params.id, req.params.linkId)));
+router.put('/forum/chat/rooms/:id/presence', handle(req => chat.chatPresence(req.user!, req.params.id, body(req))));
+router.get('/forum/topics/:id/likes', handle(req => forum.forumPostLikers(req.user!, req.params.id, undefined, forumPage(req.query.page))));
+router.get('/forum/topics/:id/replies/:replyId/likes', handle(req => forum.forumPostLikers(req.user!, req.params.id, req.params.replyId, forumPage(req.query.page))));
 export default router;

@@ -7,6 +7,8 @@ import { STORAGE_PATH } from '../config/env';
 const AVATARS_DIR = path.join(STORAGE_PATH, 'avatars');
 const DOCUMENTS_DIR = path.join(STORAGE_PATH, 'documents');
 const FORUM_IMAGES_DIR = path.join(STORAGE_PATH, 'forum');
+// Private: update and demo attachments, served only through an authenticated route.
+const ATTACHMENTS_DIR = path.join(STORAGE_PATH, 'attachments');
 
 /**
  * Initializes and ensures storage directories exist.
@@ -24,6 +26,9 @@ export function ensureStorageDirectories(): void {
     }
     if (!fs.existsSync(FORUM_IMAGES_DIR)) {
       fs.mkdirSync(FORUM_IMAGES_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(ATTACHMENTS_DIR)) {
+      fs.mkdirSync(ATTACHMENTS_DIR, { recursive: true });
     }
   } catch (error) {
     console.error('[StorageService] Error creating storage directories:', error);
@@ -72,6 +77,40 @@ export class StorageService {
     const filename = `${crypto.randomUUID()}.${extension}`;
     await fs.promises.writeFile(path.join(FORUM_IMAGES_DIR, filename), buffer, { flag: 'wx' });
     return { relativeUrl: `/uploads/forum/${filename}` };
+  }
+
+  /**
+   * Saves an update/demo attachment under a random name in the private
+   * attachments directory. `extension` comes from the content check, never
+   * from the client.
+   */
+  static async saveAttachment(buffer: Buffer, extension: string): Promise<string> {
+    ensureStorageDirectories();
+    const storedName = `${crypto.randomUUID()}.${extension}`;
+    await fs.promises.writeFile(path.join(ATTACHMENTS_DIR, storedName), buffer, { flag: 'wx' });
+    return storedName;
+  }
+
+  /** Absolute path of a stored attachment, or null if it is missing or escapes the directory. */
+  static resolveAttachmentPath(storedName: string): string | null {
+    const resolved = path.resolve(ATTACHMENTS_DIR, path.basename(storedName));
+    if (!resolved.startsWith(ATTACHMENTS_DIR + path.sep) || !fs.existsSync(resolved)) return null;
+    return resolved;
+  }
+
+  /** Removes stored attachment files; a missing file is not an error. */
+  static async deleteAttachments(storedNames: string[]): Promise<void> {
+    await Promise.all(
+      storedNames.map(async name => {
+        const filePath = this.resolveAttachmentPath(name);
+        if (!filePath) return;
+        try {
+          await fs.promises.unlink(filePath);
+        } catch (error) {
+          console.error(`[StorageService] Error deleting attachment ${name}:`, error);
+        }
+      })
+    );
   }
 
   /**

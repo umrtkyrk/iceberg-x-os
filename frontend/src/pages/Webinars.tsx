@@ -122,7 +122,7 @@ const WebinarCard: React.FC<{ webinar: Webinar; isStaff: boolean }> = ({ webinar
           <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${scoreTone(webinar.my_score)}`}>Score {webinar.my_score}</span>
         )}
         {isStaff && webinar.status === 'Published' && new Date(webinar.date).getTime() <= Date.now() && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#e6007e]/10 text-[#b0005f] px-2 py-1 rounded-lg">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-magenta/10 text-magenta-deep px-2 py-1 rounded-lg">
             <ClipboardCheck size={12} /> Attendance needed
           </span>
         )}
@@ -150,7 +150,7 @@ const WebinarCard: React.FC<{ webinar: Webinar; isStaff: boolean }> = ({ webinar
         </div>
       </div>
 
-      <h3 className="font-extrabold text-gray-800 text-base leading-tight line-clamp-2 min-h-[2.75rem] flex items-center group-hover:text-[#e6007e] transition-colors">
+      <h3 className="font-extrabold text-gray-800 text-base leading-tight line-clamp-2 min-h-[2.75rem] flex items-center group-hover:text-magenta transition-colors">
         {webinar.title}
       </h3>
 

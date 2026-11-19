@@ -75,5 +75,11 @@ export function encodeMentionsWithinLimit(text: string, known: MentionMap, maxLe
 /** ReactMarkdown `a` renderer that shows mention links as pink names. */
 export function MentionAwareLink({ node: _node, href, children, ...props }: ComponentPropsWithoutRef<'a'> & ExtraProps) {
   if (href?.startsWith('@')) return <span className="mention-tag" title={href.startsWith('@cube-') ? `Cube #${href.slice(6)}` : 'Team member'}>{children}</span>;
-  return <a href={href} {...props}>{children}</a>;
+  // A scheme-less web address must not resolve as a route inside the portal.
+  const value = href?.trim() || '';
+  const webAddress = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:[/?#]|$)/i.test(value);
+  const url = webAddress ? 'https://' + value : value;
+  if (!url || /^(?:javascript|data|vbscript):/i.test(url)) return <span>{children}</span>;
+  const external = /^(?:https?:)?\/\//i.test(url);
+  return <a {...props} href={url} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{children}</a>;
 }

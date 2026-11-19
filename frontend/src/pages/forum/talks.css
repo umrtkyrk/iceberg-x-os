@@ -409,3 +409,535 @@
   .cube-forum .forum-signature-legendary::after,
   .cube-forum .forum-signature-text { animation: none; }
 }
+
+/* Local private rooms and the independently clickable like count. */
+.cube-forum .talk-like-group { display: inline-flex; align-items: center; gap: 2px; }
+.cube-forum .talk-like-count:hover { text-decoration: underline; }
+.cube-forum .talk-likers { padding: 24px; border: 1px solid #ddd; border-radius: 18px; width: min(460px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; background: white; color: #20202c; }
+.cube-forum .talk-likers::backdrop { background: #14141c66; }
+.cube-forum .talk-likers li { padding: 10px 0; border-bottom: 1px solid #eee; }
+.cube-forum .talk-room-entry { grid-column: 1 / -1; margin-bottom: 8px; }
+.cube-forum.talk-chat-page { display: block; }
+.cube-forum .talk-private-chat { margin-top: 20px; }
+.cube-forum .talk-chat-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 20px; margin-top: 20px; }
+.cube-forum .talk-private-chat .talk-form-actions { flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.cube-forum .talk-private-chat h2 { font-size: 20px; font-weight: 800; margin-bottom: 12px; overflow-wrap: anywhere; }
+.cube-forum .talk-private-chat h3 { font-weight: 700; margin-top: 16px; }
+.cube-forum .talk-private-chat input, .cube-forum .talk-private-chat textarea { display: block; width: 100%; border: 1px solid #ddd; border-radius: 10px; padding: 10px; margin: 6px 0 12px; background: white; }
+.cube-forum .talk-chat-rooms { align-self: start; }
+.cube-forum .talk-chat-rooms li button { display: block; width: 100%; text-align: left; padding: 12px; border-radius: 10px; overflow-wrap: anywhere; }
+.cube-forum .talk-chat-rooms li button.selected { background: #fff0f8; color: #bb0067; }
+.cube-forum .talk-chat-rooms small { display: block; color: #71717a; margin-top: 4px; }
+.cube-forum .talk-chat-picker { margin-top: 16px; }
+.cube-forum .talk-chat-picker ul { max-height: 260px; overflow: auto; }
+.cube-forum .talk-chat-picker li { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #eee; padding: 8px 0; overflow-wrap: anywhere; }
+.cube-forum .talk-chat-picker li span { min-width: 0; }
+.cube-forum .talk-chat-picker li button { flex-shrink: 0; }
+.cube-forum .talk-chat-messages { max-height: 480px; overflow: auto; display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+.cube-forum .talk-chat-messages li { background: #f6f6f9; border-radius: 12px; padding: 14px; }
+.cube-forum .talk-chat-messages li.is-own { background: #fff0f8; }
+.cube-forum .talk-chat-messages p { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; }
+.cube-forum .talk-chat-messages time { color: #71717a; font-size: 11px; }
+.cube-forum .talk-chat-error { background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 16px; }
+@media (max-width: 760px) { .cube-forum .talk-chat-layout { grid-template-columns: minmax(0, 1fr); } }
+
+.cube-forum .talk-chat-thread { min-width: 0; }
+.cube-forum .talk-chat-search { display: flex; align-items: end; gap: 10px; margin-top: 14px; }
+.cube-forum .talk-chat-search label { flex: 1; min-width: 0; }
+.cube-forum .talk-chat-search .talk-btn { margin-bottom: 12px; }
+.cube-forum .talk-chat-message-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cube-forum .talk-chat-message-meta small { color: #71717a; font-size: 10px; }
+.cube-forum .talk-chat-message-actions { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.cube-forum .talk-chat-message-actions button { color: #71717a; font-size: 11px; font-weight: 600; }
+.cube-forum .talk-chat-message-actions button:hover { color: #e6007e; }
+.cube-forum .talk-chat-reply { border-left: 3px solid #e6007e; border-radius: 6px; background: #ffffffa0; padding: 10px 12px; margin: 12px 0; font-size: 12px; overflow-wrap: anywhere; }
+.cube-forum .talk-chat-reply p { margin-top: 4px; }
+.cube-forum .talk-chat-files { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.cube-forum .talk-chat-messages .talk-chat-files li { padding: 0; background: transparent; }
+.cube-forum .talk-chat-file { display: block; width: 100%; border: 1px solid #e4e4e7; border-radius: 10px; padding: 12px; text-align: left; background: #ffffffb0; overflow-wrap: anywhere; }
+.cube-forum .talk-chat-file small { display: block; color: #71717a; margin-top: 6px; }
+.cube-forum .talk-chat-reactions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.cube-forum .talk-chat-reactions button[aria-pressed=true] { border-color: #e6007e; background: #fce7f3; }
+.cube-forum .talk-chat-read { display: block; margin-top: 10px; color: #71717a; font-size: 10px; text-align: right; }
+.cube-forum .talk-chat-read.is-read { color: #0284c7; }
+.cube-forum .talk-chat-delete { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 0; font-size: 12px; }
+.cube-forum .talk-chat-typing { min-height: 22px; font-size: 12px; color: #e6007e; }
+.cube-forum .talk-chat-composer { border-top: 1px solid #eee; padding-top: 12px; }
+.cube-forum .talk-chat-emoji { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); padding: 10px 0; gap: 6px; }
+.cube-forum .talk-chat-emoji button { font-size: 22px; padding: 6px; border-radius: 8px; }
+.cube-forum .talk-chat-emoji button:hover { background: #fff0f8; }
+.cube-forum .talk-chat-messages a { color: #be0067; text-decoration: underline; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .cube-forum .talk-chat-emoji { grid-template-columns: repeat(6, minmax(0, 1fr)); } .cube-forum .talk-chat-search { flex-wrap: wrap; } }
+
+.cube-forum .talk-private-chat input[type=file] { display: none; }
+
+.cube-forum .talk-chat-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #e6007e; color: #fff; font-size: 12px; line-height: 1; font-weight: 800; vertical-align: middle; }
+/* Dark theme (html.dark is only set inside the workspace; see ThemeContext). */
+html.dark .cube-forum {
+  --talk-ink: #eef0f3;
+  --talk-text: #cfd3da;
+  --talk-muted: #9aa1ac;
+  --talk-soft: #8a919d;
+  --talk-line: #2a2e36;
+  --talk-bg: #0c0e12;
+  --talk-card: #15181e;
+  --talk-hover: #1d2027;
+  --talk-accent: #ff4da6;
+  --talk-accent-soft: #2a1520;
+  --talk-solved: #34d399;
+}
+html.dark .cube-forum .talk-btn.is-primary { background: #e6007e !important; }
+html.dark .cube-forum :is(
+  .forum-context-filter select, .forum-move select, .talk-nav button.selected, .talk-search, .talk-back,
+  .talk-sort button:hover:not(:disabled), .talk-sort button.selected, .talk-btn.is-ghost, .talk-composer,
+  .talk-filter-toggle, .forum-context-filter, .talk-mobile-nav select
+) { background: var(--talk-card) !important; }
+html.dark .cube-forum .talk-form :is(input, select, textarea:not(.markdown-editor textarea)) { background: #1a1d24; }
+html.dark .cube-forum .talk-pill:hover:not(:disabled) { background: #2a2f38 !important; }
+html.dark .cube-forum .talk-feed-card:hover { border-color: #3a404b; box-shadow: 0 8px 24px -14px rgba(0, 0, 0, .6); }
+html.dark .cube-forum :is(.talk-flair.is-unread, .talk-role) { background: #1f2240; color: #a5b4fc; }
+html.dark .cube-forum .talk-role.is-mentor { background: #10292e; color: #67e8f9; }
+html.dark .cube-forum .talk-op-tag { background: #102636; color: #7dd3fc; }
+html.dark .cube-forum .talk-flair.is-solved { background: #10291f; }
+html.dark .cube-forum .talk-comment.is-accepted .talk-comment-body { background: #10291f; }
+html.dark .cube-forum .talk-danger { border-color: #5b2124; background: #2a1517; color: #fca5a5; }
+html.dark .cube-forum .talk-empty { border-color: #3a404b; }
+html.dark .cube-forum .talk-community-head { background: #1b1f27; }
+html.dark .cube-forum .talk-nav-count { background: #2a2f38; }
+html.dark .cube-forum .talk-filter-toggle.is-on { border-color: #6b2a4c; background: var(--talk-accent-soft) !important; }
+html.dark .cube-forum .talk-filter-chips > button { color: #ff99cc; background: #2a1520; }
+html.dark .cube-forum .talk-skeleton > * { background: #23272f; }
+html.dark .cube-forum .talk-credits a { text-decoration-color: #6b2a4c; }
+html.dark .cube-forum .forum-founding { color: #fbbf24; }
+/* Author colours are picked for a white card; lift them toward white on dark. */
+html.dark .cube-forum .forum-stage { color: color-mix(in srgb, var(--author-color) 55%, #fff); }
+
+/* Private conversations use the workspace theme as well. */
+html.dark .cube-forum .talk-likers, html.dark .cube-forum .talk-private-chat input, html.dark .cube-forum .talk-private-chat textarea { background: #1a1f2a; color: #eef0f3; border-color: #394150; }
+html.dark .cube-forum .talk-chat-messages li { background: #242c38; }
+html.dark .cube-forum .talk-chat-messages li.is-own, html.dark .cube-forum .talk-chat-rooms li button.selected { background: #362338; color: #f5d3e7; }
+html.dark .cube-forum .talk-chat-file, html.dark .cube-forum .talk-chat-reply { background: #1c2330; border-color: #50596a; }
+html.dark .cube-forum .talk-chat-error { background: #39212b; border-color: #643547; }
+
+/* YouTube-style comment threads: replies sit one level under their comment and open on demand. */
+.cube-forum .talk-replies { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.cube-forum .talk-comment.is-reply { grid-template-columns: 24px minmax(0, 1fr); }
+.cube-forum .talk-comment.is-removed .talk-comment-body > .talk-hint { font-style: italic; padding: 4px 0; }
+.cube-forum .talk-thread-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 12px; border-radius: 999px; color: #0369a1; font-size: 13px; font-weight: 700; }
+.cube-forum .talk-thread-toggle:hover { background: #e0f2fe; }
+.cube-forum .talk-inline-reply { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; margin: 10px 0 6px; }
+.cube-forum .talk-inline-reply .talk-form-actions { justify-content: flex-end; margin-top: 8px; }
+html.dark .cube-forum .talk-thread-toggle { color: #7dd3fc; }
+html.dark .cube-forum .talk-thread-toggle:hover { background: #0c2a3d; }
+
+/* Private rooms, in the forum's own look: white cards, soft grey surfaces and the pink accent. */
+.cube-forum.talk-chat-page:has(.talk-private-chat.is-room) > .talk-btn { display: none; }
+.cube-forum .talk-private-chat.is-room { margin-top: 0; }
+.cube-forum .talk-room-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.cube-forum .talk-room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 18px; }
+.cube-forum .talk-room-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; transition: border-color .15s, box-shadow .15s; }
+.cube-forum .talk-room-card:hover:not(:disabled) { border-color: var(--talk-accent); box-shadow: 0 6px 18px rgba(230, 0, 126, .08); }
+.cube-forum .talk-room-card > span:not(.talk-room-avatar):not(.talk-chat-unread) { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cube-forum .talk-room-card strong { font-size: 15px; font-weight: 800; color: var(--talk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-card small { font-size: 12px; color: var(--talk-muted); }
+.cube-forum .talk-room-chosen { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.cube-forum .talk-room-chosen li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+
+.cube-forum .talk-room-workspace { display: grid; grid-template-columns: min(var(--room-left, 270px), 26%) 14px minmax(0, 1fr) 14px min(var(--room-right, 300px), 28%); gap: 2px; min-height: 480px; }
+.cube-forum .talk-room-resizer { position: relative; cursor: col-resize; touch-action: none; border-radius: 999px; outline: none; }
+.cube-forum.is-resizing-pane { cursor: col-resize; user-select: none; }
+.cube-forum .talk-room-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow: auto; scrollbar-width: thin; }
+.cube-forum .talk-room-panel { background: var(--talk-card); border: 1px solid var(--talk-line); border-radius: 18px; padding: 16px; min-width: 0; }
+.cube-forum .talk-room-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.cube-forum .talk-private-chat .talk-room-panel h3 { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--talk-accent); font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.cube-forum .talk-room-panel > header > span { font-size: 12px; font-weight: 700; color: var(--talk-muted); }
+.cube-forum .talk-room-panel h4 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--talk-ink); margin: 14px 0 8px; }
+.cube-forum .talk-room-empty { font-size: 13px; color: var(--talk-muted); }
+.cube-forum .talk-room-empty.is-center { text-align: center; padding: 24px 12px; list-style: none; }
+.cube-forum .talk-room-error { margin-top: 8px; font-size: 12px; color: #be123c; }
+.cube-forum .talk-room-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 999px; color: var(--talk-muted); transition: background .15s, color .15s; }
+.cube-forum .talk-room-icon-btn:hover:not(:disabled), .cube-forum .talk-room-icon-btn.is-on { background: var(--talk-accent-soft); color: var(--talk-accent); }
+.cube-forum .talk-room-icon-btn:disabled { opacity: .45; }
+.cube-forum .talk-room-header-actions { display: flex; gap: 2px; }
+.cube-forum .is-spinning { animation: talk-spin 1s linear infinite; }
+@keyframes talk-spin { to { transform: rotate(360deg); } }
+.cube-forum .talk-private-chat .talk-room-inline-form { display: flex; gap: 6px; align-items: center; margin-top: 12px; }
+.cube-forum .talk-private-chat .talk-room-inline-form input { margin: 0; height: 38px; padding: 0 14px; border-radius: 999px; border-color: var(--talk-line); background: var(--talk-bg); font-size: 13px; min-width: 0; flex: 1; }
+.cube-forum .talk-private-chat .talk-room-inline-form .talk-btn { min-height: 38px; padding: 0 14px; }
+
+.cube-forum .talk-room-columns { display: flex; flex-direction: column; gap: 10px; }
+.cube-forum .talk-room-column { border-radius: 14px; padding: 10px; background: var(--talk-bg); }
+.cube-forum .talk-room-column h4 { margin: 0 0 8px; justify-content: space-between; }
+.cube-forum .talk-room-column h4::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: #94a3b8; }
+.cube-forum .talk-room-column.is-doing h4::before { background: #f59e0b; }
+.cube-forum .talk-room-column.is-done h4::before { background: var(--talk-solved); }
+.cube-forum .talk-room-column h4 small { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--talk-card); text-align: center; font-size: 11px; color: var(--talk-muted); }
+.cube-forum .talk-room-column ul { display: flex; flex-direction: column; gap: 6px; }
+.cube-forum .talk-room-column li { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--talk-card); border: 1px solid var(--talk-line); font-size: 13px; color: var(--talk-text); }
+.cube-forum .talk-room-column li > span { min-width: 0; overflow-wrap: anywhere; }
+.cube-forum .talk-room-column.is-done li > span { text-decoration: line-through; color: var(--talk-muted); }
+.cube-forum .talk-room-column .talk-room-empty { font-size: 12px; padding: 2px 2px 0; }
+.cube-forum .talk-room-task-actions { display: flex; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.cube-forum .talk-room-column li:hover .talk-room-task-actions, .cube-forum .talk-room-task-actions:focus-within { opacity: 1; }
+.cube-forum .talk-room-task-actions button { padding: 3px; border-radius: 6px; color: var(--talk-muted); }
+.cube-forum .talk-room-task-actions button:hover:not(:disabled) { color: var(--talk-accent); background: var(--talk-accent-soft); }
+
+.cube-forum .talk-room-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cube-forum .talk-room-tiles li { position: relative; }
+.cube-forum .talk-room-tiles a { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 12px; border-radius: 14px; border: 1px solid var(--talk-line); background: var(--talk-bg); color: var(--talk-ink); min-width: 0; transition: border-color .15s; }
+.cube-forum .talk-room-tiles a > svg { color: var(--talk-accent); }
+.cube-forum .talk-room-tiles a:hover { border-color: var(--talk-accent); }
+.cube-forum .talk-room-tiles strong { font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-tiles small { font-size: 11px; color: var(--talk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-tiles li > button { position: absolute; top: 6px; right: 6px; padding: 3px; border-radius: 999px; color: var(--talk-muted); opacity: 0; }
+.cube-forum .talk-room-tiles li:hover > button, .cube-forum .talk-room-tiles li > button:focus-visible { opacity: 1; }
+.cube-forum .talk-room-tiles li > button:hover { background: var(--talk-card); color: #be123c; }
+.cube-forum .talk-private-chat .talk-room-link-form label { display: block; font-size: 12px; font-weight: 700; color: var(--talk-ink); }
+.cube-forum .talk-private-chat .talk-room-link-form input { margin: 4px 0 10px; height: 38px; padding: 0 12px; border-radius: 10px; border-color: var(--talk-line); font-size: 13px; }
+.cube-forum .talk-room-link-form { margin-bottom: 12px; }
+
+.cube-forum .talk-room-repo { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--talk-accent-soft); font-size: 12px; font-weight: 800; color: var(--talk-accent); overflow-wrap: anywhere; }
+.cube-forum .talk-room-feed { display: flex; flex-direction: column; gap: 4px; }
+.cube-forum .talk-room-feed li { display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 10px; font-size: 13px; min-width: 0; }
+.cube-forum .talk-room-feed li:hover { background: var(--talk-hover); }
+.cube-forum .talk-room-feed a { display: flex; align-items: baseline; gap: 6px; color: var(--talk-ink); min-width: 0; }
+.cube-forum .talk-room-feed a:hover strong { color: var(--talk-accent); }
+.cube-forum .talk-room-feed strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cube-forum .talk-room-feed small { font-size: 11px; color: var(--talk-muted); }
+.cube-forum .talk-room-feed code { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--talk-bg); color: var(--talk-text); flex-shrink: 0; }
+.cube-forum .talk-room-state { flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; color: #fff; background: var(--talk-solved); }
+.cube-forum .talk-room-state.is-merged { background: #8b5cf6; }
+.cube-forum .talk-room-state.is-closed { background: #e11d48; }
+.cube-forum .talk-room-state.is-draft { background: #94a3b8; }
+.cube-forum .talk-room-updated { margin-top: 12px; font-size: 11px; color: var(--talk-muted); }
+
+.cube-forum .talk-room-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-radius: 18px; overflow: hidden; border: 1px solid var(--talk-line); background: var(--talk-card); }
+.cube-forum .talk-room-chat-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--talk-line); }
+.cube-forum .talk-room-avatar { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; color: #fff; font-weight: 800; font-size: 16px; }
+.cube-forum .talk-room-avatar.is-small { width: 30px; height: 30px; border-radius: 999px; font-size: 12px; }
+.cube-forum .talk-room-title { flex: 1; min-width: 0; }
+.cube-forum .talk-private-chat .talk-room-title h2 { margin: 0; font-size: 17px; font-weight: 800; }
+.cube-forum .talk-room-title summary { font-size: 12px; color: var(--talk-muted); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; list-style: none; }
+.cube-forum .talk-room-title summary::-webkit-details-marker { display: none; }
+.cube-forum .talk-room-title .is-typing { color: var(--talk-accent); font-weight: 700; }
+.cube-forum .talk-room-title details[open] ul { margin-top: 6px; font-size: 12px; color: var(--talk-text); }
+.cube-forum .talk-private-chat .talk-room-search { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--talk-line); color: var(--talk-muted); }
+.cube-forum .talk-private-chat .talk-room-search input { flex: 1; margin: 0; height: 36px; padding: 0 14px; border-radius: 999px; border-color: var(--talk-line); background: var(--talk-bg); font-size: 13px; }
+.cube-forum .talk-room-search-count { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.cube-forum .talk-private-chat .talk-room-chat .talk-chat-error { margin: 8px 16px 0; }
+
+.cube-forum .talk-room-chat .talk-chat-messages { flex: 1; min-height: 0; max-height: none; margin: 0; padding: 16px; gap: 10px; background: var(--talk-bg); }
+.cube-forum .talk-room-chat .talk-chat-messages > li { padding: 0; background: transparent; border-radius: 0; }
+.cube-forum .talk-room-message { display: flex; align-items: flex-end; gap: 8px; max-width: min(78%, 620px); }
+.cube-forum .talk-room-message.is-own { align-self: flex-end; flex-direction: row-reverse; }
+.cube-forum .talk-room-bubble { min-width: 0; padding: 9px 13px 8px; border-radius: 16px 16px 16px 4px; border: 1px solid var(--talk-line); background: var(--talk-card); }
+.cube-forum .talk-room-message.is-own .talk-room-bubble { border-radius: 16px 16px 4px 16px; border-color: transparent; background: var(--talk-accent-soft); }
+.cube-forum .talk-room-chat .talk-chat-message-meta { gap: 8px; }
+.cube-forum .talk-room-chat .talk-chat-message-meta strong { color: var(--talk-ink); font-size: 12px; font-weight: 800; }
+.cube-forum .talk-room-chat .talk-chat-messages time { font-size: 11px; color: var(--talk-muted); }
+.cube-forum .talk-room-chat .talk-chat-messages p { margin-top: 2px; font-size: 14px; color: var(--talk-text); }
+.cube-forum .talk-room-chat .talk-chat-message-actions { align-items: center; gap: 10px; margin-top: 4px; }
+.cube-forum .talk-room-chat .talk-chat-message-actions > button { opacity: 0; transition: opacity .15s; }
+.cube-forum .talk-room-message:hover .talk-chat-message-actions > button, .cube-forum .talk-chat-message-actions > button:focus-visible { opacity: 1; }
+.cube-forum .talk-room-chat .talk-chat-read { margin: 0 0 0 auto; }
+.cube-forum .talk-room-chat .talk-chat-reactions .talk-pill { height: 26px; padding: 0 8px; }
+.cube-forum .talk-room-older { align-self: center; }
+.cube-forum .talk-room-chat .talk-chat-reply { background: var(--talk-bg); border-left-color: var(--talk-accent); }
+.cube-forum .talk-room-chat .talk-chat-reply.is-draft { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; background: var(--talk-accent-soft); }
+
+.cube-forum .talk-room-chat .talk-chat-composer { border-top: 1px solid var(--talk-line); padding: 10px 12px; background: var(--talk-card); }
+.cube-forum .talk-room-composer-row { display: flex; align-items: flex-end; gap: 4px; }
+.cube-forum .talk-private-chat .talk-room-composer-row textarea { flex: 1; min-width: 0; margin: 0 4px; min-height: 40px; max-height: 140px; padding: 9px 16px; border-radius: 20px; border-color: var(--talk-line); background: var(--talk-bg); resize: none; field-sizing: content; }
+.cube-forum .talk-room-send { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 999px; background: var(--talk-accent); color: #fff; transition: background .15s; }
+.cube-forum .talk-room-send:hover:not(:disabled) { background: var(--talk-accent-hover); }
+.cube-forum .talk-room-send:disabled { opacity: .4; }
+.cube-forum .talk-room-chat .talk-chat-files.is-staged { margin: 0 0 8px; }
+.cube-forum .talk-room-chat .talk-chat-files.is-staged li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.cube-forum .talk-room-chat .talk-chat-emoji { padding: 0 0 8px; }
+html.dark .cube-forum .talk-room-message.is-own.is-seen .talk-room-bubble { background: #3a1830; }
+html.dark .cube-forum .talk-room-error { color: #fda4af; }
+
+@media (max-width: 960px) {
+  .cube-forum .talk-room-workspace { grid-template-columns: minmax(0, 1fr); gap: 12px; height: auto !important; }
+  .cube-forum .talk-room-resizer { display: none; }
+  .cube-forum .talk-room-chat { order: -1; height: 75vh; }
+  .cube-forum .talk-room-message { max-width: 92%; }
+}
+
+/* WhatsApp-style groups: chat list, read state, group info and settings. */
+.cube-forum .talk-private-chat .talk-eyebrow { display: inline-flex; align-items: center; gap: 4px; }
+.cube-forum .talk-room-avatar.is-sm { width: 30px; height: 30px; border-radius: 999px; font-size: 12px; }
+.cube-forum .talk-room-avatar.is-lg { width: 84px; height: 84px; border-radius: 26px; font-size: 34px; }
+.cube-forum .talk-room-list { display: flex; flex-direction: column; margin-top: 18px; padding: 6px; }
+.cube-forum .talk-room-list li + li { border-top: 1px solid var(--talk-line); }
+.cube-forum .talk-room-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border-radius: 14px; text-align: left; }
+.cube-forum .talk-room-list button:hover:not(:disabled) { background: var(--talk-hover); }
+.cube-forum .talk-room-list-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cube-forum .talk-room-list-main strong { font-size: 15px; font-weight: 800; color: var(--talk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-list-main small { font-size: 13px; color: var(--talk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-list-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.cube-forum .talk-room-list-meta time { font-size: 11px; color: var(--talk-muted); }
+.cube-forum .talk-room-list-meta small { font-size: 10px; font-weight: 800; color: var(--talk-accent); text-transform: uppercase; letter-spacing: .05em; }
+.cube-forum .talk-room-empty-state { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; color: var(--talk-muted); }
+
+.cube-forum .talk-group-create h3 { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; font-size: 14px; }
+.cube-forum .talk-group-create h3 small, .cube-forum .talk-group-create label small { font-weight: 600; color: var(--talk-muted); }
+.cube-forum .talk-group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.cube-forum .talk-group-chips li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 3px; border-radius: 999px; background: var(--talk-hover); font-size: 12px; font-weight: 700; color: var(--talk-text); }
+.cube-forum .talk-group-chips li:first-child { padding-right: 10px; }
+.cube-forum .talk-group-chips .talk-room-icon-btn { width: 22px; height: 22px; }
+.cube-forum .talk-people-picker { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.cube-forum .talk-room-search-field { display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 38px; border-radius: 999px; border: 1px solid var(--talk-line); background: var(--talk-bg); color: var(--talk-muted); }
+.cube-forum .talk-private-chat .talk-room-search-field input { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: transparent; font-size: 13px; outline: none; }
+.cube-forum .talk-people-picker ul { max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
+.cube-forum .talk-people-picker li { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--talk-line); font-size: 13px; }
+.cube-forum .talk-people-picker li > span:not(.talk-room-avatar) { flex: 1; min-width: 0; display: flex; flex-direction: column; color: var(--talk-ink); font-weight: 700; }
+.cube-forum .talk-people-picker li small { font-weight: 500; color: var(--talk-muted); font-size: 11px; }
+
+.cube-forum .talk-room-head-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 4px 8px 4px 4px; border-radius: 14px; text-align: left; }
+.cube-forum .talk-room-head-info:hover, .cube-forum .talk-room-head-info[aria-expanded=true] { background: var(--talk-hover); }
+.cube-forum .talk-room-head-info .talk-room-title { display: flex; flex-direction: column; min-width: 0; }
+.cube-forum .talk-room-head-info strong { font-size: 16px; font-weight: 800; color: var(--talk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-head-info small { font-size: 12px; color: var(--talk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-head-info .is-typing { color: var(--talk-accent); font-weight: 700; }
+.cube-forum .talk-room-notice { align-self: center; display: inline-flex; align-items: center; gap: 6px; max-width: 460px; padding: 6px 12px; border-radius: 10px; background: #fef9c3; color: #713f12; font-size: 11px; text-align: center; }
+html.dark .cube-forum .talk-room-notice { background: #3a3411; color: #fde68a; }
+.cube-forum .talk-room-readonly { padding: 14px; border-top: 1px solid var(--talk-line); text-align: center; font-size: 13px; color: var(--talk-muted); background: var(--talk-card); }
+
+/* Own messages stay white until everyone in the group has seen them, then turn pink. */
+.cube-forum .talk-room-message.is-own .talk-room-bubble { border-color: var(--talk-line); background: var(--talk-card); transition: background .3s, border-color .3s; }
+.cube-forum .talk-room-message.is-own.is-seen .talk-room-bubble { border-color: transparent; background: var(--talk-accent-soft); }
+.cube-forum .talk-room-author { display: block; margin-bottom: 1px; font-size: 12px; font-weight: 800; color: var(--talk-accent); }
+.cube-forum .talk-room-bubble-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 3px; }
+.cube-forum .talk-room-bubble-foot time { font-size: 11px; color: var(--talk-muted); white-space: nowrap; }
+.cube-forum .talk-room-chat .talk-room-bubble-foot .talk-chat-message-actions { margin: 0 auto 0 0; }
+.cube-forum .talk-room-ticks { display: inline-flex; color: var(--talk-muted); }
+.cube-forum .talk-room-ticks.is-seen { color: var(--talk-accent); }
+
+.cube-forum .talk-group-info { display: flex; flex-direction: column; gap: 4px; }
+.cube-forum .talk-group-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0 14px; text-align: center; border-bottom: 1px solid var(--talk-line); }
+.cube-forum .talk-group-hero h4 { display: inline-flex; align-items: center; gap: 4px; margin: 6px 0 0; font-size: 18px; font-weight: 800; color: var(--talk-ink); overflow-wrap: anywhere; }
+.cube-forum .talk-group-description { font-size: 13px; color: var(--talk-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cube-forum .talk-group-edit { width: 100%; text-align: left; }
+.cube-forum .talk-private-chat .talk-group-edit label { display: block; font-size: 12px; font-weight: 700; }
+.cube-forum .talk-private-chat .talk-group-edit input, .cube-forum .talk-private-chat .talk-group-edit textarea { margin: 4px 0 10px; border-radius: 10px; border-color: var(--talk-line); font-size: 13px; }
+.cube-forum .talk-group-block { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--talk-line); }
+.cube-forum .talk-group-block:last-of-type { border-bottom: 0; }
+.cube-forum .talk-group-block > h4 { margin: 0 0 6px; color: var(--talk-muted); }
+.cube-forum .talk-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; font-size: 13px; font-weight: 700; color: var(--talk-ink); cursor: pointer; }
+.cube-forum .talk-switch span { display: flex; flex-direction: column; }
+.cube-forum .talk-switch small { font-size: 11px; font-weight: 500; color: var(--talk-muted); }
+.cube-forum .talk-private-chat .talk-switch input { appearance: none; position: relative; flex-shrink: 0; width: 38px; height: 22px; margin: 0; padding: 0; border: 0; border-radius: 999px; background: #cbd5e1; cursor: pointer; transition: background .2s; }
+.cube-forum .talk-private-chat .talk-switch input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #fff; transition: transform .2s; }
+.cube-forum .talk-private-chat .talk-switch input:checked { background: var(--talk-accent); }
+.cube-forum .talk-private-chat .talk-switch input:checked::after { transform: translateX(16px); }
+.cube-forum .talk-group-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--talk-ink); text-align: left; }
+.cube-forum .talk-group-row > span:not(.talk-room-avatar):not(.talk-group-badge):not(.talk-group-icon) { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cube-forum .talk-group-row small { font-size: 11px; font-weight: 500; color: var(--talk-muted); }
+.cube-forum button.talk-group-row:hover:not(:disabled) { background: var(--talk-hover); }
+.cube-forum .talk-group-row.is-action { color: var(--talk-accent); }
+.cube-forum .talk-group-row.is-danger { color: #e11d48; }
+.cube-forum .talk-group-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: var(--talk-hover); }
+.cube-forum .talk-group-row.is-action .talk-group-icon { background: var(--talk-accent); color: #fff; }
+.cube-forum .talk-group-badge { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 10px; font-weight: 800; }
+.cube-forum .talk-group-members { display: flex; flex-direction: column; }
+.cube-forum .talk-group-menu { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px 40px; padding: 4px; border-radius: 12px; background: var(--talk-bg); }
+.cube-forum .talk-group-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--talk-text); text-align: left; }
+.cube-forum .talk-group-menu button:hover:not(:disabled) { background: var(--talk-card); }
+.cube-forum .talk-group-menu button.is-danger, .cube-forum .talk-pill.is-danger { color: #e11d48 !important; }
+
+/* Polls (forum posts and group chat) */
+.cube-forum .talk-poll { margin: 12px 0 4px; padding: 14px; border: 1px solid var(--talk-line); border-radius: 14px; background: var(--talk-card); min-width: min(320px, 100%); max-width: 520px; }
+.cube-forum .talk-room-bubble .talk-poll { margin: 4px 0; background: transparent; border-color: transparent; padding: 4px 0; }
+.cube-forum .talk-poll-title { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--talk-ink); font-size: 15px; line-height: 1.35; }
+.cube-forum .talk-poll-title svg { flex-shrink: 0; margin-top: 2px; color: var(--talk-accent); }
+.cube-forum .talk-poll-mode { margin: 4px 0 10px; color: var(--talk-muted); font-size: 12px; }
+.cube-forum .talk-poll ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cube-forum .talk-poll-option { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 6px; border: 0; border-radius: 10px; background: transparent; color: var(--talk-text); text-align: left; cursor: pointer; }
+.cube-forum .talk-poll-option:hover:not(:disabled) { background: var(--talk-hover); }
+.cube-forum .talk-poll-option:disabled { cursor: default; }
+.cube-forum .talk-poll-mark { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; border: 2px solid var(--talk-soft); border-radius: 999px; color: #fff; }
+.cube-forum .talk-poll-mark.is-box { border-radius: 6px; }
+.cube-forum .talk-poll-option.is-voted .talk-poll-mark { border-color: var(--talk-accent); background: var(--talk-accent); }
+.cube-forum .talk-poll-body { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.cube-forum .talk-poll-row { display: flex; align-items: center; gap: 8px; }
+.cube-forum .talk-poll-text { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.cube-forum .talk-poll-voters { display: inline-flex; }
+.cube-forum .talk-poll-dot { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: -6px; border: 2px solid var(--talk-card); border-radius: 999px; overflow: hidden; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 10px; font-weight: 800; }
+.cube-forum .talk-poll-dot img { width: 100%; height: 100%; object-fit: cover; }
+.cube-forum .talk-poll-count { min-width: 18px; text-align: right; color: var(--talk-muted); font-size: 13px; font-weight: 700; }
+.cube-forum .talk-poll-bar { display: block; height: 6px; border-radius: 999px; background: var(--talk-line); overflow: hidden; }
+.cube-forum .talk-poll-bar span { display: block; height: 100%; border-radius: inherit; background: var(--talk-soft); transition: width .25s; }
+.cube-forum .talk-poll-option.is-voted .talk-poll-bar span { background: var(--talk-accent); }
+.cube-forum .talk-poll-view { display: block; width: 100%; margin-top: 10px; padding: 8px; border: 0; border-top: 1px solid var(--talk-line); background: transparent; color: var(--talk-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+.cube-forum .talk-poll-view:disabled { color: var(--talk-muted); cursor: default; }
+.cube-forum .talk-poll-votes { margin: 4px 0 0; display: grid; gap: 10px; font-size: 13px; }
+.cube-forum .talk-poll-votes dt { color: var(--talk-ink); font-weight: 700; }
+.cube-forum .talk-poll-votes dt small { color: var(--talk-muted); font-weight: 500; }
+.cube-forum .talk-poll-votes dd { margin: 2px 0 0 12px; color: var(--talk-text); }
+.cube-forum fieldset.talk-poll-editor { display: grid; gap: 8px; margin: 4px 0 8px; padding: 12px; border: 1px solid var(--talk-line); border-radius: 14px; background: var(--talk-card); min-width: 0; }
+.cube-forum .talk-poll-editor legend { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0; float: left; margin-bottom: 4px; color: var(--talk-accent); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.cube-forum .talk-poll-editor legend .talk-poll-icon { margin-left: auto; }
+.cube-forum .talk-poll-editor input:not([type=checkbox]) { width: 100%; min-width: 0; padding: 9px 12px; border: 1px solid var(--talk-line); border-radius: 10px; background: var(--talk-bg); color: var(--talk-ink); font: inherit; font-size: 14px; }
+.cube-forum .talk-poll-editor input.talk-poll-question { font-weight: 700; }
+.cube-forum .talk-poll-option-inputs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+.cube-forum .talk-poll-option-inputs li { display: flex; align-items: center; gap: 6px; }
+.cube-forum .talk-poll-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 0; border-radius: 999px; background: transparent; color: var(--talk-muted); cursor: pointer; }
+.cube-forum .talk-poll-icon:hover { background: var(--talk-hover); color: var(--talk-ink); }
+.cube-forum .talk-poll-editor .talk-poll-switch { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--talk-text); font-size: 14px; font-weight: 500; cursor: pointer; }
+.cube-forum .talk-poll-editor .talk-poll-switch input { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--talk-accent); }
+.cube-forum .talk-poll-add { justify-self: start; }
+.cube-forum .talk-poll-ready { flex: 1; margin: 0; padding: 10px 14px; color: var(--talk-muted); font-size: 14px; }
+.cube-forum .talk-flair svg { vertical-align: -2px; margin-right: 3px; }
+/* Mission update from group chat */
+.cube-forum form.talk-update-panel { display: grid; gap: 8px; margin: 4px 0 8px; padding: 12px; border: 1px solid var(--talk-line); border-radius: 14px; background: var(--talk-card); max-height: 55vh; overflow: auto; }
+.cube-forum .talk-update-head { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--talk-accent); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.cube-forum .talk-update-head .talk-poll-icon { margin-left: auto; }
+.cube-forum .talk-update-mission { margin: 0; color: var(--talk-ink); font-weight: 700; font-size: 14px; }
+.cube-forum .talk-update-field { display: grid; gap: 4px; color: var(--talk-muted); font-size: 12px; font-weight: 700; }
+.cube-forum .talk-update-panel select, .cube-forum .talk-update-panel textarea, .cube-forum .talk-update-panel input:not([type=checkbox]):not([type=file]) { width: 100%; min-width: 0; padding: 9px 12px; border: 1px solid var(--talk-line); border-radius: 10px; background: var(--talk-bg); color: var(--talk-ink); font: inherit; font-size: 14px; resize: vertical; }
+.cube-forum .talk-update-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.cube-forum .talk-update-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cube-forum .talk-update-panel .talk-poll-switch { display: flex; align-items: center; gap: 8px; color: var(--talk-text); font-size: 14px; }
+.cube-forum .talk-update-panel .talk-poll-switch input { width: 16px; height: 16px; accent-color: var(--talk-accent); }
+.cube-forum .talk-update-notice { margin: 0 0 6px; padding: 8px 12px; border-radius: 10px; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 13px; font-weight: 700; }
+.cube-forum .talk-room-chat > .talk-update-panel, .cube-forum .talk-room-chat > .talk-update-notice { margin: 0 16px 8px; }
+.cube-forum p.talk-poll-view.is-static { margin: 10px 0 0; color: var(--talk-muted); font-weight: 600; text-align: center; cursor: default; }
+.cube-forum .talk-poll-editor .talk-poll-switch small { color: var(--talk-muted); font-weight: 500; }
+.cube-forum .talk-like { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.cube-forum .talk-like[aria-disabled=true] { cursor: default; opacity: .6; }
+
+/* Author line starts at the card edge; signatures sit right under the name (avatar 32px + 7px gap). */
+.cube-forum .talk-post > .talk-meta.is-sub, .cube-forum .talk-post .talk-meta.is-sub { margin: 8px 0 0; }
+.cube-forum .talk-post > .forum-signature, .cube-forum .talk-post > .forum-signature-rare, .cube-forum .talk-post > .forum-signature-legendary,
+.cube-forum .talk-comment-body > .forum-signature, .cube-forum .talk-comment-body > .forum-signature-rare, .cube-forum .talk-comment-body > .forum-signature-legendary { margin-left: 39px; margin-top: 2px; }
+
+/* Each column scrolls on its own: the wheel over a sidebar never moves the feed. */
+@media (min-width: 1281px) {
+  .cube-forum .talk-side { max-height: calc(100vh - 100px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+}
+.cube-forum .talk-nav { overscroll-behavior: contain; }
+
+/* The more-options menu on posts and comments */
+.cube-forum .talk-feed-card, .cube-forum .talk-post { position: relative; }
+.cube-forum .talk-feed-card > .talk-post-menu, .cube-forum .talk-post > .talk-post-menu { position: absolute; top: 10px; right: 10px; z-index: 5; }
+.cube-forum .talk-feed-card > .talk-meta, .cube-forum .talk-post > .talk-meta:first-of-type { padding-right: 40px; }
+.cube-forum .talk-comment .talk-meta > .talk-post-menu { margin-left: auto; }
+.cube-forum .talk-post-menu { position: relative; }
+.cube-forum .talk-post-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: 999px; background: transparent; color: var(--talk-muted); cursor: pointer; }
+.cube-forum .talk-post-menu-btn:hover, .cube-forum .talk-post-menu-btn[aria-expanded=true] { background: var(--talk-hover); color: var(--talk-ink); }
+.cube-forum .talk-post-menu-list { position: absolute; top: 36px; right: 0; z-index: 30; display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--talk-line); border-radius: 14px; background: var(--talk-card); box-shadow: 0 12px 32px rgba(15, 18, 25, .14); }
+.cube-forum .talk-post-menu-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--talk-text); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.cube-forum .talk-post-menu-list button:hover:not(:disabled) { background: var(--talk-hover); color: var(--talk-ink); }
+.cube-forum .talk-post-menu-list button.is-danger { color: #dc2626; }
+.cube-forum .talk-post-menu-list button:disabled { opacity: .5; cursor: default; }
+
+/* Reposts and the like count next to the heart */
+.cube-forum .talk-repost-line { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; padding-right: 40px; color: var(--talk-muted); font-size: 12px; font-weight: 700; }
+.cube-forum .talk-like-count[hidden] { display: none; }
+.cube-forum .talk-like-group .talk-like-count { min-width: 0; padding: 0 6px; font-weight: 700; }
+
+/* Send sheet */
+.cube-forum .talk-send-sheet { width: min(420px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 48px)); padding: 18px; border: 1px solid var(--talk-line); border-radius: 20px; background: var(--talk-card); color: var(--talk-ink); }
+.cube-forum .talk-send-sheet::backdrop { background: rgba(10, 12, 18, .45); }
+.cube-forum .talk-send-sheet header h2 { font-size: 16px; font-weight: 800; text-align: center; }
+.cube-forum .talk-send-sheet header p { margin-top: 2px; color: var(--talk-muted); font-size: 12px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-send-quick { display: flex; justify-content: center; gap: 22px; margin: 16px 0 12px; }
+.cube-forum .talk-send-quick button { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--talk-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.cube-forum .talk-send-quick button svg { box-sizing: content-box; padding: 13px; border-radius: 999px; background: var(--talk-hover); }
+.cube-forum .talk-send-quick button.is-on svg { background: var(--talk-accent); color: #fff; }
+.cube-forum .talk-send-sheet h3 { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; color: var(--talk-muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.cube-forum .talk-send-rooms { display: grid; gap: 2px; max-height: 260px; overflow-y: auto; }
+.cube-forum .talk-send-rooms label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; cursor: pointer; }
+.cube-forum .talk-send-rooms label:hover, .cube-forum .talk-send-rooms label.is-on { background: var(--talk-hover); }
+.cube-forum .talk-send-avatar { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; background: var(--talk-accent-soft); color: var(--talk-accent); font-weight: 800; }
+.cube-forum .talk-send-name { display: flex; flex-direction: column; flex: 1; min-width: 0; font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.cube-forum .talk-send-name small { color: var(--talk-muted); font-weight: 500; font-size: 12px; }
+.cube-forum .talk-send-rooms input { width: 20px; height: 20px; accent-color: var(--talk-accent); }
+.cube-forum .talk-send-note { width: 100%; margin-top: 10px; padding: 10px 14px; border: 1px solid var(--talk-line); border-radius: 12px; background: var(--talk-bg); color: var(--talk-ink); font: inherit; }
+.cube-forum .talk-send-sheet .talk-form-actions { margin-top: 14px; }
+.cube-forum .talk-send-sheet .talk-btn svg { vertical-align: -2px; }
+
+/* A forum post shared into a group chat */
+.cube-forum .talk-link-card { display: flex; gap: 10px; width: min(320px, 100%); margin-top: 6px; padding: 8px; border: 1px solid var(--talk-line); border-radius: 14px; background: var(--talk-card); color: var(--talk-ink); text-decoration: none; overflow: hidden; }
+.cube-forum .talk-link-card:hover { border-color: var(--talk-accent); }
+.cube-forum .talk-link-card img { width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px; object-fit: cover; }
+.cube-forum .talk-link-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cube-forum .talk-link-body small { color: var(--talk-muted); font-size: 11px; }
+.cube-forum .talk-link-body strong { font-size: 13px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cube-forum .talk-link-snippet { color: var(--talk-text); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cube-forum .talk-link-stats { display: inline-flex; align-items: center; gap: 4px; color: var(--talk-muted); font-size: 11px; }
+.cube-forum .talk-link-stats svg:not(:first-child) { margin-left: 6px; }
+.cube-forum .talk-link-card.is-loading { height: 88px; background: var(--talk-hover); }
+.cube-forum .talk-link-card.is-gone { color: var(--talk-muted); font-size: 12px; font-style: italic; }
+
+.cube-forum .talk-like .talk-like-number { margin-left: 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cube-forum .talk-feed-card .talk-poll { margin: 10px 0 4px; }
+/* Room workspace: columns still scroll with the wheel or touch, without visible scrollbars. */
+.cube-forum .talk-room-side, .cube-forum .talk-room-chat .talk-chat-messages { scrollbar-width: none; }
+.cube-forum .talk-room-side::-webkit-scrollbar, .cube-forum .talk-room-chat .talk-chat-messages::-webkit-scrollbar { display: none; }
+.cube-forum .talk-side, .cube-forum .talk-nav { scrollbar-width: none; }
+.cube-forum .talk-side::-webkit-scrollbar, .cube-forum .talk-nav::-webkit-scrollbar { display: none; }
+
+/* Group workspace: every panel keeps its size and scrolls inside itself. */
+@media (min-width: 961px) {
+  .cube-forum .talk-room-side { overflow: hidden; }
+  .cube-forum .talk-room-side > .talk-room-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .cube-forum .talk-room-side > .talk-room-panel > * { flex-shrink: 0; }
+  .cube-forum .talk-room-side.is-left > .talk-room-board { flex: 3 1 0; }
+  .cube-forum .talk-room-side.is-left > .talk-room-links { flex: 2 1 0; }
+  .cube-forum .talk-room-side.is-right > .talk-room-panel { flex: 1 1 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .cube-forum .talk-room-board > .talk-room-columns, .cube-forum .talk-room-links > .talk-room-tiles { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .cube-forum .talk-room-board > .talk-room-columns::-webkit-scrollbar, .cube-forum .talk-room-links > .talk-room-tiles::-webkit-scrollbar, .cube-forum .talk-room-side.is-right > .talk-room-panel::-webkit-scrollbar { display: none; }
+  .cube-forum .talk-room-board > .talk-room-inline-form { margin-top: 10px; }
+}
+
+/* Pinned messages bar */
+.cube-forum .talk-room-pinned { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 16px; border: 0; border-bottom: 1px solid var(--talk-line); background: var(--talk-card); color: var(--talk-ink); text-align: left; cursor: pointer; }
+.cube-forum .talk-room-pinned:hover { background: var(--talk-hover); }
+.cube-forum .talk-room-pinned > svg { flex-shrink: 0; color: var(--talk-accent); }
+.cube-forum .talk-room-pinned > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.cube-forum .talk-room-pinned strong { font-size: 12px; color: var(--talk-accent); }
+.cube-forum .talk-room-pinned small { font-size: 13px; color: var(--talk-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cube-forum .talk-room-pinned-dots { display: flex; flex-direction: column; gap: 3px; }
+.cube-forum .talk-room-pinned-dots i { display: block; width: 3px; height: 9px; border-radius: 2px; background: var(--talk-line); }
+.cube-forum .talk-room-pinned-dots i.is-on { background: var(--talk-accent); }
+.cube-forum .talk-room-message.is-flash .talk-room-bubble { box-shadow: 0 0 0 3px var(--talk-accent); transition: box-shadow .3s; }
+
+/* Several repositories */
+.cube-forum .talk-room-repo-switch { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.cube-forum .talk-room-repo-switch button { max-width: 100%; padding: 4px 10px; border: 1px solid var(--talk-line); border-radius: 999px; background: transparent; color: var(--talk-text); font: inherit; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.cube-forum .talk-room-repo-switch button.is-on { border-color: var(--talk-accent); background: var(--talk-accent-soft); color: var(--talk-accent); }
+.cube-forum .talk-room-repo-list { display: grid; gap: 4px; margin-bottom: 8px; }
+.cube-forum .talk-room-repo-list li { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 4px 4px 10px; border-radius: 10px; background: var(--talk-hover); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.cube-forum .talk-room-repo-done { margin-top: 8px; justify-self: start; }
+
+/* Who can see a post */
+.cube-forum .talk-audience { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px solid var(--talk-line); border-radius: 14px; min-width: 0; }
+.cube-forum .talk-audience legend { padding: 0 4px; color: var(--talk-muted); font-size: 12px; font-weight: 800; }
+.cube-forum .talk-audience-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.cube-forum .talk-audience-options button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--talk-line); border-radius: 999px; background: transparent; color: var(--talk-text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.cube-forum .talk-audience-options button.is-on { border-color: var(--talk-accent); background: var(--talk-accent-soft); color: var(--talk-accent); }
+.cube-forum .talk-form .talk-audience-field { flex-direction: column; }
+.cube-forum .talk-audience-people { display: flex; flex-wrap: wrap; gap: 6px; }
+.cube-forum .talk-audience-people li { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 12px; font-weight: 700; }
+.cube-forum .talk-audience-people button { display: inline-flex; padding: 3px; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; }
+.cube-forum .talk-flair.is-audience { gap: 4px; }
+
+/* A forum post shared into a group chat: same look as a post, not a text link */
+.cube-forum .talk-post-card, .cube-forum .talk-room-bubble a.talk-post-card { display: flex; flex-direction: column; gap: 6px; width: min(340px, 100%); margin-top: 8px; padding: 12px; border: 1px solid var(--talk-line); border-radius: 16px; background: var(--talk-card); color: var(--talk-ink); text-decoration: none; overflow: hidden; }
+.cube-forum .talk-post-card * { text-decoration: none; }
+.cube-forum .talk-post-card:hover { border-color: var(--talk-accent); }
+.cube-forum .talk-post-card-head { display: flex; align-items: center; gap: 8px; }
+.cube-forum .talk-post-card-head > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.cube-forum .talk-post-card-head strong { color: var(--talk-ink); font-size: 13px; }
+.cube-forum .talk-post-card-head small { color: var(--talk-muted); font-size: 11px; }
+.cube-forum .talk-post-card-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 999px; overflow: hidden; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 12px; font-weight: 800; }
+.cube-forum .talk-post-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cube-forum .talk-post-card-title { color: var(--talk-ink); font-size: 15px; font-weight: 800; line-height: 1.3; }
+.cube-forum .talk-post-card-text { color: var(--talk-text); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cube-forum .talk-post-card-image { width: 100%; max-height: 200px; border-radius: 12px; object-fit: cover; }
+.cube-forum .talk-post-card-stats { display: inline-flex; align-items: center; gap: 5px; color: var(--talk-muted); font-size: 12px; font-weight: 700; }
+.cube-forum .talk-post-card-stats svg:not(:first-child) { margin-left: 8px; }
+.cube-forum .talk-post-card.is-loading { height: 120px; background: var(--talk-hover); }
+.cube-forum .talk-post-card.is-gone { color: var(--talk-muted); font-size: 12px; font-style: italic; }

@@ -8,6 +8,7 @@ import { requireAuth, isAdmin, AuthenticatedRequest } from '../middlewares/auth.
 import { badRequest, parseCubeNumber, sendError } from '../utils/http';
 import { INVITE_TTL_HOURS, issueInvite, unusablePasswordHash } from '../services/invite.service';
 import { Role, CubeLevel } from '@prisma/client';
+import { ACTIVITY_WINDOW_DAYS, getTrackingStartedAt, listActivitySummaries } from '../services/activity.service';
 
 const router = Router();
 
@@ -22,12 +23,33 @@ router.get('/admin/users', requireAuth, isAdmin, async (req, res) => {
         role: true,
         created_at: true,
         updated_at: true,
+        last_login_at: true,
+        last_seen_at: true,
         cube_profile: true
       },
       orderBy: { name: 'asc' }
     });
-    return res.json(users);
+
+    // Usage over the last 30 days; people never seen get zeros.
+    const summaries = await listActivitySummaries();
+    const empty = { active_days: 0, page_views: 0, active_minutes: 0 };
+    return res.json(users.map((u) => ({ ...u, activity: summaries.get(u.id) ?? empty })));
   } catch (error: any) {
+    return sendError(res, error);
+  }
+});
+
+/**
+ * When usage tracking started. Before that there is no data, so the page uses
+ * it to avoid calling someone inactive just because tracking is brand new.
+ */
+router.get('/admin/activity/overview', requireAuth, isAdmin, async (_req, res) => {
+  try {
+    return res.json({
+      tracking_started_at: await getTrackingStartedAt(),
+      window_days: ACTIVITY_WINDOW_DAYS
+    });
+  } catch (error) {
     return sendError(res, error);
   }
 });

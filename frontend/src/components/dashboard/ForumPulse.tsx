@@ -87,7 +87,7 @@ export const ForumPulse: React.FC = () => {
       {!staff && data.my_posts === 0 && (
         <Link
           to="/forum?category=introductions"
-          className="flex items-start gap-3 rounded-2xl bg-gradient-to-br from-magenta/10 to-amber-50 p-3.5 ring-1 ring-magenta/15 transition hover:ring-magenta/40"
+          className="flex items-start gap-3 rounded-2xl bg-gradient-to-br from-magenta/10 to-amber-50 dark:bg-none dark:bg-magenta/10 p-3.5 ring-1 ring-magenta/15 transition hover:ring-magenta/40"
         >
           <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-magenta" />
           <span className="text-xs font-semibold leading-relaxed text-gray-700">

@@ -16,7 +16,7 @@ function editorHarness(initial, options = {}) {
     if (cache.has(relative)) return cache.get(relative);
     const code = ts.transpileModule(readFileSync(new URL(relative, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
     const mod = { exports: {} };
-    vm.runInNewContext(code, { module: mod, exports: mod.exports, Map, Set, setTimeout: callback => callback(), require: id => {
+    vm.runInNewContext(code, { module: mod, exports: mod.exports, Map, Set, URL, setTimeout: callback => callback(), require: id => {
       if (id === 'react') return react;
       if (id === 'react-markdown') return 'Markdown';
       if (id === 'lucide-react') return new Proxy({}, { get: (_, key) => key });
@@ -39,7 +39,8 @@ function editorHarness(initial, options = {}) {
   };
   render();
   return { get value() { return stored; }, field,
-    click(label) { const node = nodes.find(n => n.props['aria-label'] === label || n.type === 'button' && n.children.some(c => c?.type === 'span' && c.children.includes(label))); assert.ok(node, label); node.props.onClick(); render(); },
+    click(label) { const node = nodes.find(n => n.type === 'button' && (n.props['aria-label'] === label || n.children.some(c => c?.type === 'span' && c.children.includes(label)))); assert.ok(node, label); node.props.onClick(); render(); },
+    fill(label, value) { const node = nodes.find(n => n.type === 'input' && n.props['aria-label'] === label); assert.ok(node, label); node.props.onChange({ target: { value } }); render(); },
     has(type) { return nodes.some(n => n.type === type); }, hasAlert() { return nodes.some(n => n.props.role === 'alert'); },
   };
 }
@@ -181,7 +182,7 @@ test('mentionOverhead is the stored characters mention links add beyond the visi
 
 test('forum CSS cannot style portal Markdown or controls outside the forum', () => {
   const css = postcss.parse(readFileSync(new URL('../src/pages/forum/talks.css', import.meta.url), 'utf8'));
-  css.walkRules(rule => { for (const selector of rule.selectors) assert.ok(selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
+  css.walkRules(rule => { if (rule.parent?.type === 'atrule' && /keyframes$/i.test(rule.parent.name)) return; for (const selector of rule.selectors) assert.ok(selector.startsWith('html.dark .cube-forum') || selector.startsWith('.cube-forum') || selector.startsWith(':where(.cube-forum) ' ), selector); });
 });
 
 const imagesSource = 'const api = {}; const getAssetUrl = value => "https://cdn.example" + value;\n' +
@@ -220,4 +221,55 @@ test('an over-budget emoji preserves text, mentions and attachments', () => {
   editor.field.selectionStart = editor.field.selectionEnd = editor.field.value.length;
   editor.click('Add emoji'); editor.click('Insert Rocket emoji');
   assert.equal(editor.value, body); assert.equal(editor.hasAlert(), true);
+});
+
+// Render actual Markdown through the production anchor component.
+const { createRequire } = await import('node:module');
+const realRequire = createRequire(import.meta.url);
+const { createElement } = await import('react');
+const { renderToStaticMarkup } = await import('react-dom/server');
+const { default: RealMarkdown } = await import('react-markdown');
+const linkModule = { exports: {} };
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/mentions.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX }
+}).outputText, { module: linkModule, exports: linkModule.exports, require: realRequire });
+const renderLink = body => renderToStaticMarkup(createElement(RealMarkdown, { components: { a: linkModule.exports.MentionAwareLink } }, body));
+test('posted and previewed web links resolve outside portal routes', () => {
+  for (const url of ['github.com/umrtkyrk', 'www.example.com/docs', 'https://example.com/docs', '//example.com/docs']) {
+    const html = renderLink('[Resource](' + url + ')');
+    const expected = url.startsWith('http') || url.startsWith('//') ? url : 'https://' + url;
+    assert.ok(html.includes('href="' + expected + '"'), html);
+    assert.match(html, /target="_blank"/);
+    assert.match(html, /rel="noopener noreferrer"/);
+    assert.equal(new URL(expected, 'https://portal.example/forum').hostname === 'portal.example', false);
+  }
+});
+test('portal links and mentions remain intact; unsafe destinations stay inactive', () => {
+  assert.match(renderLink('[Topic](/forum?topic=abc)'), /href="\/forum\?topic=abc"/);
+  assert.doesNotMatch(renderLink('[Topic](/forum?topic=abc)'), /target=/);
+  assert.match(renderLink('[@Ada](@cube-018)'), /class="mention-tag"/);
+  assert.doesNotMatch(renderLink('[Unsafe](javascript:alert)'), /href=/);
+});
+
+test('link dialog wraps the selected text and preserves mentions and attachments', () => {
+  const image = '![shot](/uploads/forum/11111111-1111-1111-1111-111111111111.png)';
+  const editor = editorHarness(joinImages('Hi [@Ada Demo](@cube-951) read docs please', [image]));
+  editor.field.selectionStart = editor.field.value.indexOf('docs'); editor.field.selectionEnd = editor.field.selectionStart + 4;
+  editor.click('Add link'); editor.fill('Link URL', 'github.com/example/project'); editor.click('Insert link');
+  assert.equal(editor.value, joinImages('Hi [@Ada Demo](@cube-951) read [docs](https://github.com/example/project) please', [image]));
+});
+test('link dialog accepts a label without selection and cancels without editing', () => {
+  const editor = editorHarness('Read '); editor.field.selectionStart = editor.field.selectionEnd = 5;
+  editor.click('Add link'); editor.fill('Link text', 'docs'); editor.fill('Link URL', 'https://example.com/a(b)'); editor.click('Insert link');
+  assert.equal(editor.value, 'Read [docs](https://example.com/a%28b%29)');
+  editor.click('Add link'); editor.fill('Link URL', 'https://other.example'); editor.click('Cancel link');
+  assert.equal(editor.value, 'Read [docs](https://example.com/a%28b%29)');
+});
+test('invalid and oversized link edits preserve the original draft', () => {
+  const editor = editorHarness('Keep this', { maxLength: 20 });
+  editor.field.selectionStart = 0; editor.field.selectionEnd = 4;
+  editor.click('Add link'); editor.fill('Link URL', 'javascript:alert(1)'); editor.click('Insert link');
+  assert.equal(editor.value, 'Keep this'); assert.equal(editor.hasAlert(), true);
+  editor.fill('Link URL', 'https://example.com/long'); editor.click('Insert link');
+  assert.equal(editor.value, 'Keep this'); assert.equal(editor.hasAlert(), true);
 });
