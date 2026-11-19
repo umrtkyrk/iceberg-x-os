@@ -1,3 +1,5 @@
+import { missionRoom } from '../services/forumMissionRoom.service';
+import { FORUM_ENABLED } from '../config/env';
 /**
  * Missions, reflections and lifecycle transitions.
  */
@@ -181,6 +183,12 @@ router.post('/missions', requireAuth, isMentorOrAdmin, async (req: Authenticated
 });
 
 // Get mission detail
+router.get('/missions/:id/forum-room', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try { if (!FORUM_ENABLED) throw notFound('The forum is not enabled.'); return res.json(await missionRoom(req.user!, req.params.id)); } catch(error) { return sendError(res,error); }
+});
+router.post('/missions/:id/forum-room', requireAuth, isMentorOrAdmin, async (req: AuthenticatedRequest, res) => {
+  try { if (!FORUM_ENABLED) throw notFound('The forum is not enabled.'); return res.json(await missionRoom(req.user!, req.params.id, true)); } catch(error) { return sendError(res,error); }
+});
 router.get('/missions/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;

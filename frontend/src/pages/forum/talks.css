@@ -741,6 +741,7 @@ html.dark .cube-forum .talk-room-notice { background: #3a3411; color: #fde68a; }
 .cube-forum .talk-group-row.is-action .talk-group-icon { background: var(--talk-accent); color: #fff; }
 .cube-forum .talk-group-badge { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 10px; font-weight: 800; }
 .cube-forum .talk-group-members { display: flex; flex-direction: column; }
+.cube-forum .talk-group-member-actions { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 34px; }
 .cube-forum .talk-group-menu { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px 40px; padding: 4px; border-radius: 12px; background: var(--talk-bg); }
 .cube-forum .talk-group-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--talk-text); text-align: left; }
 .cube-forum .talk-group-menu button:hover:not(:disabled) { background: var(--talk-card); }

@@ -38,22 +38,16 @@ export const ForumLikers = forwardRef<LikersHandle, { topicId: string; replyId?:
 });
 
 /**
- * The heart button. A tap likes or unlikes; like Instagram, pressing and holding (or right-clicking)
- * opens the list of people who liked the post instead.
+ * A normal click likes or unlikes; right-click opens the list of people who liked it.
  */
 export function ForumLikeButton({ topicId, replyId, liked, count, canLike, label, onToggle }: { topicId: string; replyId?: string; liked: boolean; count: number; canLike: boolean; label: string; onToggle: () => void }) {
   const likers = useRef<LikersHandle>(null);
-  const timer = useRef<number | null>(null), held = useRef(false);
-  const cancel = () => { if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; } };
-  const openLikers = () => { held.current = true; cancel(); likers.current?.open(); };
   return <span className="talk-like-group">
     <button type="button" className={`talk-pill talk-like ${liked ? 'is-liked' : ''}`} aria-disabled={!canLike} aria-pressed={liked}
-      aria-label={`${liked ? 'Unlike' : 'Like'} ${label} · ${count} ${count === 1 ? 'like' : 'likes'}. Press and hold or right-click to see who liked it.`}
-      title={canLike ? `${liked ? 'Unlike' : 'Like'} · hold or right-click to see who liked` : 'Your account has read-only forum access. Hold or right-click to see who liked.'}
-      onPointerDown={event => { if (event.button !== 0) return; held.current = false; cancel(); timer.current = window.setTimeout(openLikers, 500); }}
-      onPointerUp={cancel} onPointerLeave={cancel} onPointerCancel={cancel}
-      onContextMenu={event => { event.preventDefault(); if (!held.current) openLikers(); }}
-      onClick={() => { if (held.current) { held.current = false; return; } if (canLike) onToggle(); }}>
+      aria-label={`${liked ? 'Unlike' : 'Like'} ${label} · ${count} ${count === 1 ? 'like' : 'likes'}. Right-click to see who liked it.`}
+      title={canLike ? `${liked ? 'Unlike' : 'Like'} · right-click to see who liked` : 'Your account has read-only forum access. Right-click to see who liked.'}
+      onContextMenu={event => { event.preventDefault(); if (event.button === 2 && (event.nativeEvent as PointerEvent).pointerType !== 'touch') likers.current?.open(); }}
+      onClick={() => { if (canLike) onToggle(); }}>
       <Heart size={16} fill={liked ? 'currentColor' : 'none'}/>{count > 0 && <span className="talk-like-number">{count}</span>}</button>
     <ForumLikers ref={likers} topicId={topicId} replyId={replyId} count={count} showTrigger={false}/>
   </span>;

@@ -5,7 +5,7 @@ import { api } from '../../utils/api';
 export interface Person { id: string; name: string; role: string; cube_profile?: { cube_number: string } | null }
 export interface GroupMember extends Person { group_role: 'ADMIN' | 'MEMBER'; joined_at: string }
 export interface GroupDetail {
-  id: string; name: string; description: string; created_at: string; my_role: 'ADMIN' | 'MEMBER';
+  mission_id?: string | null; id: string; name: string; description: string; created_at: string; my_role: 'ADMIN' | 'MEMBER';
   can_edit_info: boolean; can_send: boolean; only_admins_edit: boolean; only_admins_send: boolean; members: GroupMember[];
 }
 const base = '/forum/chat';
@@ -44,7 +44,7 @@ export function PeoplePicker({ onAdd, disabled, excluded }: { onAdd: (person: Pe
 
 /** WhatsApp-style group info: name and description, group settings, participants, exit and delete. */
 export function GroupInfo({ room, userId, canPost, onClose, onChanged, onLeft }: { room: GroupDetail; userId: string; canPost: boolean; onClose: () => void; onChanged: () => void; onLeft: () => void }) {
-  const admin = room.my_role === 'ADMIN';
+  const admin = !room.mission_id && room.my_role === 'ADMIN';
   const roomPath = `${base}/rooms/${encodeURIComponent(room.id)}`;
   const [editing, setEditing] = useState(false), [name, setName] = useState(room.name), [description, setDescription] = useState(room.description);
   const [adding, setAdding] = useState(false), [menu, setMenu] = useState(''), [confirm, setConfirm] = useState<'' | 'leave' | 'delete'>('');
@@ -91,7 +91,9 @@ export function GroupInfo({ room, userId, canPost, onClose, onChanged, onLeft }:
             <RoomAvatar name={member.name} size="sm"/>
             <span>{self ? 'You' : member.name}<small>{member.cube_profile ? `Cube #${member.cube_profile.cube_number}` : member.role.charAt(0) + member.role.slice(1).toLowerCase()}</small></span>
             {member.group_role === 'ADMIN' && <span className="talk-group-badge">Group admin</span>}
-            {admin && canPost && !self && <button type="button" className="talk-room-icon-btn" aria-label={`Options for ${member.name}`} aria-expanded={menu === member.id} onClick={() => setMenu(menu === member.id ? '' : member.id)}>⋯</button>}
+            {admin && canPost && <div className="talk-group-member-actions">
+              {!self && <button type="button" className="talk-room-icon-btn" aria-label={`Options for ${member.name}`} aria-expanded={menu === member.id} onClick={() => setMenu(menu === member.id ? '' : member.id)}>⋯</button>}
+            </div>}
           </div>
           {menu === member.id && <div className="talk-group-menu">
             {member.group_role === 'ADMIN'
@@ -104,7 +106,8 @@ export function GroupInfo({ room, userId, canPost, onClose, onChanged, onLeft }:
     </div>
 
     <div className="talk-group-block">
-      <button type="button" className="talk-group-row is-danger" disabled={busy} onClick={() => setConfirm('leave')}><span className="talk-group-icon"><LogOut size={17}/></span>Exit group</button>
+      {!room.mission_id && <button type="button" className="talk-group-row is-danger" disabled={busy} onClick={() => setConfirm('leave')}><span className="talk-group-icon"><LogOut size={17}/></span>Exit group</button>}
+      {room.mission_id && <p className="talk-room-empty">Participants and the room name are managed from the mission.</p>}
       {admin && canPost && <button type="button" className="talk-group-row is-danger" disabled={busy} onClick={() => setConfirm('delete')}><span className="talk-group-icon"><Trash2 size={17}/></span>Delete group</button>}
       {confirm && <div className="talk-chat-delete" role="alert">
         <span>{confirm === 'leave' ? (room.members.length === 1 ? 'You are the last member, so leaving deletes the group and its messages.' : `Exit “${room.name}”?${admin && admins === 1 ? ' Another member will become group admin.' : ''}`) : `Delete “${room.name}” and all of its messages, files, tasks and links for everyone? This cannot be undone.`}</span>

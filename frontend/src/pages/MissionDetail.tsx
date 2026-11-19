@@ -1,3 +1,4 @@
+import { MissionRoomButton } from '../components/MissionRoomButton';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -402,6 +403,7 @@ ${mission.description || 'No description provided.'}
           </div>
         </div>
 
+        <MissionRoomButton missionId={mission.id} canCreate={user?.role === 'ADMIN' || user?.role === 'MENTOR'} />
         {/* Mission Content Cards */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-subtle flex flex-col gap-6">
           <div>

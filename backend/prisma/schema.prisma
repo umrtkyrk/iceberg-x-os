@@ -196,6 +196,7 @@ model CubeProfile {
 }
 
 model Mission {
+  forum_room ForumChatRoom?
   forum_contexts    ForumTopicContext[]
   id                String              @id @default(uuid())
   title             String
@@ -1420,6 +1421,8 @@ model OpsRun {
 
 // Private chat is separate from public topics, search, activity and notifications.
 model ForumChatRoom {
+  mission_id String? @unique
+  mission Mission? @relation(fields: [mission_id], references: [id], onDelete: Cascade)
   id String @id @default(uuid())
   name String
   created_at DateTime @default(now())
