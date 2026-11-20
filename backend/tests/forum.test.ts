@@ -9,9 +9,10 @@ import { changeForumReply, changeForumTopic, createForumReply, reportForumPost, 
 import { HttpError } from '../src/utils/http';
 
 // Forum write unit tests isolate the post-commit quest refresh from a real database.
+const missionRoomFindMany = prisma.forumChatRoom.findMany;
 const cubeQuestFindMany = prisma.cubeQuest.findMany;
-test.before(() => { prisma.cubeQuest.findMany = (async () => []) as any; });
-test.after(() => { prisma.cubeQuest.findMany = cubeQuestFindMany; });
+test.before(() => { prisma.forumChatRoom.findMany = (async () => []) as any; prisma.cubeQuest.findMany = (async () => []) as any; });
+test.after(() => { prisma.forumChatRoom.findMany = missionRoomFindMany; prisma.cubeQuest.findMany = cubeQuestFindMany; });
 
 const cube = { id: 'cube-a', role: 'CUBE' as const };
 const staff = { id: 'mentor-a', role: 'MENTOR' as const };

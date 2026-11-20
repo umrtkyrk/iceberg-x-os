@@ -263,6 +263,22 @@ export default function Forum() {
       setError(err instanceof Error ? err.message : 'The like could not be saved.');
     } finally { likePending.current.delete(post.id); }
   };
+  // Poll votes update existing cards without clearing the feed or moving focus.
+  const pollPending = useRef(false);
+  const pollLocation = useRef(locationKey); pollLocation.current = locationKey;
+  const votePoll = async (path: string, option_ids: string[]) => {
+    if (!canPost || busy || pollPending.current) return;
+    pollPending.current = true; setBusy(true); setError('');
+    const location = locationKey;
+    try {
+      const poll = await api.put<Poll>(path, { option_ids });
+      if (pollLocation.current !== location) return;
+      const patch = <T extends Post>(post: T): T => post.poll?.id === poll.id ? { ...post, poll } : post;
+      setList(prev => ({ ...prev, topics: prev.topics.map(patch) }));
+      setThread(prev => prev && { ...prev, topic: patch(prev.topic), replies: prev.replies.map(comment => ({ ...patch(comment), replies: comment.replies.map(patch) })), acceptedReply: prev.acceptedReply && patch(prev.acceptedReply) });
+    } catch (err) { if (pollLocation.current === location) setError(err instanceof Error ? err.message : 'The vote could not be saved.'); }
+    finally { pollPending.current = false; setBusy(false); }
+  };
   const likeButton = (post: Post, topicId: string, isReply: boolean, title: string) => <ForumLikeButton topicId={topicId} replyId={isReply ? post.id : undefined} liked={!!post.liked} count={post.like_count || 0} canLike={canPost} label={title} onToggle={() => void toggleLike(post, topicId, isReply)}/>;
   const topicUrl = (id: string, replyId?: string) => new URL('/forum?topic=' + encodeURIComponent(id) + (replyId ? '&reply=' + encodeURIComponent(replyId) : ''), window.location.origin).href;
   const copyLink = async (url: string) => {
@@ -387,7 +403,7 @@ export default function Forum() {
         {!hidden && <>
           {accepted && <p className="talk-accepted"><CheckCircle2 size={14}/>Accepted answer</p>}
           {editor?.kind === 'reply' && editor.id === post.id ? editorForm(editor) : post.body && <Markdown text={post.body}/>}
-          {post.poll && thread && <PollCard poll={post.poll} busy={busy} canVote={canPost && !thread.topic.locked} onVote={option_ids => void mutate(async () => { await api.put(`${topicPath}/replies/${encodeURIComponent(post.id)}/poll/vote`, { option_ids }); })}/>}
+          {post.poll && thread && <PollCard poll={post.poll} busy={busy} canVote={canPost && !thread.topic.locked} onVote={option_ids => void votePoll(`${topicPath}/replies/${encodeURIComponent(post.id)}/poll/vote`, option_ids)}/>}
           <div className="talk-actions">
             {thread && likeButton(post, thread.topic.id, true, 'comment')}
             {canPost && !thread?.topic.locked && <button className="talk-pill" disabled={busy} aria-expanded={replyBox?.target.id === post.id} onClick={() => startReply(post, threadId)}><MessageCircle size={14}/>Reply</button>}
@@ -473,7 +489,7 @@ export default function Forum() {
           <h2 className="talk-post-title">{thread.topic.title}</h2>
           <div className="talk-flairs">{flairs(thread.topic)}</div>{contextLinks(thread.topic)}
           {editor?.kind === 'topic' ? editorForm(editor) : <Markdown text={thread.topic.body}/>}
-          {thread.topic.poll && <PollCard poll={thread.topic.poll} busy={busy} canVote={canPost && !thread.topic.locked} onVote={option_ids => void mutate(async () => { await api.put(`${topicPath}/poll/vote`, { option_ids }); })}/>}
+          {thread.topic.poll && <PollCard poll={thread.topic.poll} busy={busy} canVote={canPost && !thread.topic.locked} onVote={option_ids => void votePoll(`${topicPath}/poll/vote`, option_ids)}/>}
           <div className="talk-actions">
             {likeButton(thread.topic, thread.topic.id, false, 'post')}
             <button type="button" className="talk-pill" aria-label={`${thread.comment_count ?? thread.total} comments · write a comment`} onClick={() => document.getElementById('live-reply')?.focus()}><MessageCircle size={16}/>{thread.comment_count ?? thread.total}</button>
@@ -519,7 +535,7 @@ export default function Forum() {
           <h3><Link className="talk-card-title" to={`/forum?topic=${encodeURIComponent(topic.id)}`}>{topic.title}</Link></h3>
           <div className="talk-flairs">{flairs(topic)}{forumReadStatus(topic.last_activity_at, topic.states?.[0]?.read_at) && <span className="talk-flair is-unread">{forumReadStatus(topic.last_activity_at, topic.states?.[0]?.read_at)}</span>}</div>{contextLinks(topic)}
           {preview(topic.body) && <FeedSnippet text={preview(topic.body)}/>}
-          {topic.poll && <PollCard poll={topic.poll} busy={busy} canVote={canPost && !topic.locked} onVote={option_ids => void mutate(async () => { await api.put(`/forum/topics/${encodeURIComponent(topic.id)}/poll/vote`, { option_ids }); })}/>}
+          {topic.poll && <PollCard poll={topic.poll} busy={busy} canVote={canPost && !topic.locked} onVote={option_ids => void votePoll(`/forum/topics/${encodeURIComponent(topic.id)}/poll/vote`, option_ids)}/>}
           {(() => { const cover = firstForumImage(topic.body); return cover && <Link className="talk-feed-image" to={`/forum?topic=${encodeURIComponent(topic.id)}`} tabIndex={-1} aria-hidden="true"><img src={cover.src} alt="" loading="lazy"/></Link>; })()}
           <div className="talk-actions">
             {likeButton(topic, topic.id, false, topic.title)}

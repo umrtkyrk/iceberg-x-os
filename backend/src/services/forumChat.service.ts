@@ -1,3 +1,4 @@
+import { reconcileMissionRooms, syncMissionRoom } from './forumMissionRoom.service';
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { badRequest, forbidden, notFound } from '../utils/http';
@@ -44,11 +45,16 @@ async function lockRoom(tx: Tx, id: string) {
   return room;
 }
 async function membership(tx: Tx, actor: ForumActor, id: string) {
-  const room = await lockRoom(tx, id);
+  let room = await lockRoom(tx, id);
+  if (room.mission_id) { await syncMissionRoom(tx, id); room = (await tx.forumChatRoom.findUnique({ where: { id } }))!; }
   const member = await tx.forumChatMember.findUnique({ where: { room_id_user_id: { room_id: id, user_id: actor.id } } });
   // Same response for absent and inaccessible ids, whatever the caller's portal role.
   if (!member) throw notFound('Chat room not found.');
   return { room, member };
+}
+// A mission owns its room's name and roster; they change only through the mission.
+function assertNotMissionRoom(room: { mission_id: string | null }) {
+  if (room.mission_id) throw forbidden('Mission room name and membership are managed from the mission.');
 }
 function assertGroupAdmin(member: { role: string }, action: string) {
   if (member.role !== 'ADMIN') throw forbidden(`Only group admins can ${action}.`);
@@ -83,10 +89,11 @@ export async function chatPeople(_actor: ForumActor, query: string, page: number
 
 /** The caller's rooms, newest activity first, with the last message like a chat list. */
 export async function listChatRooms(actor: ForumActor, page: number) {
+  await reconcileMissionRooms();
   const where = { members: { some: { user_id: actor.id } } };
   const [total, rooms] = await prisma.$transaction([prisma.forumChatRoom.count({ where }),
     prisma.forumChatRoom.findMany({ where, orderBy: [{ updated_at: 'desc' }, { id: 'asc' }], skip: (page - 1) * size, take: size,
-      select: { id: true, name: true, updated_at: true, _count: { select: { members: true } },
+      select: { id: true, name: true, mission_id: true, updated_at: true, _count: { select: { members: true } },
         members: { where: { user_id: actor.id }, select: { role: true } },
         messages: { orderBy: [{ created_at: 'desc' }, { id: 'desc' }], take: 1,
           select: { body: true, deleted_at: true, created_at: true, author: { select: { id: true, name: true } }, poll: { select: { question: true } }, _count: { select: { attachments: true } } } } } })]);
@@ -118,7 +125,7 @@ export async function chatRoomDetails(actor: ForumActor, id: string) {
   return prisma.$transaction(async tx => {
     const { room, member } = await membership(tx, actor, id);
     const [members, typing, tasks, links, pinned] = await Promise.all([
-      tx.forumChatMember.findMany({ where: { room_id: id }, select: { role: true, joined_at: true, user: { select: person } }, orderBy: [{ role: 'asc' }, { joined_at: 'asc' }] }),
+      tx.forumChatMember.findMany({ where: { room_id: id }, select: { role: true, joined_at: true, user: { select: person } }, orderBy: [{ role: 'asc' }, { joined_at: 'asc' }, { user_id: 'asc' }] }),
       tx.forumChatMember.findMany({ where: { room_id: id, user_id: { not: actor.id }, typing_until: { gt: new Date() } }, select: { user: { select: { id: true, name: true } } } }),
       tx.forumChatTask.findMany({ where: { room_id: id }, orderBy: [{ created_at: 'asc' }, { id: 'asc' }], select: taskSelect }),
       tx.forumChatLink.findMany({ where: { room_id: id }, orderBy: [{ created_at: 'asc' }, { id: 'asc' }], select: linkSelect }),
@@ -127,9 +134,9 @@ export async function chatRoomDetails(actor: ForumActor, id: string) {
     ]);
     const admin = member.role === 'ADMIN';
     return {
-      id: room.id, name: openText(id, room.name), description: openText(id, room.description) || '', created_at: room.created_at,
+      id: room.id, mission_id: room.mission_id, name: openText(id, room.name), description: openText(id, room.description) || '', created_at: room.created_at,
       github_repo: roomRepos(id, room.github_repo)[0] || null, github_repos: roomRepos(id, room.github_repo), only_admins_edit: room.only_admins_edit, only_admins_send: room.only_admins_send,
-      my_role: member.role, can_edit_info: admin || !room.only_admins_edit, can_send: admin || !room.only_admins_send,
+      my_role: member.role, can_edit_info: !room.mission_id && (admin || !room.only_admins_edit), can_send: admin || !room.only_admins_send,
       members: members.map(row => ({ ...row.user, group_role: row.role, joined_at: row.joined_at })), typing: typing.map(row => row.user),
       tasks: tasks.map(task => ({ ...task, title: openText(id, task.title) })),
       links: links.map(link => ({ ...link, title: openText(id, link.title), url: openText(id, link.url) })),
@@ -143,6 +150,7 @@ export async function updateChatRoom(actor: ForumActor, id: string, input: Recor
   await assertForumPosting(actor);
   return prisma.$transaction(async tx => {
     const { room, member } = await membership(tx, actor, id);
+    assertNotMissionRoom(room);
     const data: Prisma.ForumChatRoomUpdateInput = {};
     if (input.name !== undefined || input.description !== undefined) {
       if (room.only_admins_edit) assertGroupAdmin(member, 'edit the group info');
@@ -166,7 +174,8 @@ export async function addChatMembers(actor: ForumActor, id: string, input: Recor
   const ids = userIds(input.user_ids, MAX_MEMBERS);
   if (!ids.length) throw badRequest('Choose at least one person.');
   return prisma.$transaction(async tx => {
-    const { member } = await membership(tx, actor, id);
+    const { room, member } = await membership(tx, actor, id);
+    assertNotMissionRoom(room);
     assertGroupAdmin(member, 'add people');
     await validateMembers(tx, ids);
     const existing = new Set((await tx.forumChatMember.findMany({ where: { room_id: id }, select: { user_id: true } })).map(row => row.user_id));
@@ -181,7 +190,8 @@ export async function setChatMemberRole(actor: ForumActor, id: string, userId: s
   await assertForumPosting(actor);
   if (input.role !== 'ADMIN' && input.role !== 'MEMBER') throw badRequest('Choose admin or member.');
   return prisma.$transaction(async tx => {
-    const { member } = await membership(tx, actor, id);
+    const { room, member } = await membership(tx, actor, id);
+    assertNotMissionRoom(room);
     assertGroupAdmin(member, 'change admins');
     const target = await tx.forumChatMember.findUnique({ where: { room_id_user_id: { room_id: id, user_id: userId } } });
     if (!target) throw notFound('Member not found.');
@@ -201,7 +211,8 @@ async function keepAnAdmin(tx: Tx, id: string) {
 /** Removing someone (group admins) or leaving the group (anyone). The last person to leave deletes the group. */
 export async function removeChatMember(actor: ForumActor, id: string, userId: string) {
   const result = await prisma.$transaction(async tx => {
-    const { member } = await membership(tx, actor, id);
+    const { room, member } = await membership(tx, actor, id);
+    assertNotMissionRoom(room);
     if (userId !== actor.id) {
       await assertForumPosting(actor);
       assertGroupAdmin(member, 'remove people');
@@ -218,7 +229,8 @@ export async function removeChatMember(actor: ForumActor, id: string, userId: st
 
 export async function deleteChatRoom(actor: ForumActor, id: string) {
   const keys = await prisma.$transaction(async tx => {
-    const { member } = await membership(tx, actor, id);
+    const { room, member } = await membership(tx, actor, id);
+    assertNotMissionRoom(room);
     assertGroupAdmin(member, 'delete the group');
     return deleteRoomRows(tx, id);
   });
@@ -371,6 +383,7 @@ export async function chatPresence(actor: ForumActor, roomId: string, input: Rec
 
 /** Aggregate only memberships belonging to the caller. */
 export async function chatUnread(actor: ForumActor) {
+  await reconcileMissionRooms();
   const rows = await prisma.$queryRaw<Array<{ room_id: string; unread: bigint }>>`
     SELECT member.room_id, count(*) AS unread
     FROM "ForumChatMember" member

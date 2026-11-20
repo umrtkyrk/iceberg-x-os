@@ -53,6 +53,7 @@ async function main() {
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117190000_forum_reply_polls/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117200000_forum_chat_pins/migration.sql'), '--schema', baselineFile]);
     run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261117210000_forum_post_visibility/migration.sql'), '--schema', baselineFile]);
+    run(['db', 'execute', '--file', path.join(__dirname, '../prisma/migrations/20261119180000_forum_mission_rooms/migration.sql'), '--schema', baselineFile]);
     db = require('../dist/services/prisma').default;
     const forum = require('../dist/services/forum.service');
     const staff = { id: randomUUID(), role: 'MENTOR' }, cube = { id: randomUUID(), role: 'CUBE' }, other = { id: randomUUID(), role: 'CUBE' };
@@ -455,6 +456,7 @@ async function main() {
     await require('./forumReposts.cjs')({ db, forum, cube, other, staff });
     await require('./forumChatPins.cjs')({ db, chat, room, cube, other, adminActor });
     await require('./forumVisibility.cjs')({ db, forum, room, cube, other, staff, adminActor });
+    await require('./forumMissionRooms.cjs')({ db, chat, cube, other, staff });
     await require('./forumReviewFixes.cjs')({ db, forum, chat, cube, other, staff });
     console.log('PASS: private room roles, API isolation, revocation races, cross-room isolation, history, pagination, safe identities and topic/reply liker lists.');
     // Forum history must not break the portal's existing account-deletion flow.

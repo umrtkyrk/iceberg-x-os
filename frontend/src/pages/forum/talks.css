@@ -702,6 +702,9 @@ html.dark .cube-forum .talk-room-error { color: #fda4af; }
 .cube-forum .talk-room-head-info .is-typing { color: var(--talk-accent); font-weight: 700; }
 .cube-forum .talk-room-notice { align-self: center; display: inline-flex; align-items: center; gap: 6px; max-width: 460px; padding: 6px 12px; border-radius: 10px; background: #fef9c3; color: #713f12; font-size: 11px; text-align: center; }
 html.dark .cube-forum .talk-room-notice { background: #3a3411; color: #fde68a; }
+/* Mission rooms: link back to the mission. Colours come from the --talk-* tokens, which switch in dark mode. */
+.cube-forum .talk-room-mission { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 10px; padding: 8px 12px; border: 1px solid var(--talk-line); border-radius: 10px; background: var(--talk-card); color: var(--talk-muted); font-size: 12px; }
+.cube-forum .talk-room-mission a { color: var(--talk-text); font-weight: 800; }
 .cube-forum .talk-room-readonly { padding: 14px; border-top: 1px solid var(--talk-line); text-align: center; font-size: 13px; color: var(--talk-muted); background: var(--talk-card); }
 
 /* Own messages stay white until everyone in the group has seen them, then turn pink. */
@@ -741,6 +744,7 @@ html.dark .cube-forum .talk-room-notice { background: #3a3411; color: #fde68a; }
 .cube-forum .talk-group-row.is-action .talk-group-icon { background: var(--talk-accent); color: #fff; }
 .cube-forum .talk-group-badge { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: var(--talk-accent-soft); color: var(--talk-accent); font-size: 10px; font-weight: 800; }
 .cube-forum .talk-group-members { display: flex; flex-direction: column; }
+.cube-forum .talk-group-member-actions { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 34px; }
 .cube-forum .talk-group-menu { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px 40px; padding: 4px; border-radius: 12px; background: var(--talk-bg); }
 .cube-forum .talk-group-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--talk-text); text-align: left; }
 .cube-forum .talk-group-menu button:hover:not(:disabled) { background: var(--talk-card); }

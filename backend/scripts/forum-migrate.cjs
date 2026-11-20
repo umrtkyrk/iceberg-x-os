@@ -16,7 +16,7 @@ const likes = '20261111120000_forum_likes';
 const baselineLast = '20261116160000_scoring_v2_engine';
 // Additive forum migrations newer than the baseline. A fresh install already gets their tables from
 // the current schema, so --init-empty records them as applied instead of running them.
-const additive = new Set([likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor', '20261116190000_forum_threads_rooms', '20261117120000_forum_private_groups', '20261117160000_forum_polls', '20261117170000_forum_poll_anonymous', '20261117180000_forum_reposts', '20261117190000_forum_reply_polls', '20261117200000_forum_chat_pins', '20261117210000_forum_post_visibility']);
+const additive = new Set(['20261119180000_forum_mission_rooms', likes, '20261113120000_forum_private_chat', '20261113160000_forum_chat_extras', '20261113190000_forum_chat_unread_cursor', '20261116190000_forum_threads_rooms', '20261117120000_forum_private_groups', '20261117160000_forum_polls', '20261117170000_forum_poll_anonymous', '20261117180000_forum_reposts', '20261117190000_forum_reply_polls', '20261117200000_forum_chat_pins', '20261117210000_forum_post_visibility']);
 // These two historical files contain label-only UPDATEs, not schema changes.
 // Resolve them without executing them, but only if their reviewed contents match.
 const labelOnly = new Map([

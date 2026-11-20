@@ -4,6 +4,33 @@ import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 import postcss from 'postcss';
 import vm from 'node:vm';
+
+test('poll votes patch feed and nested replies in place, preserve data on failure and ignore stale navigation', async () => {
+  const source = readFileSync(new URL('../src/pages/forum/Forum.tsx', import.meta.url), 'utf8');
+  const handler = source.slice(source.indexOf('  const pollPending ='), source.indexOf('  const likeButton ='));
+  const code = ts.transpileModule(`function harness() { ${handler} return { votePoll, pollLocation }; }`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText;
+  const oldPoll = { id: 'poll-a', options: [{ id: 'a', votes: 0 }] }, result = { id: 'poll-a', options: [{ id: 'a', votes: 1, voted: true }] };
+  let list = { topics: [{ id: 'topic', poll: oldPoll }, { id: 'other', poll: { id: 'other-poll' } }], total: 2 };
+  let thread = { topic: { poll: oldPoll }, replies: [{ poll: oldPoll, replies: [{ poll: oldPoll }] }], acceptedReply: { poll: oldPoll } };
+  let resolveVote, busyValue, error;
+  const context = { canPost: true, busy: false, locationKey: 'feed', useRef: value => ({ current: value }),
+    api: { put: () => new Promise(resolve => { resolveVote = resolve; }) },
+    setBusy: value => { busyValue = value; }, setError: value => { error = value; },
+    setList: fn => { list = fn(list); }, setThread: fn => { thread = fn(thread); } };
+  vm.createContext(context); vm.runInContext(code, context); const h = context.harness();
+  const originalList = list, originalThread = thread;
+  const pending = h.votePoll('/poll', ['a']);
+  assert.equal(busyValue, true); assert.equal(list, originalList); assert.equal(thread, originalThread);
+  resolveVote(result); await pending;
+  assert.equal(list.topics[0].poll, result); assert.equal(list.topics[1], originalList.topics[1]);
+  assert.equal(thread.topic.poll, result); assert.equal(thread.replies[0].poll, result);
+  assert.equal(thread.replies[0].replies[0].poll, result); assert.equal(thread.acceptedReply.poll, result); assert.equal(busyValue, false);
+  const before = list;
+  context.api.put = async () => { throw new Error('vote failed'); }; await h.votePoll('/poll', []);
+  assert.equal(list, before); assert.ok(error); assert.equal(busyValue, false);
+  context.api.put = async () => { h.pollLocation.current = 'different-page'; return oldPoll; }; await h.votePoll('/poll', []);
+  assert.equal(list, before);
+});
 // Exercise the actual component's handlers and rendering with deterministic hooks.
 function editorHarness(initial, options = {}) {
   let stored = initial, states = [], refs = [], si = 0, ri = 0, nodes = [];

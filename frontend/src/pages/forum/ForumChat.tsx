@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ChangeEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { ArrowLeft, BarChart3, TrendingUp, Pin, Check, CheckCheck, Lock, Paperclip, Plus, Search, Send, Smile, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { ChatUnreadBadge, useChatUnread } from './ForumChatUnread';
 import { EMOJIS } from '../../components/MarkdownEditor';
@@ -11,7 +12,7 @@ import { GroupInfo, PeoplePicker, RoomAvatar, personLabel, type GroupDetail, typ
 
 interface Room { id: string; name: string; updated_at: string; my_role: 'ADMIN' | 'MEMBER'; _count: { members: number };
   last_message: { created_at: string; body: string; deleted: boolean; author: { id: string; name: string } | null } | null }
-interface Detail extends GroupDetail { typing: { id: string; name: string }[]; github_repo?: string | null; github_repos?: string[];
+interface Detail extends GroupDetail { mission_id?: string | null; typing: { id: string; name: string }[]; github_repo?: string | null; github_repos?: string[];
   pinned?: { id: string; body: string; created_at: string; author: { id: string; name: string } | null }[]; tasks?: RoomTask[]; links?: RoomLink[] }
 interface Attachment { id: string; original_name: string; byte_size: number }
 interface Message { id: string; body: string; created_at: string; pinned_at?: string | null; edited_at: string | null; deleted_at: string | null; author: Person | null;
@@ -59,7 +60,7 @@ const listTime = (value: string) => { const date = new Date(value); return date.
 export function ForumChat({ userId, canPost, isCube = false }: { userId: string; canPost: boolean; isCube?: boolean }) {
   const [creating, setCreating] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]), [total, setTotal] = useState(0), [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(''), [detail, setDetail] = useState<Detail | null>(null);
+  const [selected, setSelected] = useState(() => new URLSearchParams(window.location.search).get('room') || ''), [detail, setDetail] = useState<Detail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]), [messagePage, setMessagePage] = useState(1), [messageTotal, setMessageTotal] = useState(0);
   const [name, setName] = useState(''), [description, setDescription] = useState(''), [members, setMembers] = useState<Person[]>([]), [body, setBody] = useState('');
   const [query, setQuery] = useState(''), [searchDraft, setSearchDraft] = useState(''), [searchOpen, setSearchOpen] = useState(false), [infoOpen, setInfoOpen] = useState(false);
@@ -86,7 +87,7 @@ export function ForumChat({ userId, canPost, isCube = false }: { userId: string;
     const fit = () => { const node = workspace.current; if (node) setWorkspaceHeight(Math.max(480, Math.floor(window.innerHeight - node.getBoundingClientRect().top - 16))); };
     fit(); window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [inRoom]);
+  }, [inRoom, !!detail?.mission_id]); // the mission banner above the workspace changes its top
   const clearDraft = () => { setBody(''); setReplyTo(null); setEditing(null); setEmojiOpen(false); lastTyped.current = 0; };
   const choose = (id: string) => {
     if (uploadingRef.current) return;
@@ -197,6 +198,7 @@ export function ForumChat({ userId, canPost, isCube = false }: { userId: string;
   const errorBox = error && <p className="talk-chat-error" role="alert">{error}<button type="button" className="talk-pill" onClick={() => { setError(''); refresh(); }}>Dismiss</button></p>;
 
   if (inRoom) return <section className="talk-private-chat is-room">
+    {detail?.mission_id && <p className="talk-room-mission"><Link to={`/missions/${encodeURIComponent(detail.mission_id)}`}>Open mission →</Link><span>Membership follows mission assignments.</span></p>}
     <div className="talk-room-workspace" ref={workspace} style={{ height: workspaceHeight ? `${workspaceHeight}px` : undefined, '--room-left': `${leftWidth}px`, '--room-right': `${rightWidth}px` } as CSSProperties}>
       <aside className="talk-room-side is-left" aria-label="Board and pinned links">
         {detail ? <><RoomBoard roomPath={roomPath} tasks={detail.tasks || []} canPost={canPost} onChanged={refresh}/><RoomLinks roomPath={roomPath} links={detail.links || []} canPost={canPost} onChanged={refresh}/></> : <div className="talk-room-panel"><p className="talk-room-empty" role="status">Loading…</p></div>}
