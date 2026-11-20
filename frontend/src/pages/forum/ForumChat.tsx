@@ -87,7 +87,7 @@ export function ForumChat({ userId, canPost, isCube = false }: { userId: string;
     const fit = () => { const node = workspace.current; if (node) setWorkspaceHeight(Math.max(480, Math.floor(window.innerHeight - node.getBoundingClientRect().top - 16))); };
     fit(); window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [inRoom]);
+  }, [inRoom, !!detail?.mission_id]); // the mission banner above the workspace changes its top
   const clearDraft = () => { setBody(''); setReplyTo(null); setEditing(null); setEmojiOpen(false); lastTyped.current = 0; };
   const choose = (id: string) => {
     if (uploadingRef.current) return;
@@ -198,8 +198,8 @@ export function ForumChat({ userId, canPost, isCube = false }: { userId: string;
   const errorBox = error && <p className="talk-chat-error" role="alert">{error}<button type="button" className="talk-pill" onClick={() => { setError(''); refresh(); }}>Dismiss</button></p>;
 
   if (inRoom) return <section className="talk-private-chat is-room">
-    {detail?.mission_id && <div className="talk-alert"><Link to={`/missions/${detail.mission_id}`}>Mission →</Link><span> · Membership follows mission assignments.</span></div>}
-        <div className="talk-room-workspace" ref={workspace} style={{ height: workspaceHeight ? `${workspaceHeight}px` : undefined, '--room-left': `${leftWidth}px`, '--room-right': `${rightWidth}px` } as CSSProperties}>
+    {detail?.mission_id && <p className="talk-room-mission"><Link to={`/missions/${encodeURIComponent(detail.mission_id)}`}>Open mission →</Link><span>Membership follows mission assignments.</span></p>}
+    <div className="talk-room-workspace" ref={workspace} style={{ height: workspaceHeight ? `${workspaceHeight}px` : undefined, '--room-left': `${leftWidth}px`, '--room-right': `${rightWidth}px` } as CSSProperties}>
       <aside className="talk-room-side is-left" aria-label="Board and pinned links">
         {detail ? <><RoomBoard roomPath={roomPath} tasks={detail.tasks || []} canPost={canPost} onChanged={refresh}/><RoomLinks roomPath={roomPath} links={detail.links || []} canPost={canPost} onChanged={refresh}/></> : <div className="talk-room-panel"><p className="talk-room-empty" role="status">Loading…</p></div>}
       </aside>

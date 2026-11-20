@@ -1,4 +1,3 @@
-import { syncMissionRooms } from '../services/forumMissionRoom.service';
 import { Router, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { AuthenticatedRequest, requireAuth } from '../middlewares/auth.middleware';
@@ -19,7 +18,6 @@ const buckets = new Map<string, { count: number; until: number }>();
 const timer = setInterval(() => { for (const [id, bucket] of buckets) if (bucket.until <= Date.now()) buckets.delete(id); }, 60000);
 timer.unref();
 router.use('/forum', (_req, res, next) => FORUM_ENABLED ? next() : res.status(404).json({ error: 'The forum is not enabled yet.' }), requireAuth);
-router.use('/forum', async (_req, res, next) => { try { await syncMissionRooms(); next(); } catch(error) { sendError(res,error); } });
 router.use('/forum', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   if (req.method === 'GET') return next();
   const presence = req.method === 'PUT' && /^\/(?:forum\/)?chat\/rooms\/[^/]+\/presence$/.test(req.path);

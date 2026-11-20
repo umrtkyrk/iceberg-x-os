@@ -38,15 +38,16 @@ export const ForumLikers = forwardRef<LikersHandle, { topicId: string; replyId?:
 });
 
 /**
- * A normal click likes or unlikes; right-click opens the list of people who liked it.
+ * A normal click likes or unlikes. Right-click, or the keyboard context-menu key / Shift+F10,
+ * opens the list of people who liked it; a touch long-press deliberately does not.
  */
 export function ForumLikeButton({ topicId, replyId, liked, count, canLike, label, onToggle }: { topicId: string; replyId?: string; liked: boolean; count: number; canLike: boolean; label: string; onToggle: () => void }) {
   const likers = useRef<LikersHandle>(null);
   return <span className="talk-like-group">
     <button type="button" className={`talk-pill talk-like ${liked ? 'is-liked' : ''}`} aria-disabled={!canLike} aria-pressed={liked}
-      aria-label={`${liked ? 'Unlike' : 'Like'} ${label} · ${count} ${count === 1 ? 'like' : 'likes'}. Right-click to see who liked it.`}
+      aria-label={`${liked ? 'Unlike' : 'Like'} ${label} · ${count} ${count === 1 ? 'like' : 'likes'}. Right-click, or press Shift+F10, to see who liked it.`}
       title={canLike ? `${liked ? 'Unlike' : 'Like'} · right-click to see who liked` : 'Your account has read-only forum access. Right-click to see who liked.'}
-      onContextMenu={event => { event.preventDefault(); if (event.button === 2 && (event.nativeEvent as PointerEvent).pointerType !== 'touch') likers.current?.open(); }}
+      onContextMenu={event => { event.preventDefault(); if ((event.nativeEvent as PointerEvent).pointerType !== 'touch') likers.current?.open(); }}
       onClick={() => { if (canLike) onToggle(); }}>
       <Heart size={16} fill={liked ? 'currentColor' : 'none'}/>{count > 0 && <span className="talk-like-number">{count}</span>}</button>
     <ForumLikers ref={likers} topicId={topicId} replyId={replyId} count={count} showTrigger={false}/>

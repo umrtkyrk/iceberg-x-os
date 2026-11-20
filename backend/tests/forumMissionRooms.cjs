@@ -1,6 +1,6 @@
 module.exports = async ({db, chat, cube, other, staff}) => {
   const assert = require('node:assert/strict');
-  const {missionRoom} = require('../dist/services/forumMissionRoom.service');
+  const {missionRoom, reconcileMissionRoomsNow} = require('../dist/services/forumMissionRoom.service');
   const mission = await db.mission.create({data:{title:'Mission room regression',description:'QA',context:'QA',problem_statement:'QA',expected_output:'QA',difficulty_level:'Level_4_Integration_Candidate',created_by_id:staff.id}});
   const profile = await db.cubeProfile.findUnique({where:{user_id:cube.id}});
   const otherProfile = await db.cubeProfile.findUnique({where:{user_id:other.id}});
@@ -9,12 +9,20 @@ module.exports = async ({db, chat, cube, other, staff}) => {
   const {room} = await missionRoom(staff,mission.id,true);
   assert.equal((await missionRoom(staff,mission.id,true)).room.id,room.id);
   assert.ok((await missionRoom(cube,mission.id)).room);
+  // A steady-state check is read-only: the sealed name (random IV) is not rewritten on every request.
+  const sealed = (await db.forumChatRoom.findUnique({where:{id:room.id}})).name;
+  await missionRoom(cube,mission.id); await reconcileMissionRoomsNow();
+  assert.equal((await db.forumChatRoom.findUnique({where:{id:room.id}})).name, sealed);
   assert.equal((await missionRoom(other,mission.id)).room,null);
   await chat.sendChatMessage(staff,room.id,{body:'History stays visible to new assignees.'});
   await db.missionTeamMember.create({data:{team_id:team.id,cube_id:otherProfile.id}});
   assert.ok((await missionRoom(other,mission.id)).room);
   await chat.chatMessages(other,room.id,1);
   await db.missionTeamMember.deleteMany({where:{team_id:team.id,cube_id:otherProfile.id}});
+  // The background pass drops removed assignees from room lists without any room request.
+  await reconcileMissionRoomsNow();
+  assert.equal(await db.forumChatMember.count({where:{room_id:room.id,user_id:other.id}}),0);
+  assert.ok(!(await chat.listChatRooms(other,1)).rooms.some(r=>r.id===room.id));
   await assert.rejects(chat.chatMessages(other,room.id,1), e=>e.status===404);
   await assert.rejects(chat.withChatMember(other,room.id,async()=>true), e=>e.status===404);
   await assert.rejects(chat.addChatMembers(staff,room.id,{user_ids:[other.id]}),e=>e.status===403);
